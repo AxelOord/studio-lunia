@@ -12,6 +12,9 @@ import sys
 import warnings
 from urllib.parse import parse_qs, quote, unquote, urlsplit, urlunsplit
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from preview_backup import verified_backup
+
 ROOT = Path(__file__).resolve().parent.parent
 ROLE = "lunia_runtime"
 DATABASE = "lunia_preview"
@@ -202,14 +205,11 @@ def main():
     target = input("Type the approved branch endpoint hostname/lunia_preview from Neon: ").strip()
     if target != url.hostname + url.path:
         raise SetupError("Target confirmation does not match.")
-    backup = input("Verified pre-migration backup reference (not a secret URL): ").strip()
-    if not backup or "://" in backup:
-        raise SetupError("A verified backup reference is required.")
     secret = hidden("Existing PAYLOAD_SECRET used for this preview (hidden): ", 32)
     email = input("Approved editor/test email: ").strip()
     if "@" not in email or any(c in email for c in "\r\n"):
         raise SetupError("An approved editor email is required.")
-    env = child_env(owner, secret, email, target, backup)
+    env = child_env(owner, secret, email, target)
     metadata = psql("Target check", "SELECT current_user || '|' || current_database() || '|' || current_setting('server_version_num');", env)
     values = metadata.split("|")
     if len(values) != 3 or values[:2] != ["neondb_owner", DATABASE] or not 180000 <= int(values[2]) < 190000:
@@ -218,6 +218,8 @@ def main():
         if psql("Existing editor check", "SELECT count(*) FROM public.users;", env) != "0":
             raise SetupError("An editor already exists; this first-setup helper will not rotate passwords or repeat setup.")
 
+    backup = verified_backup(env, run, psql, child_env, SetupError)
+    env["LUNIA_BACKUP_REFERENCE"] = backup
     operator = ["node_modules/.bin/tsx", "scripts/preview-operator.ts"]
     run("Migration", operator + ["migrate"], env)
     print("Migrations completed.")
@@ -237,7 +239,7 @@ def main():
         raise SetupError("Editor passwords did not match; no editor was created.")
     run("Editor bootstrap", operator + ["bootstrap"], runtime_env,
         json.dumps({"email": email, "password": editor_password}))
-    print("First editor created. No credentials or connection URLs were printed or saved.")
+    print("First editor created. No supplied connection URLs or passwords were printed or saved.")
     print("In Neon choose this branch/database, lunia_runtime and pooling. Enter that runtime URL directly into the branch-only Vercel secure field. Hosted acceptance is still required.")
 
 

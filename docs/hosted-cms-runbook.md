@@ -109,20 +109,37 @@ These PATH changes affect only the current terminal. Preflight now names missing
 wrong major versions, start failures and timeouts separately, before collecting secrets.
 
 Prerequisites: the approved Neon branch/database and restricted lunia_runtime role already
-exist; a verified pre-migration backup/reference is available; hosted CMS remains disabled.
+exist; the owner can create/remove a disposable restore-check database on that branch;
+encrypted local backup storage is available; hosted CMS remains disabled and quiescent.
 The helper prompts for the direct neondb_owner connection URL, separately typed branch
-endpoint hostname/database, backup reference, the same PAYLOAD_SECRET securely configured
+endpoint hostname/database, the same PAYLOAD_SECRET securely configured
 for Vercel, and the approved editor email. URL, secrets and both passwords use hidden input.
 Do not paste them into chat or run setup in a recorded/shared agent terminal. No remote
 secret-input channel was available to the agent in this session.
 
-The helper verifies PostgreSQL 18 and the exact owner/database, refuses an existing editor,
-runs the existing serialized migration command, applies current/future schema/table/sequence
+The helper verifies PostgreSQL 18 and the exact owner/database and refuses an existing editor.
+It creates a real custom-format pg*dump archive, restores it into a newly generated
+lunia_restore_check*\* database on the same branch, compares the public schema and table row
+counts, rechecks source consistency and removes only that generated database. No FORCE or
+user-supplied DROP target is used. The archive and SHA-256 verification manifest remain in
+a private directory (0700; files 0600), and its actual manifest path becomes the backup
+reference automatically. No manually invented reference is accepted by this wrapper.
+
+The dump is not individually encrypted. On macOS, confirmed FileVault plus a home directory
+on the Data volume permits a new private directory in the user's home. Otherwise the user
+must select and explicitly confirm an existing encrypted storage location. Keep the archive
+on encrypted storage; copying it elsewhere requires separate protection. A failed export,
+restore, consistency check or cleanup stops before migrations. Backup verification does not
+prove the later hosted CMS/media recovery acceptance and does not replace quiescing writes.
+
+Only after verified backup/restore does the helper run the serialized migration command,
+apply current/future schema/table/sequence
 grants, sets the runtime password through psql's encrypted password flow, verifies restricted
 runtime access, and bootstraps the editor with runtime privileges. It denies runtime DDL,
 database creation/temp privileges and migration-history writes. Child output is withheld;
 only stage results are printed. Inputs stay in process memory/child environment/stdin and
-are not written to repo files or command arguments. The helper does not create providers,
+are not written to repo files or command arguments. Database contents in the backup are
+sensitive and protected by the chosen encrypted storage boundary. The helper does not create providers,
 generate credentials silently, connect Vercel, send mail or deploy.
 
 After success, use Neon's connection dialog for this branch, lunia_preview, lunia_runtime
@@ -138,6 +155,12 @@ output contained none of the supplied secrets. Nine helper tests check URL/targe
 URL encoding, environment isolation, redacted errors/stdin-only password transport and
 noninteractive refusal, missing tools, version mismatches and safe preflight failures.
 This is not evidence of a completed hosted setup.
+
+Backup follow-up: a real PG18.6 archive containing a synthetic table and row was restored
+and checked before the complete migrate/grants/password/bootstrap flow. File modes were
+verified, and no supplied secrets appeared in output. Four further tests cover the verified
+reference, restore failure cleanup, create failure without DROP, and row-count mismatch.
+The local synthetic fixture did not claim to test macOS FileVault or a hosted Neon restore.
 
 ### Individual operator commands
 
