@@ -2,10 +2,12 @@
 """User-terminal-only setup; no secrets in argv, files or forwarded child output."""
 
 import getpass
+import hashlib
 import json
 import os
 import re
 import shutil
+import stat
 from pathlib import Path
 import subprocess
 import sys
@@ -183,12 +185,79 @@ def check_tools(env):
 
 
 def hidden(label, minimum=1):
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", getpass.GetPassWarning)
-        value = getpass.getpass(label)
-    if len(value) < minimum or any(c in value for c in "\n\r\x00"):
-        raise SetupError("Input is missing, too short or contains a forbidden control character.")
-    return value
+    while True:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", getpass.GetPassWarning)
+            value = getpass.getpass(label)
+        if len(value) >= minimum and not any(c in value for c in "\n\r\x00"):
+            return value
+        print(f"Use at least {minimum} characters, without newline, carriage return or NUL. Please try again (Ctrl-C cancels).")
+
+
+def confirmed_password(label, minimum):
+    while True:
+        password = hidden(f"{label} (hidden, at least {minimum} characters; save in your password manager): ", minimum)
+        if password == hidden("Repeat password (hidden): ", minimum):
+            return password
+        print("Passwords did not match. Please try again; nothing has been changed.")
+
+
+def resume_reference(filename):
+    """Only resume from this helper's actual retained and checksum-verified archive."""
+    try:
+        manifest = Path(filename).expanduser().resolve()
+        record = json.loads(manifest.read_text())
+        archive = manifest.parent / "before-migration.dump"
+        for path in (manifest, archive):
+            info = path.stat()
+            if info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o600:
+                raise ValueError()
+        digest = hashlib.sha256()
+        with archive.open("rb") as data:
+            for chunk in iter(lambda: data.read(1024 * 1024), b""):
+                digest.update(chunk)
+        if (record.get("restoreVerified") is not True or record.get("archive") != archive.name
+                or record.get("sha256") != digest.hexdigest()
+                or record.get("bytes") != archive.stat().st_size
+                or not isinstance(record.get("source"), str)):
+            raise ValueError()
+        return str(manifest), record["source"]
+    except (OSError, ValueError, TypeError, KeyError):
+        raise SetupError("Resume requires the original verified-backup.json and matching private archive. No changes made.") from None
+
+
+def verify_resume(env):
+    expected = "20261004_164202_initial\n20261004_175013_hosted_preview"
+    if psql("Resume migration check", "SELECT name FROM public.payload_migrations ORDER BY name;", env) != expected:
+        raise SetupError("Recorded migrations do not match this setup version; resume stopped without changes.")
+    psql("Resume schema check", "SELECT prefix, _objectkey FROM public.media LIMIT 0; SELECT version_prefix, version__objectkey FROM public._media_v LIMIT 0; SELECT key, attempts, expires_at FROM public.lunia_rate_limits LIMIT 0;", env)
+    # Read-only catalog checks: no grants, backup or migrations are repeated.
+    state = psql("Resume runtime grants check", """
+SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='lunia_runtime' AND rolcanlogin
+  AND NOT rolsuper AND NOT rolcreatedb AND NOT rolcreaterole AND NOT rolreplication AND NOT rolbypassrls)
+AND NOT EXISTS (SELECT 1 FROM pg_auth_members m JOIN pg_roles r ON r.oid=m.member WHERE r.rolname='lunia_runtime')
+AND NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_roles r ON r.oid=c.relowner WHERE r.rolname='lunia_runtime')
+AND NOT EXISTS (SELECT 1 FROM pg_database d JOIN pg_roles r ON r.oid=d.datdba WHERE r.rolname='lunia_runtime')
+AND has_database_privilege('lunia_runtime', current_database(), 'CONNECT')
+AND has_schema_privilege('lunia_runtime', 'public', 'USAGE')
+AND NOT has_schema_privilege('lunia_runtime', 'public', 'CREATE')
+AND NOT has_database_privilege('lunia_runtime', current_database(), 'CREATE')
+AND NOT has_database_privilege('lunia_runtime', current_database(), 'TEMP')
+AND (SELECT bool_and(has_table_privilege('lunia_runtime', c.oid, p.priv))
+  FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+  CROSS JOIN (VALUES ('SELECT'),('INSERT'),('UPDATE'),('DELETE')) p(priv)
+  WHERE n.nspname='public' AND c.relkind IN ('r','p') AND c.relname <> 'payload_migrations')
+AND (SELECT bool_and(has_sequence_privilege('lunia_runtime', c.oid, 'USAGE'))
+  FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+  WHERE n.nspname='public' AND c.relkind='S' AND c.relname <> 'payload_migrations_id_seq')
+AND has_table_privilege('lunia_runtime','public.payload_migrations','SELECT')
+AND NOT has_table_privilege('lunia_runtime','public.payload_migrations','INSERT')
+AND NOT has_table_privilege('lunia_runtime','public.payload_migrations','UPDATE')
+AND NOT has_table_privilege('lunia_runtime','public.payload_migrations','DELETE')
+AND NOT has_sequence_privilege('lunia_runtime','public.payload_migrations_id_seq','USAGE');
+""", env)
+    if state != "t":
+        raise SetupError("Runtime grants differ from the completed setup stage; resume stopped without changes.")
 
 
 def main():
@@ -198,11 +267,16 @@ def main():
         raise SetupError("Install the pinned dependencies with Node 24 and npm ci first.")
     env = child_env("")
     check_tools(env)
+    resume = None
+    if len(sys.argv) == 3 and sys.argv[1] == "--resume":
+        resume = resume_reference(sys.argv[2])
+    elif len(sys.argv) != 1:
+        raise SetupError("Use preview:setup or preview:setup -- --resume /path/to/verified-backup.json.")
 
     print("Private local setup for the approved hosted-cms-preview branch; no Vercel changes.")
     owner = hidden("Direct Neon owner URL (hidden): ")
     url = owner_url(owner)
-    target = input("Type the approved branch endpoint hostname/lunia_preview from Neon: ").strip()
+    target = resume[1] if resume else input("Type the approved branch endpoint hostname/lunia_preview from Neon: ").strip()
     if target != url.hostname + url.path:
         raise SetupError("Target confirmation does not match.")
     secret = hidden("Existing PAYLOAD_SECRET used for this preview (hidden): ", 32)
@@ -217,16 +291,22 @@ def main():
     if psql("Existing installation check", "SELECT to_regclass('public.users') IS NOT NULL;", env) == "t":
         if psql("Existing editor check", "SELECT count(*) FROM public.users;", env) != "0":
             raise SetupError("An editor already exists; this first-setup helper will not rotate passwords or repeat setup.")
+    elif resume:
+        raise SetupError("Editor table missing; resume stopped without changes.")
 
-    backup = verified_backup(env, run, psql, child_env, SetupError)
+    if resume:
+        verify_resume(env)
+        print("Existing backup, migrations, zero editors and runtime grants verified. Resuming password/bootstrap only.")
+    # Validate all new passwords before any database mutation or backup work.
+    password = confirmed_password("New runtime database password", 24)
+    editor_password = confirmed_password("First editor password", 16)
+    backup = resume[0] if resume else verified_backup(env, run, psql, child_env, SetupError)
     env["LUNIA_BACKUP_REFERENCE"] = backup
     operator = ["node_modules/.bin/tsx", "scripts/preview-operator.ts"]
-    run("Migration", operator + ["migrate"], env)
-    print("Migrations completed.")
-    psql("Runtime grants", GRANTS, env)
-    password = hidden("New runtime database password (hidden; save in your password manager): ", 24)
-    if password != hidden("Repeat runtime password (hidden): ", 24):
-        raise SetupError("Passwords did not match; runtime password was not changed.")
+    if not resume:
+        run("Migration", operator + ["migrate"], env)
+        print("Migrations completed.")
+        psql("Runtime grants", GRANTS, env)
     # A new session has no controlling tty: psql reads both hidden prompt answers from
     # the pipe and uses libpq password encryption. No plaintext password in SQL/argv.
     psql("Runtime password", "\\password lunia_runtime", env, password + "\n" + password + "\n")
@@ -234,9 +314,6 @@ def main():
     runtime_env = child_env(runtime, secret, email, target, backup)
     psql("Restricted runtime access", RUNTIME_CHECK, runtime_env)
     print("Runtime password set; restricted connection and transactional read/write check passed.")
-    editor_password = hidden("First editor password (hidden; save in your password manager): ", 16)
-    if editor_password != hidden("Repeat editor password (hidden): ", 16):
-        raise SetupError("Editor passwords did not match; no editor was created.")
     run("Editor bootstrap", operator + ["bootstrap"], runtime_env,
         json.dumps({"email": email, "password": editor_password}))
     print("First editor created. No supplied connection URLs or passwords were printed or saved.")

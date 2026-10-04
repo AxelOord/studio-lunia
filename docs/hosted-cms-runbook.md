@@ -89,6 +89,26 @@ npm ci
 npm run preview:setup
 ```
 
+If setup stopped after migrations but before the first editor was created, resume using
+the existing backup directory printed by the successful backup step:
+
+```sh
+npm run preview:setup -- --resume /path/to/StudioLuniaBackup-xxxx/verified-backup.json
+```
+
+Resume verifies the retained archive checksum/private permissions, matching endpoint,
+recorded migrations/schema, zero editors and existing restricted runtime grants. It does
+not repeat backup, migrations or grants. It then sets the runtime password and bootstraps
+the first editor. Owner URL and PAYLOAD_SECRET must be re-entered because they are never
+persisted by the helper; the endpoint confirmation is recovered from the verified manifest.
+An existing editor stops resume before password changes.
+
+Runtime passwords require at least 24 characters; editor passwords require at least 16.
+Spaces and symbols are allowed; newline, carriage return and NUL are not. Input is hidden
+without asterisks. Invalid input or mismatched confirmation asks again, without exiting.
+Both password pairs are collected and validated before any new mutation, including on
+fresh setup. Ctrl-C still cancels safely.
+
 On macOS with Homebrew, the verified client-only option on 2026-10-04 is
 [libpq](https://formulae.brew.sh/formula/libpq), currently major 18 (also aliased libpq@18).
 It is keg-only, so add its bin directory to the current terminal's PATH:
@@ -151,7 +171,7 @@ CMS or repeatedly rotate passwords to diagnose it. Report the failed stage only.
 Local evidence: all stages exercised against disposable PostgreSQL 18.6 with synthetic
 inputs and a non-owner runtime role, including a password containing URI-special characters,
 runtime DML/no-DDL checks, bootstrap and repeat refusal before password rotation. Captured
-output contained none of the supplied secrets. Nine helper tests check URL/target rejection,
+output contained none of the supplied secrets. Helper tests check URL/target rejection,
 URL encoding, environment isolation, redacted errors/stdin-only password transport and
 noninteractive refusal, missing tools, version mismatches and safe preflight failures.
 This is not evidence of a completed hosted setup.
@@ -161,6 +181,12 @@ and checked before the complete migrate/grants/password/bootstrap flow. File mod
 verified, and no supplied secrets appeared in output. Four further tests cover the verified
 reference, restore failure cleanup, create failure without DROP, and row-count mismatch.
 The local synthetic fixture did not claim to test macOS FileVault or a hosted Neon restore.
+
+Resume follow-up: a real PG18.6 fixture was left after verified backup, migrations and grants,
+matching the reported interruption before runtime password assignment. Resume tolerated
+empty/short password attempts, performed no backup/migration/grant replay, and completed
+runtime access plus bootstrap with one editor and two migration records. Four added tests
+cover hidden-input retries, confirmation mismatch, archive integrity and read-only state checks.
 
 ### Individual operator commands
 

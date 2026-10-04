@@ -1,7 +1,10 @@
 import importlib.util
+import hashlib
+import json
 import os
 from pathlib import Path
 import subprocess
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -16,6 +19,48 @@ OWNER = "postgresql://neondb_owner:hidden-test-only@ep-synthetic.eu-central-1.aw
 
 
 class PreviewSetupTests(unittest.TestCase):
+    def test_hidden_input_retries_without_printing_values(self):
+        valid = "synthetic-valid-password-123456789"
+        with patch.object(setup.getpass, "getpass", side_effect=["", "short-secret", "bad\n" + valid, valid]), patch("builtins.print") as output:
+            self.assertEqual(setup.hidden("Password: ", 24), valid)
+        self.assertEqual(output.call_count, 3)
+        self.assertNotIn("short-secret", str(output.call_args_list))
+        self.assertNotIn(valid, str(output.call_args_list))
+
+    def test_password_mismatch_retries_before_any_mutation(self):
+        first = "synthetic-first-password-123456789"
+        second = "synthetic-second-password-123456789"
+        with patch.object(setup.getpass, "getpass", side_effect=[first, second, second, second]), patch("builtins.print"), patch.object(setup, "psql") as sql:
+            self.assertEqual(setup.confirmed_password("Runtime password", 24), second)
+        sql.assert_not_called()
+
+    def test_resume_requires_matching_actual_private_archive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            archive = Path(directory) / "before-migration.dump"
+            archive.write_bytes(b"synthetic-backup")
+            archive.chmod(0o600)
+            manifest = Path(directory) / "verified-backup.json"
+            manifest.write_text(json.dumps({"archive": archive.name, "restoreVerified": True,
+                "source": "ep-test.neon.tech/lunia_preview", "bytes": archive.stat().st_size,
+                "sha256": hashlib.sha256(archive.read_bytes()).hexdigest()}))
+            manifest.chmod(0o600)
+            self.assertEqual(setup.resume_reference(str(manifest))[1], "ep-test.neon.tech/lunia_preview")
+            archive.write_bytes(b"changed")
+            with self.assertRaises(setup.SetupError):
+                setup.resume_reference(str(manifest))
+
+    def test_resume_state_must_match_and_only_uses_read_queries(self):
+        migrations = "20261004_164202_initial\n20261004_175013_hosted_preview"
+        with patch.object(setup, "psql", side_effect=[migrations, "", "t"]) as sql:
+            setup.verify_resume({})
+        self.assertTrue(all(call.args[1].lstrip().startswith("SELECT") for call in sql.call_args_list))
+        with patch.object(setup, "psql", return_value="wrong-migration"):
+            with self.assertRaises(setup.SetupError):
+                setup.verify_resume({})
+        with patch.object(setup, "psql", side_effect=[migrations, "", "f"]):
+            with self.assertRaises(setup.SetupError):
+                setup.verify_resume({})
+
     def test_preflight_names_missing_executable_before_running_it(self):
         with patch.object(setup.shutil, "which", return_value=None), patch.object(setup.subprocess, "run") as run:
             with self.assertRaisesRegex(setup.SetupError, "No executable psql found on PATH"):
