@@ -78,6 +78,49 @@ operational gate. Do not delete all old objects by prefix: retained versions may
 
 ## Migrate and bootstrap
 
+### First setup from the user's own terminal
+
+Use Linux/macOS/WSL, Node 24.19.0, npm 11, Python 3 and native PostgreSQL 18 client tools
+(`psql` on PATH; `pg_dump` for the required backup). Docker is not required for hosted
+setup. Use the reviewed feature/hosted-cms-preview checkout and run:
+
+```sh
+npm ci
+npm run preview:setup
+```
+
+Prerequisites: the approved Neon branch/database and restricted lunia_runtime role already
+exist; a verified pre-migration backup/reference is available; hosted CMS remains disabled.
+The helper prompts for the direct neondb_owner connection URL, separately typed branch
+endpoint hostname/database, backup reference, the same PAYLOAD_SECRET securely configured
+for Vercel, and the approved editor email. URL, secrets and both passwords use hidden input.
+Do not paste them into chat or run setup in a recorded/shared agent terminal. No remote
+secret-input channel was available to the agent in this session.
+
+The helper verifies PostgreSQL 18 and the exact owner/database, refuses an existing editor,
+runs the existing serialized migration command, applies current/future schema/table/sequence
+grants, sets the runtime password through psql's encrypted password flow, verifies restricted
+runtime access, and bootstraps the editor with runtime privileges. It denies runtime DDL,
+database creation/temp privileges and migration-history writes. Child output is withheld;
+only stage results are printed. Inputs stay in process memory/child environment/stdin and
+are not written to repo files or command arguments. The helper does not create providers,
+generate credentials silently, connect Vercel, send mail or deploy.
+
+After success, use Neon's connection dialog for this branch, lunia_preview, lunia_runtime
+and pooling. Use the runtime password you just saved in your password manager and enter the
+runtime URL directly into Vercel's secure field scoped to Preview/feature/hosted-cms-preview.
+Never put the owner URL there. A partial failure stops before the next stage; do not enable
+CMS or repeatedly rotate passwords to diagnose it. Report the failed stage only.
+
+Local evidence: all stages exercised against disposable PostgreSQL 18.6 with synthetic
+inputs and a non-owner runtime role, including a password containing URI-special characters,
+runtime DML/no-DDL checks, bootstrap and repeat refusal before password rotation. Captured
+output contained none of the supplied secrets. Five helper tests check URL/target rejection,
+URL encoding, environment isolation, redacted errors/stdin-only password transport and
+noninteractive refusal. This is not evidence of a completed hosted setup.
+
+### Individual operator commands
+
 1. Approve resources, limits and scoped grants; record IDs without credentials. Keep
    LUNIA_SHOWCASE=true / deployment disabled until the reviewed deployment is prepared.
 2. Use the migration-owner connection only in the operator session, with TLS. Set
