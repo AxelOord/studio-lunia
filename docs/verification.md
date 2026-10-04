@@ -43,6 +43,12 @@ was deployed only as a feature preview.
 See docs/vercel.md; final preview and exact-head CI results are reported in the PR/task.
 Push and PR CI passed on foundation commit 96e79fba90efe853f6f6cbad8693187548d969b2.
 
+Run 37218304190 installed and reported application Node v24.19.0 in setup-node.
+Its Node 20 warning referred to checkout/setup-node/upload-artifact v4 action manifests;
+the runner explicitly forced those actions onto Node 24. They are now pinned to official
+checkout v7.0.1, setup-node v7.0.0 and upload-artifact v7.0.1 commit SHAs, whose manifests
+declare node24. CI also asserts the actual application Node version against .node-version.
+
 ## Visual evidence
 
 - [Desktop](evidence/home-desktop.png)
