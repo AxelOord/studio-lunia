@@ -19,6 +19,24 @@ OWNER = "postgresql://neondb_owner:hidden-test-only@ep-synthetic.eu-central-1.aw
 
 
 class PreviewSetupTests(unittest.TestCase):
+    def test_postgres_diagnostics_only_emit_allowlisted_categories(self):
+        secret = "sensitive-provider-detail"
+        for stderr, expected in (("ERROR:  42501\n" + secret, "insufficient-privilege; SQLSTATE=42501"),
+                                 ("FATAL:  28P01 " + secret, "authentication; SQLSTATE=28P01"),
+                                 ("Passwords didn't match. " + secret, "prompt-mismatch"),
+                                 (secret + " ERROR: XXXXX", "unclassified")):
+            with self.subTest(expected=expected):
+                self.assertEqual(setup.postgres_failure(stderr), expected)
+                result = subprocess.CompletedProcess([], 1, secret, stderr)
+                with patch.object(setup.subprocess, "run", return_value=result) as run:
+                    with self.assertRaises(setup.SetupError) as caught:
+                        setup.psql("Runtime password", "\\password lunia_runtime", {}, secret)
+                self.assertNotIn(secret, str(caught.exception))
+                self.assertIn(expected, str(caught.exception))
+                self.assertIn("Password state is unknown", str(caught.exception))
+                self.assertIn("-w", run.call_args.args[0])
+                self.assertIn("VERBOSITY=sqlstate", run.call_args.args[0])
+
     def test_hidden_input_retries_without_printing_values(self):
         valid = "synthetic-valid-password-123456789"
         with patch.object(setup.getpass, "getpass", side_effect=["", "short-secret", "bad\n" + valid, valid]), patch("builtins.print") as output:

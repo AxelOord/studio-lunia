@@ -166,7 +166,10 @@ After success, use Neon's connection dialog for this branch, lunia_preview, luni
 and pooling. Use the runtime password you just saved in your password manager and enter the
 runtime URL directly into Vercel's secure field scoped to Preview/feature/hosted-cms-preview.
 Never put the owner URL there. A partial failure stops before the next stage; do not enable
-CMS or repeatedly rotate passwords to diagnose it. Report the failed stage only.
+CMS or repeatedly rotate passwords to diagnose it. Report the failed stage and the helper's
+fixed diagnostic category/SQLSTATE only; never share raw subprocess output. A failed password
+command leaves its application status unknown. Use a current owner URL after any owner
+credential rotation; do not recover a stale URL from logs or browser snapshots.
 
 Local evidence: all stages exercised against disposable PostgreSQL 18.6 with synthetic
 inputs and a non-owner runtime role, including a password containing URI-special characters,
@@ -187,6 +190,18 @@ matching the reported interruption before runtime password assignment. Resume to
 empty/short password attempts, performed no backup/migration/grant replay, and completed
 runtime access plus bootstrap with one editor and two migration records. Four added tests
 cover hidden-input retries, confirmation mismatch, archive integrity and read-only state checks.
+
+Password diagnostics follow-up: PostgreSQL 18's `\password` uses a terminal when present,
+otherwise stdin, and libpq's client-side password encryption. The helper starts a new session
+without a controlling terminal and now passes `-w` to prohibit a separate connection-password
+prompt. `VERBOSITY=sqlstate` plus an allowlist produces safe categories, never provider text.
+A disposable PG18.6 test using a NOSUPERUSER/CREATEDB/CREATEROLE owner that created the runtime
+role successfully changed and authenticated a password with quotes, backslash, URI punctuation
+and non-ASCII characters. A separately owned role was denied with SQLSTATE 42501. This tests
+Linux subprocess behavior and PostgreSQL permissions; it does not reproduce macOS/Neon failure
+or establish its cause. Hosted setup remains stopped pending a safe diagnostic result.
+Source inspection: PostgreSQL 18 [prompt handling](https://github.com/postgres/postgres/blob/REL_18_STABLE/src/common/sprompt.c)
+and [password command](https://github.com/postgres/postgres/blob/REL_18_STABLE/src/bin/psql/command.c).
 
 ### Individual operator commands
 

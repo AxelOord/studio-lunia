@@ -114,7 +114,7 @@ def child_env(database, secret="", email="", target="", backup=""):
            if k in os.environ}
     env.update({
         "DATABASE_URL": database, "PAYLOAD_SECRET": secret,
-        "PGCONNECT_TIMEOUT": "15", "PGAPPNAME": "lunia-preview-operator",
+        "PGCONNECT_TIMEOUT": "15", "PGAPPNAME": "lunia-preview-operator", "LC_MESSAGES": "C",
         "PGSSLMODE": "require", "NODE_ENV": "production",
         "PREVIEW_EDITOR_EMAIL": email, "LUNIA_OPERATOR_TARGET": target,
         "LUNIA_BACKUP_REFERENCE": backup, "LUNIA_SHOWCASE": "false",
@@ -134,12 +134,37 @@ def child_env(database, secret="", email="", target="", backup=""):
     return env
 
 
+def postgres_failure(stderr):
+    """Return only fixed categories / known SQLSTATEs, never provider output."""
+    codes = {"42501": "insufficient-privilege", "28P01": "authentication",
+             "28000": "authorization", "08001": "connection", "08006": "connection",
+             "42704": "missing-role", "22023": "invalid-parameter", "55000": "object-state"}
+    for code, category in codes.items():
+        if re.search(r"\b(?:ERROR|FATAL):\s+" + code + r"\b", stderr):
+            return category + "; SQLSTATE=" + code
+    for fragment, category in (("Passwords didn't match", "prompt-mismatch"),
+                               ("password authentication failed", "authentication"),
+                               ("no password supplied", "connection-password-missing"),
+                               ("could not translate host name", "dns"),
+                               ("Connection refused", "connection-refused"),
+                               ("timeout expired", "connection-timeout"),
+                               ("certificate verify failed", "tls-verification")):
+        if fragment in stderr:
+            return category
+    return "unclassified"
+
+
 def run(stage, args, env, data=None, timeout=300):
     try:
         result = subprocess.run(args, cwd=ROOT, env=env, input=data, text=True,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 timeout=timeout, start_new_session=True)
         if result.returncode:
+            if Path(args[0]).name == "psql":
+                category = postgres_failure(result.stderr)
+                uncertainty = " Password state is unknown." if stage == "Runtime password" else ""
+                raise SetupError(stage + " failed [" + category + "; exit=" + str(result.returncode)
+                                 + "]; output withheld." + uncertainty + " Keep hosted CMS disabled.")
             raise SetupError(stage + " failed; output withheld. Keep hosted CMS disabled.")
         return result.stdout.strip()
     except (OSError, subprocess.TimeoutExpired):
@@ -147,7 +172,8 @@ def run(stage, args, env, data=None, timeout=300):
 
 
 def psql(stage, sql, env, data=None):
-    return run(stage, ["psql", "-X", "-qAt", "--set", "ON_ERROR_STOP=1", "--command", sql], env, data)
+    return run(stage, ["psql", "-X", "-w", "-qAt", "--set", "ON_ERROR_STOP=1",
+                       "--set", "VERBOSITY=sqlstate", "--command", sql], env, data)
 
 
 def check_tool(binary, major, env):
