@@ -4,6 +4,8 @@
 import getpass
 import json
 import os
+import re
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -143,6 +145,40 @@ def psql(stage, sql, env, data=None):
     return run(stage, ["psql", "-X", "-qAt", "--set", "ON_ERROR_STOP=1", "--command", sql], env, data)
 
 
+def check_tool(binary, major, env):
+    """Diagnose local prerequisites before any credentials are collected."""
+    requirement = ("Node 24" if binary == "node" else "PostgreSQL 18 client tools")
+    next_step = ("Select Node 24 and run node --version."
+                 if binary == "node" else
+                 "Install PostgreSQL 18 client tools or add their bin directory to PATH, "
+                 "then run " + binary + " --version. See the runbook's macOS instructions.")
+    executable = shutil.which(binary, path=env.get("PATH", ""))
+    if not executable:
+        raise SetupError("No executable " + binary + " found on PATH. " + next_step)
+    try:
+        result = subprocess.run([executable, "--version"], cwd=ROOT, env=env,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                timeout=15, start_new_session=True)
+    except subprocess.TimeoutExpired:
+        raise SetupError(binary + " --version timed out after 15 seconds. " + next_step) from None
+    except OSError:
+        raise SetupError(binary + " was found but could not be started. " + next_step) from None
+    if result.returncode:
+        raise SetupError(binary + " --version exited unsuccessfully; output withheld. " + next_step)
+    pattern = r"^v(\d{1,3})\." if binary == "node" else re.escape(binary) + r" \(PostgreSQL\) (\d{1,3})\."
+    match = re.match(pattern, result.stdout.strip())
+    if not match:
+        raise SetupError(binary + " returned an unrecognized version; output withheld. " + next_step)
+    if int(match.group(1)) != major:
+        raise SetupError(binary + " reports major " + match.group(1) + "; " + requirement + " required. " + next_step)
+
+
+def check_tools(env):
+    check_tool("node", 24, env)
+    for binary in ("psql", "pg_dump", "pg_restore"):
+        check_tool(binary, 18, env)
+
+
 def hidden(label, minimum=1):
     with warnings.catch_warnings():
         warnings.simplefilter("error", getpass.GetPassWarning)
@@ -158,10 +194,7 @@ def main():
     if not (ROOT / "node_modules/.bin/tsx").exists():
         raise SetupError("Install the pinned dependencies with Node 24 and npm ci first.")
     env = child_env("")
-    if not run("Node check", ["node", "--version"], env).startswith("v24."):
-        raise SetupError("Node 24 is required.")
-    if " 18." not in run("PostgreSQL tools check", ["psql", "--version"], env):
-        raise SetupError("Install PostgreSQL 18 client tools (psql/pg_dump) on PATH.")
+    check_tools(env)
 
     print("Private local setup for the approved hosted-cms-preview branch; no Vercel changes.")
     owner = hidden("Direct Neon owner URL (hidden): ")

@@ -81,13 +81,32 @@ operational gate. Do not delete all old objects by prefix: retained versions may
 ### First setup from the user's own terminal
 
 Use Linux/macOS/WSL, Node 24.19.0, npm 11, Python 3 and native PostgreSQL 18 client tools
-(`psql` on PATH; `pg_dump` for the required backup). Docker is not required for hosted
+(`psql`, `pg_dump` and `pg_restore` on PATH). Docker is not required for hosted
 setup. Use the reviewed feature/hosted-cms-preview checkout and run:
 
 ```sh
 npm ci
 npm run preview:setup
 ```
+
+On macOS with Homebrew, the verified client-only option on 2026-10-04 is
+[libpq](https://formulae.brew.sh/formula/libpq), currently major 18 (also aliased libpq@18).
+It is keg-only, so add its bin directory to the current terminal's PATH:
+
+```sh
+brew install libpq
+export PATH="$(brew --prefix libpq)/bin:$PATH"
+psql --version
+pg_dump --version
+pg_restore --version
+npm run preview:setup
+```
+
+Skip installation if already installed; the export alone can fix PATH. All three version
+commands must report 18.x. No database service needs to be started. If postgresql@18 is
+already installed instead, use `export PATH="$(brew --prefix postgresql@18)/bin:$PATH"`.
+These PATH changes affect only the current terminal. Preflight now names missing binaries,
+wrong major versions, start failures and timeouts separately, before collecting secrets.
 
 Prerequisites: the approved Neon branch/database and restricted lunia_runtime role already
 exist; a verified pre-migration backup/reference is available; hosted CMS remains disabled.
@@ -115,9 +134,10 @@ CMS or repeatedly rotate passwords to diagnose it. Report the failed stage only.
 Local evidence: all stages exercised against disposable PostgreSQL 18.6 with synthetic
 inputs and a non-owner runtime role, including a password containing URI-special characters,
 runtime DML/no-DDL checks, bootstrap and repeat refusal before password rotation. Captured
-output contained none of the supplied secrets. Five helper tests check URL/target rejection,
+output contained none of the supplied secrets. Nine helper tests check URL/target rejection,
 URL encoding, environment isolation, redacted errors/stdin-only password transport and
-noninteractive refusal. This is not evidence of a completed hosted setup.
+noninteractive refusal, missing tools, version mismatches and safe preflight failures.
+This is not evidence of a completed hosted setup.
 
 ### Individual operator commands
 
