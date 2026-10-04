@@ -36,9 +36,10 @@ required before a real CMS launch; passing tests do not establish production sec
 
 ## External verification
 
-Vercel project creation was rejected by automatic approval review. No hosted preview,
-production change or domain change has occurred. See docs/vercel.md.
-Draft PR and exact-head CI outcome will be reported separately; local checks are not CI evidence.
+Draft PR #1 is open and the separate studio-lunia Vercel project is configured after
+explicit authorization and GitHub App access. No production or domain change occurred.
+See docs/vercel.md; final preview and exact-head CI results are reported in the PR/task.
+Push and PR CI passed on foundation commit 96e79fba90efe853f6f6cbad8693187548d969b2.
 
 ## Visual evidence
 

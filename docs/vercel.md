@@ -17,12 +17,20 @@ explicitly in the Payload config. Feature branch pushes may generate preview bui
 once linkage is authorized/configured. Do not set production environment variables
 or promote a preview. No token-based deployment workflow is added to GitHub CI.
 
-## Current blocker
+## Configured preview project
 
-Automatic approval review rejected the connector request to create the separate Git-linked
-project and preview, citing the earlier planning-only restriction despite the later user
-instruction to configure Vercel. No Vercel mutation succeeded. Explicit approval is needed
-to clear that review before project creation and preview verification can finish.
+Created separately after explicit user authorization and the user's GitHub App access grant:
+`studio-lunia` (`prj_RiVoPaLLyHgqAwR2Hivx3X2hRTAM`), linked to AxelOord/studio-lunia.
+Root is the repository root (null Vercel rootDirectory), framework Next.js, Node 24.x,
+install `npm ci`, build `npm run build`. Preview-only `LUNIA_SHOWCASE=true` is configured.
+Default Vercel Authentication remains enabled (`all_except_custom_domains`); no protection
+was weakened. No custom domains or production secrets were added.
+
+The creation tool initially attempts a preview of empty master; the application preview
+must use feature/payload-foundation. Production branch remains master, where Git deployments
+are disabled by this PR's vercel.json once that config exists on the branch. The app also
+explicitly rejects Vercel production builds. PR: https://github.com/AxelOord/studio-lunia/pull/1.
+Final deployment and exact-head CI results are recorded in the PR/task report.
 
 ## Before hosted CMS mode
 

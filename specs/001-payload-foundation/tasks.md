@@ -19,4 +19,4 @@
       Refs: R-6
       Depends: T-2, T-3
       Verify: draft PR exact-head CI; inspect preview and record infrastructure blockers
-      Evidence: Local showcase smoke passed; Vercel creation blocked by automatic approval review. Draft PR and exact-head CI pending.
+      Evidence: Local showcase smoke passed; draft PR #1 opened, foundation CI passed, separate Vercel project configured. Feature preview verification pending.
