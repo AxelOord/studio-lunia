@@ -162,9 +162,25 @@ are not written to repo files or command arguments. Database contents in the bac
 sensitive and protected by the chosen encrypted storage boundary. The helper does not create providers,
 generate credentials silently, connect Vercel, send mail or deploy.
 
-After success, use Neon's connection dialog for this branch, lunia_preview, lunia_runtime
-and pooling. Use the runtime password you just saved in your password manager and enter the
-runtime URL directly into Vercel's secure field scoped to Preview/feature/hosted-cms-preview.
+After success on macOS, run `npm run preview:connection` in your own terminal. It requests
+the existing runtime password with echo disabled, constructs the fixed approved runtime
+URL and copies it directly to the local clipboard using `/usr/bin/pbcopy`. Paste into
+Vercel's DATABASE_URL secure field scoped to Preview/feature/hosted-cms-preview, save, then
+replace the clipboard with non-sensitive text. No database mutation or password rotation
+occurs; no owner URL is needed. Do not repeat setup or create another role because an SQL
+role is absent from Neon's connection dropdown.
+
+The helper uses the verified direct endpoint plus Neon's documented
+[`-pooler` endpoint suffix](https://github.com/neondatabase/website/blob/main/content/docs/connect/connection-pooling.md#how-to-use-connection-pooling),
+fixed role lunia_runtime/database lunia_preview, percent-encoded password, `sslmode=require`
+and `channel_binding=require`. It does not contact Neon or verify the password. There is
+no URL output/file/argv/environment fallback if clipboard copying fails. Its byte buffer
+is cleared best-effort; Python string memory cannot be reliably zeroized. The clipboard
+is sensitive user-owned OS state; clipboard-history/sync settings are outside this helper.
+Tests cover exact destination, punctuation/Unicode roundtrip, stdin-only transport, buffer
+clearing, rejected input/platform and clipboard failures. Actual macOS paste remains a
+user-side check; synthetic Linux mocks do not establish that it happened.
+
 Never put the owner URL there. A partial failure stops before the next stage; do not enable
 CMS or repeatedly rotate passwords to diagnose it. Report the failed stage and the helper's
 fixed diagnostic category/SQLSTATE only; never share raw subprocess output. A failed password

@@ -355,7 +355,7 @@ def main():
     run("Editor bootstrap", operator + ["bootstrap"], runtime_env,
         json.dumps({"email": email, "password": editor_password}))
     print("First editor created. No supplied connection URLs or passwords were printed or saved.")
-    print("In Neon choose this branch/database, lunia_runtime and pooling. Enter that runtime URL directly into the branch-only Vercel secure field. Hosted acceptance is still required.")
+    print("On macOS, run npm run preview:connection to copy the runtime URL into the branch-only Vercel secure field. Do not repeat setup. Hosted acceptance is still required.")
 
 
 if __name__ == "__main__":
