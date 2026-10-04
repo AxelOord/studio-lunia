@@ -1,7 +1,8 @@
 # Hosted CMS preview runbook
 
-Status: application preparation only. No live database, Blob store, Resend key, editor
-or plan upgrade was provisioned by this implementation. Keep hosted activation blocked.
+Status: protected synthetic hosted preview activated; acceptance is incomplete. The user
+completed hosted migrations, restricted runtime authentication/rollback CRUD and editor
+bootstrap. Branch-scoped configuration and the first protected deployment were verified.
 Implementation branch `feature/hosted-cms-preview` has Vercel Git deployment disabled.
 The existing showcase can still be run locally. Nothing changes vivianne-fotografie,
 its domains, production credentials or production build rejection.
@@ -17,13 +18,13 @@ changes, and his confirmed account mailbox as the first editor/only recipient. K
 actual email in protected configuration, not this public repository. Provider setup is
 handled separately; approval is not evidence that resources or credentials exist.
 
-| Resource | Proposed scope                                                                              | Unresolved before activation                                                             |
-| -------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Vercel   | Existing studio-lunia project; bounded noncommercial prototype on Hobby; one allowed branch | Verify free quotas; no paid upgrade/trial/overage authorization                          |
-| Neon     | studio-lunia-preview; hosted Postgres 18; isolated preview branch; Frankfurt if offered     | Account, region, free-plan eligibility/quotas, runtime role and separate migration owner |
-| Blob     | studio-lunia-preview; PRIVATE store; Frankfurt if offered                                   | Store creation and private mode, region, storage/egress budget, isolated access grant    |
-| Resend   | Free; sending-only access; onboarding@resend.dev to confirmed account-owner mailbox         | Secure account/key setup; no existing-domain DNS changes                                 |
-| Editor   | One approved email, no signup                                                               | User-chosen password supplied through operator stdin, never chat or a committed file     |
+| Resource | Proposed scope                                                                              | Unresolved before activation                                                      |
+| -------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Vercel   | Existing studio-lunia project; bounded noncommercial prototype on Hobby; one allowed branch | Verify free quotas; no paid upgrade/trial/overage authorization                   |
+| Neon     | Provisioned PG18 preview branch/database in Frankfurt; restricted runtime tested            | Record current quotas and complete coordinated DB/media recovery acceptance       |
+| Blob     | Provisioned PRIVATE studio-lunia-preview store in Frankfurt; branch-scoped credential       | Actual media flow, ACL/CORS, storage/egress budget and persistence acceptance     |
+| Resend   | Free test sender and branch-scoped key configured                                           | Actual approved-mailbox delivery, token lifecycle; no existing-domain DNS changes |
+| Editor   | One approved editor bootstrapped; user login confirmed                                      | Full session/recovery/private-media acceptance                                    |
 
 Only the allowed branch receives DATABASE_URL, PAYLOAD_SECRET, BLOB_READ_WRITE_TOKEN,
 RESEND_API_KEY, MAIL_FROM and PREVIEW_EDITOR_EMAIL. Scope non-secret mode settings there
@@ -61,7 +62,7 @@ Caps are 20 MiB and 40 million pixels. Raster types only; required alt text; Sha
 card/hero variants. Next image optimization is disabled for mutable-access media so it cannot
 serve a formerly public image after revocation. Page blocks use stored size variants.
 
-Before hosted activation prove: direct upload and CORS in a real browser; no anonymous
+Before closing hosted acceptance prove: direct upload and CORS in a real browser; no anonymous
 provider URL access; private original/card/hero reads denied; allowed reads succeed; public
 then private becomes denied including cache/optimizer paths; oversized/malformed files fail;
 interrupted requests leave no published record; a redeploy preserves all bytes. Local SDK
@@ -246,8 +247,8 @@ migrations, zero editors and grants before changing anything; it does not replay
    the exact branch, LUNIA_STORAGE=private-blob, LUNIA_CMS_PREVIEW=true and
    LUNIA_PREVIEW_REVIEW=approved only after the operational review. VERCEL_PROJECT_ID and
    VERCEL_GIT_COMMIT_REF must match at runtime. Missing settings fail closed.
-5. After explicit hosting permission, remove only this branch's deployment disable entry,
-   deploy as preview and run hosted acceptance. Keep default Vercel Authentication, noindex
+5. After explicit hosting permission, deploy the reviewed commit manually as Preview;
+   Git auto-deployment may remain disabled. Run hosted acceptance. Keep Vercel Authentication, noindex
    and robots disallow. Never enable production builds or change the old project/domains.
 
 The `approved` flag records an operator decision; it does not automatically prove migrations,
@@ -304,6 +305,38 @@ Blob access/CORS, real reset delivery, redeploy persistence, backup/media restor
 and log checks, provider quotas/budget and an unchanged old-site/domain comparison.
 
 ## Implementation verification — 2026-10-04
+
+Hosted milestone on commit 8677af3ff2e46d0a63fa5a81b36b35f6de16f59c:
+deployment dpl_EkNeMnd2Dk2HMw679RE9cfy9Fs9o reached READY in fra1 at
+https://studio-lunia-git-feature-hosted-cms-preview-axeloords-projects.vercel.app.
+Vercel Authentication/noindex remained enabled; admin login and the existing editor were
+confirmed. The user completed hosted runtime/bootstrap setup privately. Browser QA saved,
+reloaded, edited and reloaded a synthetic text-only draft without publishing it. This does
+not establish private-media, recovery-mail, redeploy persistence or coordinated restore.
+
+### Deployment upload regression
+
+A real 480x320 synthetic PNG failed hosted Save with file type detection unavailable and
+no saved Media record. A deployment-subset reproduction copied only the dependency files
+listed in the generated API route trace into a disposable directory: `fileTypeFromFile`
+failed with ERR_MODULE_NOT_FOUND for strtok3/lib/index.js. The complete local dependency
+tree had hidden the problem. file-type 22 dynamically imports strtok3's Node entry; static
+tracing had included only its core path, omitting index.js and FileTokenizer.js.
+
+next.config.ts now includes those two Node files in server tracing. The post-build
+`npm run test:upload-trace` runs actual file detection with only traced dependencies and
+checks a valid PNG plus non-image bytes. It failed before the trace fix and passes after it.
+No MIME validation, signed receipt, upload limit, private-store access or image processing
+is disabled. A fresh hosted upload after deploying this fix is still required.
+
+The direct operator/inventory CLIs now catch initial connection failures and cleanup
+failures. Subprocess regression tests inject synthetic provider details and verify they
+never appear in stdout/stderr. No live credentials or provider calls are involved.
+
+Local correction checks passed: lint/types, 11 JS tests, 35 Python tests, build, the traced
+dependency probe, 10 PostgreSQL integration tests, four Chromium scenarios and showcase.
+
+Earlier foundation evidence (superseded by current-head CI where applicable):
 
 - Clean npm ci passes; existing exact-version font patch applies.
 - Lint/types, nine unit tests and ten workflow tests pass.

@@ -17,9 +17,9 @@ if (process.env.LUNIA_OPERATOR_TARGET !== `${url.hostname}${url.pathname}`)
 if (process.env.LUNIA_SHOWCASE === 'true' || process.env.VERCEL_ENV === 'production')
   throw new Error('This is not an operator preview environment.')
 const client = new Client({ connectionString: process.env.DATABASE_URL })
-await client.connect()
 let locked = false
 try {
+  await client.connect()
   const lock = await client.query('SELECT pg_try_advisory_lock(721904002) AS acquired')
   locked = lock.rows[0].acquired === true
   if (!locked) throw new Error('Another preview operator is running.')
@@ -78,6 +78,16 @@ try {
   )
   process.exitCode = 1
 } finally {
-  if (locked) await client.query('SELECT pg_advisory_unlock(721904002)')
-  await client.end()
+  try {
+    if (locked) await client.query('SELECT pg_advisory_unlock(721904002)')
+  } catch {
+    console.error('Operator lock cleanup failed; provider details withheld.')
+    process.exitCode = 1
+  }
+  try {
+    await client.end()
+  } catch {
+    console.error('Operator connection cleanup failed; provider details withheld.')
+    process.exitCode = 1
+  }
 }

@@ -7,6 +7,11 @@ const __filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(__filename)
 
 const nextConfig: NextConfig = {
+  // file-type 22 dynamically imports strtok3's Node entry for temporary uploads.
+  // Static tracing sees only strtok3/core; ship the two additional Node files.
+  outputFileTracingIncludes: {
+    '/*': ['./node_modules/strtok3/lib/index.js', './node_modules/strtok3/lib/FileTokenizer.js'],
+  },
   images: {
     // Media visibility is mutable. Never let the optimizer cache an authorized read.
     unoptimized: true,

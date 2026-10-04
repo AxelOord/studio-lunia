@@ -7,7 +7,8 @@ Implementation authorized; provider direction is Neon + private Vercel Blob + Re
 Status remains ready because hosted acceptance is pending. Axel approved separate free
 preview resources and branch-scoped connections plus his account mailbox as editor/recipient
 on 2026-10-04. This unpaid synthetic prototype may continue on Hobby; no paid upgrades or
-commercial launch are authorized. Secure provider setup and hosted acceptance remain pending.
+commercial launch are authorized. Hosted bootstrap and protected deployment are confirmed;
+the remaining hosted acceptance is still pending.
 
 Smallest slice: one approved editor signs into the separate protected Studio Lunia
 preview, uploads a synthetic photograph, saves/previews a draft, publishes it and sees

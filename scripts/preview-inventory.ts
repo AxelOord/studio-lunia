@@ -16,8 +16,8 @@ try {
 if (process.env.LUNIA_OPERATOR_TARGET !== `${database.hostname}${database.pathname}`)
   throw new Error('Confirm the target database host/name before inventory.')
 const client = new Client({ connectionString: process.env.DATABASE_URL })
-await client.connect()
 try {
+  await client.connect()
   const { rows } = await client.query<{
     filename: string
     prefix: string
@@ -97,5 +97,10 @@ try {
   )
   process.exitCode = 1
 } finally {
-  await client.end()
+  try {
+    await client.end()
+  } catch {
+    console.error('Inventory connection cleanup failed; provider details withheld.')
+    process.exitCode = 1
+  }
 }

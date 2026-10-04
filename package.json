@@ -25,6 +25,7 @@
     "postinstall": "patch-package",
     "test:workflow": "python3 -m unittest discover -s tests -p 'test_*.py' -v",
     "test:showcase": "node scripts/check-showcase.mjs",
+    "test:upload-trace": "node scripts/check-upload-trace.mjs",
     "preview:operator": "tsx scripts/preview-operator.ts",
     "preview:inventory": "tsx scripts/preview-inventory.ts",
     "preview:setup": "python3 scripts/preview-setup.py",
