@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
+import { Readable } from 'node:stream'
 import { access } from 'node:fs/promises'
 import { buildConfig, createLocalReq, getPayload, type Payload } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
@@ -8,17 +9,24 @@ import type { GetBlobResult, PutBlobResult } from '@vercel/blob'
 import { getPayloadFromClientToken } from '@vercel/blob/client'
 import { verifyClientUploadReceipt, getFileFromUploadInstructions } from 'payload/internal'
 import sharp from 'sharp'
+// Exercise the exact pinned canary's real file endpoint, including its access lookup.
+import { getFileHandler } from '../../node_modules/payload/dist/uploads/endpoints/getFile.js'
 import { Media } from '../../src/collections/Media'
 import { Users } from '../../src/collections/Users'
 import { Pages } from '../../src/collections/Pages'
 import { privateBlobAdapter, privateBlobStorage } from '../../src/hosting/private-blob'
+import type { Media as MediaDocument } from '../../src/payload-types'
 
 // In-memory SDK boundary: tests Payload integration, not Vercel's actual store ACL/CORS.
 const objects = new Map<string, { bytes: Buffer; type: string }>()
 const io = {
   put: async (key: string, body: unknown, options: { access: string; contentType?: string }) => {
     assert.equal(options.access, 'private')
-    objects.set(key, { bytes: Buffer.from(body as Buffer), type: options.contentType! })
+    const chunks: Buffer[] = []
+    if (body instanceof Readable) {
+      for await (const chunk of body) chunks.push(Buffer.from(chunk))
+    } else chunks.push(Buffer.from(body as Buffer))
+    objects.set(key, { bytes: Buffer.concat(chunks), type: options.contentType! })
     return {} as PutBlobResult
   },
   get: async (key: string, options: { access: string; useCache?: boolean }) => {
@@ -233,20 +241,86 @@ test('a provider upload receipt finalizes validated bytes under its isolated key
     collection: 'media',
     user,
     overrideAccess: false,
-    showHiddenFields: true,
     data: { alt: 'Direct synthetic upload', visibility: 'private' },
     file,
     req,
   })
   extraImages.push(image.id)
   await assert.rejects(access(temporaryPath), { code: 'ENOENT' })
-  assert.ok(image._objectKey)
-  const response = await adapter.staticHandler(req, {
-    doc: image,
-    params: { collection: 'media', filename: image.sizes!.card!.filename! },
+  // Match REST/admin: hidden storage fields must not be exposed to the client.
+  assert.equal(image._objectKey, undefined)
+  const storedImage = (await payload.db.findOne({
+    collection: 'media',
+    where: { id: { equals: image.id } },
+  })) as MediaDocument | null
+  const objectKey = storedImage?._objectKey
+  assert.ok(objectKey)
+  const reloaded = await payload.findByID({
+    collection: 'media',
+    id: image.id,
+    user,
+    overrideAccess: false,
   })
-  assert.equal(response.status, 200)
-  assert.ok((await response.arrayBuffer()).byteLength > 0)
+  assert.equal(reloaded._objectKey, undefined)
+  const filenames = [
+    reloaded.filename,
+    reloaded.sizes?.card?.filename,
+    reloaded.sizes?.hero?.filename,
+  ].filter(Boolean)
+  for (const filename of filenames) {
+    const readReq = await createLocalReq(
+      {
+        user,
+        req: {
+          routeParams: { collection: 'media', filename },
+          searchParams: new URLSearchParams({ prefix: reloaded.prefix! }),
+        },
+      },
+      payload,
+    )
+    const response = await getFileHandler(readReq)
+    assert.equal(response.status, 200)
+    assert.equal(response.headers.get('cache-control'), 'private, no-store')
+    assert.equal((await sharp(Buffer.from(await response.arrayBuffer())).metadata()).format, 'webp')
+    const anonymous = await createLocalReq(
+      {
+        req: {
+          routeParams: readReq.routeParams,
+          searchParams: readReq.searchParams,
+        },
+      },
+      payload,
+    )
+    await assert.rejects(async () => getFileHandler(anonymous), { status: 403 })
+  }
+  const anonymous = await createLocalReq(
+    {
+      req: {
+        routeParams: { collection: 'media', filename: reloaded.filename! },
+        searchParams: new URLSearchParams({ prefix: reloaded.prefix! }),
+      },
+    },
+    payload,
+  )
+  await payload.update({
+    collection: 'media',
+    id: image.id,
+    user,
+    overrideAccess: false,
+    data: { visibility: 'public' },
+  })
+  const publicResponse = await getFileHandler(anonymous)
+  assert.equal(publicResponse.status, 200)
+  assert.equal(publicResponse.headers.get('cache-control'), 'private, no-store')
+  assert.ok((await publicResponse.arrayBuffer()).byteLength > 0)
+  await payload.update({
+    collection: 'media',
+    id: image.id,
+    user,
+    overrideAccess: false,
+    data: { visibility: 'private' },
+  })
+  await assert.rejects(async () => getFileHandler(anonymous), { status: 403 })
   const forged = {
     ...grant.file,
     uploadReference: { ...grant.file.uploadReference, signedReceipt: 'forged' },
@@ -256,11 +330,9 @@ test('a provider upload receipt finalizes validated bytes under its isolated key
   )
   // Document deletion must remove every finalized variant, but never unrelated uploads.
   const finalKeys = [...objects.keys()].filter(
-    (candidate) => candidate.includes(image._objectKey!) && candidate !== key,
+    (candidate) => candidate.includes(objectKey) && candidate !== key,
   )
-  const unrelatedKeys = [...objects.keys()].filter(
-    (candidate) => !candidate.includes(image._objectKey!),
-  )
+  const unrelatedKeys = [...objects.keys()].filter((candidate) => !candidate.includes(objectKey))
   assert.ok(finalKeys.length >= 2)
   await assert.rejects(payload.delete({ collection: 'media', id: image.id, overrideAccess: false }))
   for (const finalKey of finalKeys) assert.equal(objects.has(finalKey), true)

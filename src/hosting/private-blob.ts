@@ -12,12 +12,14 @@ import { assertClientUploadAllowed } from 'payload/internal'
 import { MAX_UPLOAD_BYTES } from './environment'
 import { limitOperation } from './rate-limit'
 import type { Media } from '../payload-types'
+import { createReadStream } from 'node:fs'
 
 type BlobIO = Pick<typeof blob, 'put' | 'get' | 'del'>
 const PREFIX = 'preview-media'
 // Canary delete hooks receive a response document after hidden _objectKey is removed.
 // Retain only the authorized deletion's storage identity in server memory, never its response.
 const deletionFolders = new WeakMap<PayloadRequest, Map<string, string>>()
+const uploadFolders = new WeakMap<object, Promise<string>>()
 
 // The pinned official Blob adapter only supports public storage. This deliberately small
 // private adapter uses Payload's own access, signed receipts, key isolation and validation.
@@ -67,15 +69,48 @@ export function privateBlobAdapter(token: string, io: BlobIO = blob): Adapter {
         }
       },
     },
-    handleUpload: async ({ file, storageFilePath }) => {
-      await io.put(storageFilePath, file.buffer, {
-        token,
-        access: 'private',
-        addRandomSuffix: false,
-        allowOverwrite: true,
-        contentType: file.mimeType,
-        cacheControlMaxAge: 60,
+    handleUpload: async ({ file, req, data }) => {
+      // In this canary, afterRead removes hidden _objectKey before afterChange.
+      // The operation already authorized/persisted this document. Resolve its raw
+      // storage identity inside the same transaction; never return it to the client.
+      // Variants share this upload-data object; one lookup avoids concurrent queries
+      // on the request's transaction connection. Later uploads receive a new object.
+      let folder = uploadFolders.get(data)
+      if (!folder) {
+        folder = req.payload.db
+          .findOne({ collection: 'media', req, where: { id: { equals: data.id } } })
+          .then((doc) => {
+            if (!doc) throw new Error('Media upload storage identity unavailable.')
+            return getFilePrefix({
+              collection,
+              collectionPrefix: prefix,
+              doc,
+              filename: file.filename,
+              req,
+            })
+          })
+        uploadFolders.set(data, folder)
+      }
+      const { storageFilePath } = buildStoragePathData({
+        collectionPrefix: prefix,
+        docPrefix: await folder,
+        filename: file.filename,
       })
+      // Client uploads retain processed original bytes in a temporary file; their
+      // buffer is empty. Variants are buffers. Stream the actual original bytes.
+      const stream = file.tempFilePath ? createReadStream(file.tempFilePath) : undefined
+      try {
+        await io.put(storageFilePath, stream ?? file.buffer, {
+          token,
+          access: 'private',
+          addRandomSuffix: false,
+          allowOverwrite: true,
+          contentType: file.mimeType,
+          cacheControlMaxAge: 60,
+        })
+      } finally {
+        stream?.destroy()
+      }
       // No provider metadata is added. Echoing data triggers Payload's nested metadata
       // update, which clears req.file before its client-upload tempfile cleanup.
     },

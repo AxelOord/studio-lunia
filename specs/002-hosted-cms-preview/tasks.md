@@ -19,7 +19,7 @@ is still pending. See docs/hosted-cms-runbook.md for verified milestones and ope
       Refs: R-1, R-2, R-6
       Depends: T-2
       Verify: Direct-upload compatibility spike; hosted original/derivative access matrix; oversize/invalid/interrupted upload, cache revocation, orphan cleanup and persistence after redeploy.
-      Evidence: Local SDK-boundary tests cover signed receipts, tempfile success/failure cleanup and finalized variant deletion without touching unrelated uploads. Raw provider orphans remain inventory candidates. Provider ACL/CORS, real uploads, orphan cleanup and redeploy persistence remain unverified.
+      Evidence: Hosted PNG upload/save succeeded after the traced-dependency fix; subsequent private-image GET returned 404. Normal hidden-field behavior reproduced the path mismatch locally and full-byte checks exposed an empty temporary-file original. Adapter fixes pass the real Payload file endpoint with private/public/revocation checks locally. Hosted rendering retest, provider ACL/CORS, orphan handling and media persistence remain open.
 - [ ] T-4: Enable editor bootstrap, recovery and authenticated draft preview
       Refs: R-3, R-4, R-6
       Depends: T-2, T-3

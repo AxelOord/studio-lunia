@@ -327,7 +327,32 @@ next.config.ts now includes those two Node files in server tracing. The post-bui
 `npm run test:upload-trace` runs actual file detection with only traced dependencies and
 checks a valid PNG plus non-image bytes. It failed before the trace fix and passes after it.
 No MIME validation, signed receipt, upload limit, private-store access or image processing
-is disabled. A fresh hosted upload after deploying this fix is still required.
+is disabled. Hosted deployment dpl_DM5oPx73FsKN6zZ6Gw7AfjBms92M on d4b86b9 subsequently
+accepted the valid PNG and persisted a processed private WebP. Text draft edits survived
+that redeploy. The following separate read regression still blocked image acceptance.
+
+### Hidden storage identity and temporary original regression
+
+The saved private image returned 404 after reloading the editor. Removing
+`showHiddenFields: true` from the direct-upload integration fixture reproduced the 404:
+this canary runs field afterRead before collection afterChange, so the plugin's upload
+hook receives a document without its hidden object key. Its precomputed write path then
+differs from the persisted metadata used by the access-checked read route.
+
+The adapter now resolves the persisted storage identity inside the authorized operation's
+transaction. Variants share one lookup keyed by their upload-data object; metadata remains
+server-only. The test now reloads the normal API-shaped document, calls Payload's actual
+file endpoint and decodes every available original/variant, rather than checking only a
+variant through the adapter. That also exposed an empty original: Payload keeps processed
+client-upload bytes in tempFilePath, with an empty buffer. The adapter now streams that
+temporary file and still uses buffers for generated variants. Stream/tempfile cleanup and
+private-to-public-to-private access checks remain covered.
+
+The corrected local test passes with hidden fields absent from client responses, genuine
+WebP bytes, no-store responses and anonymous private-file rejection. Existing incorrectly
+stored synthetic images must be replaced or uploaded anew after deployment; this change
+does not add a fallback to unrelated storage paths or silently repair/delete old objects.
+Actual hosted image rendering and the remaining acceptance still require verification.
 
 The direct operator/inventory CLIs now catch initial connection failures and cleanup
 failures. Subprocess regression tests inject synthetic provider details and verify they
