@@ -352,7 +352,7 @@ The corrected local test passes with hidden fields absent from client responses,
 WebP bytes, no-store responses and anonymous private-file rejection. Existing incorrectly
 stored synthetic images must be replaced or uploaded anew after deployment; this change
 does not add a fallback to unrelated storage paths or silently repair/delete old objects.
-Actual hosted image rendering and the remaining acceptance still require verification.
+The hosted retest below confirms fresh image rendering; the remaining acceptance stays open.
 
 The direct operator/inventory CLIs now catch initial connection failures and cleanup
 failures. Subprocess regression tests inject synthetic provider details and verify they
@@ -360,6 +360,30 @@ never appear in stdout/stderr. No live credentials or provider calls are involve
 
 Local correction checks passed: lint/types, 11 JS tests, 35 Python tests, build, the traced
 dependency probe, 10 PostgreSQL integration tests, four Chromium scenarios and showcase.
+
+### Evening hosted handover — 2026-10-04
+
+Hosted application commit c7921d14871fbacc2e86c8f21f84300d8e2f4a7e passed the
+editor/media browser path. A fresh synthetic Media 2 upload displays actual 480x320 pixels
+after Save and reload. The authenticated draft renders both private hero and gallery
+images. A published-page public-to-private media transition hides the images. Text draft
+edits, private image pixels, page blocks and authenticated draft preview survive the
+same-commit redeploy dpl_9H7wcnFXsuHeTbXGs4PU9fq9qzPH, READY in fra1.
+
+The QA page was returned to Draft and Media 2 to Private. Earlier broken Media 1 was left
+untouched; no irreversible cleanup was performed. Vercel Authentication and noindex/nofollow
+remain enabled. The old site and domains are unchanged. Hosted evidence applies to the
+application commit above; subsequent documentation-only commits are not claimed as deployed.
+Its exact-head CI passed: https://github.com/AxelOord/studio-lunia/actions/runs/37237886091.
+
+This completes the current code fixes for review, not all spec acceptance. Still open:
+independent logged-out Payload file/API denial and the full session/access/CORS matrix;
+actual approved-mailbox reset delivery and full token lifecycle; interrupted-upload/orphan
+acceptance; coordinated hosted database-plus-media restore with counts/hashes; and the
+remaining visual, quota/advisory and recovery handover. Outer Vercel denial alone does not
+prove inner Payload authorization. Local security/recovery tests are not remote evidence.
+No disruptive logout/password reset is requested for this evening's handover. PR #3 stays
+draft and unmerged; real brand assets and further product work are deferred.
 
 Earlier foundation evidence (superseded by current-head CI where applicable):
 

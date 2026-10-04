@@ -1,6 +1,6 @@
 # Tasks
 
-Application implementation is in progress. Ready means structurally reviewable; none of
+The current implementation is ready for review. Ready means structurally reviewable; none of
 these end-to-end tasks is complete until its hosted acceptance passes. Resource/grant
 setup has progressed through hosted bootstrap and protected deployment; final hosted acceptance
 is still pending. See docs/hosted-cms-runbook.md for verified milestones and open limits.
@@ -19,14 +19,14 @@ is still pending. See docs/hosted-cms-runbook.md for verified milestones and ope
       Refs: R-1, R-2, R-6
       Depends: T-2
       Verify: Direct-upload compatibility spike; hosted original/derivative access matrix; oversize/invalid/interrupted upload, cache revocation, orphan cleanup and persistence after redeploy.
-      Evidence: Hosted PNG upload/save succeeded after the traced-dependency fix; subsequent private-image GET returned 404. Normal hidden-field behavior reproduced the path mismatch locally and full-byte checks exposed an empty temporary-file original. Adapter fixes pass the real Payload file endpoint with private/public/revocation checks locally. Hosted rendering retest, provider ACL/CORS, orphan handling and media persistence remain open.
+      Evidence: On c7921d1, a fresh hosted synthetic upload renders actual 480x320 pixels after Save/reload and same-commit redeploy. Authenticated draft hero/gallery render private media; published public-to-private transition hides the images. Earlier broken Media 1 remains untouched. Local endpoint tests cover anonymous denial and original/variant bytes. Independent logged-out hosted file/API denial, full provider ACL/CORS and interrupted-upload/orphan acceptance remain open.
 - [ ] T-4: Enable editor bootstrap, recovery and authenticated draft preview
       Refs: R-3, R-4, R-6
       Depends: T-2, T-3
       Verify: Operator bootstrap repeat denial; no public signup; login/logout/expiry/CSRF; real approved-mailbox reset, reused/expired token denial, two-context draft access and perimeter checks.
-      Evidence: Hosted editor bootstrap/login and text draft save/reload/edit/reload confirmed. Local reset expiry/reuse/throttle and private-draft tests pass. Actual mailbox delivery and hosted private-media/session acceptance remain open.
+      Evidence: Hosted editor bootstrap/login, text draft save/edit/reload, authenticated private-image draft preview and persistence after redeploy confirmed. QA page returned to Draft and Media 2 to Private. Local reset expiry/reuse/throttle and private-draft tests pass. Actual mailbox delivery/full reset lifecycle and independent logged-out/session acceptance remain open.
 - [ ] T-5: Prove recovery and hand over the hosted slice
       Refs: R-1, R-2, R-3, R-4, R-5, R-6, R-7
       Depends: T-3, T-4
       Verify: Restore DB/media to disposable target; counts/hashes and recovery timings; clean install/patch/audit, npm run check/build/test:integration/test:e2e; exact-head hosted login-upload-draft-publish-redeploy flow with desktop/mobile screenshots, redacted logs and unchanged old-project evidence.
-      Evidence: Local PostgreSQL dump restored to a disposable DB with matching baseline counts. Hosted coordinated database/media recovery and final hosted visual QA remain pending.
+      Evidence: Local PostgreSQL dump restored to a disposable DB with matching baseline counts. Hosted c7921d1 login/upload/draft/publish-revocation/redeploy path passed; persistence deployment dpl_9H7wcnFXsuHeTbXGs4PU9fq9qzPH is READY in fra1. Hosted coordinated database/media recovery and the complete visual/access/handover matrix remain pending. Final documentation-only head is checked separately by CI; it is not claimed as deployed.

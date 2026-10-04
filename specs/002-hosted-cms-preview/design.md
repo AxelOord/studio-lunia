@@ -5,15 +5,16 @@
 Axel selected Neon + Vercel Blob + Resend and authorized building and separate free preview
 resources with branch-scoped access on 2026-10-04. The current unpaid synthetic prototype
 may continue on Hobby; revisit eligibility before commercial use, with no upgrade authorized.
-Secure provider setup and hosted acceptance remain pending. The exact Payload Blob adapter is public-only; the
+Provider setup and the core hosted editor/media flow are verified; full hosted acceptance remains pending. The exact Payload Blob adapter is public-only; the
 implementation therefore uses an application-owned private adapter on the official Blob
-SDK and Payload cloud-storage interfaces. Its real provider integration is not yet verified.
+SDK and Payload cloud-storage interfaces. Real upload, image rendering, draft access and
+redeploy persistence are verified; the complete hosted access/recovery matrix remains open.
 The S3 prototype was removed; no alternative provider was provisioned. See
 [hosted runbook](../../docs/hosted-cms-runbook.md) for actual settings, gates and evidence.
 
 ## Original planning recommendations and approval decisions
 
-Foundation PR #1 is merged into develop; spec PR #2 targets develop. Runtime remains
+Foundation PR #1 and spec PR #2 are merged into develop; implementation PR #3 targets develop. Runtime remains
 Payload 4.0.0-canary.37, PostgreSQL, Next.js and Node 24 until an explicit tested change.
 The original planning table below is superseded for provider/region/access choices by the
 approved inventory in the hosted runbook. It does not authorize paid spending or DNS changes:
