@@ -1,8 +1,17 @@
 # Design
 
-## Boundary and decisions before implementation
+## Implementation decision record
 
-Foundation PR #1 is merged into develop; this spec branches from develop. Runtime remains
+Axel selected Neon + Vercel Blob + Resend and authorized building. Resource grants and
+commercial hosting remain pending. The exact Payload Blob adapter is public-only; the
+implementation therefore uses an application-owned private adapter on the official Blob
+SDK and Payload cloud-storage interfaces. Its real provider integration is not yet verified.
+The S3 prototype was removed; no alternative provider was provisioned. See
+[hosted runbook](../../docs/hosted-cms-runbook.md) for actual settings, gates and evidence.
+
+## Original planning recommendations and approval decisions
+
+Foundation PR #1 is merged into develop; spec PR #2 targets develop. Runtime remains
 Payload 4.0.0-canary.37, PostgreSQL, Next.js and Node 24 until an explicit tested change.
 Recommendations below are not provisioning approval. Record Axel's answers before T-2:
 

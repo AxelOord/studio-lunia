@@ -89,6 +89,15 @@ test('private upload URLs are protected and public derivatives render', async ({
     )
     expect(publicFile.ok()).toBe(true)
     expect(publicFile.headers()['content-type']).toContain('image/')
+    expect(publicFile.headers()['cache-control']).toContain('no-store')
+    const path = new URL(doc.sizes.card.url, 'http://127.0.0.1:3000').pathname
+    expect(
+      (await anonymous.get(`/_next/image?url=${encodeURIComponent(path)}&w=640&q=75`)).ok(),
+    ).toBe(false)
+    expect(
+      (await request.patch(`/api/media/${doc.id}`, { data: { visibility: 'private' } })).ok(),
+    ).toBe(true)
+    expect([401, 403, 404]).toContain((await anonymous.get(path)).status())
   } finally {
     await request.delete(`/api/media/${doc.id}`)
     await anonymous.dispose()

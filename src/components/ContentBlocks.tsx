@@ -24,7 +24,7 @@ export function ContentBlocks({ blocks }: { blocks: Page['layout'] }) {
           {image ? (
             <Image
               className="hero-image"
-              src={image.url!}
+              src={image.sizes?.hero?.url || image.url!}
               alt={image.alt}
               width={image.width ?? 1600}
               height={image.height ?? 1200}
@@ -62,7 +62,7 @@ export function ContentBlocks({ blocks }: { blocks: Page['layout'] }) {
             return image ? (
               <Image
                 key={item.id ?? i}
-                src={image.url!}
+                src={image.sizes?.card?.url || image.url!}
                 alt={image.alt}
                 width={image.width ?? 720}
                 height={image.height ?? 720}

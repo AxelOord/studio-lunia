@@ -53,8 +53,8 @@ Screenshots/traces are in ignored `test-results/` and `playwright-report/`.
 | SEED_EMAIL / SEED_PASSWORD | Local bootstrap/test account; never deployed                         |
 | LUNIA_SHOWCASE             | Explicit sample-only preview mode; CMS/API/preview routes return 503 |
 
-No secrets are committed. Hosted CMS is deliberately rejected until durable media,
-PostgreSQL, migrations, email and access controls are reviewed. Vercel production builds
+No secrets are committed. Hosted CMS remains gated on approved private Blob, Neon, Resend, migrations and access
+controls. See docs/hosted-cms-runbook.md for the prepared integration and pending hosted evidence. Vercel production builds
 are blocked. See docs/vercel.md for separate preview setup.
 
 ## Structure and workflow

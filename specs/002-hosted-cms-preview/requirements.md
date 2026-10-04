@@ -3,8 +3,9 @@
 Workflow: requirements-first
 Status: ready
 
-Ready for review and task planning; this status does not authorize infrastructure,
-credentials, spending or implementation. This PR changes documentation only.
+Implementation authorized; provider direction is Neon + private Vercel Blob + Resend.
+Status remains ready because hosted acceptance is pending. New resources, credentials,
+spending and hosted activation require their specific approvals.
 
 Smallest slice: one approved editor signs into the separate protected Studio Lunia
 preview, uploads a synthetic photograph, saves/previews a draft, publishes it and sees
