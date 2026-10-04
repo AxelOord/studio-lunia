@@ -20,7 +20,7 @@ handled separately; approval is not evidence that resources or credentials exist
 | Resource | Proposed scope                                                                              | Unresolved before activation                                                             |
 | -------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | Vercel   | Existing studio-lunia project; bounded noncommercial prototype on Hobby; one allowed branch | Verify free quotas; no paid upgrade/trial/overage authorization                          |
-| Neon     | studio-lunia-preview; Postgres 17; isolated preview branch; Frankfurt if offered            | Account, region, free-plan eligibility/quotas, runtime role and separate migration owner |
+| Neon     | studio-lunia-preview; hosted Postgres 18; isolated preview branch; Frankfurt if offered     | Account, region, free-plan eligibility/quotas, runtime role and separate migration owner |
 | Blob     | studio-lunia-preview; PRIVATE store; Frankfurt if offered                                   | Store creation and private mode, region, storage/egress budget, isolated access grant    |
 | Resend   | Free; sending-only access; onboarding@resend.dev to confirmed account-owner mailbox         | Secure account/key setup; no existing-domain DNS changes                                 |
 | Editor   | One approved email, no signup                                                               | User-chosen password supplied through operator stdin, never chat or a committed file     |
@@ -182,3 +182,18 @@ metadata and retains the authorized deletion's storage folder only in request-sc
 Tests require tempfile deletion after success/failure, denial of anonymous deletion, removal
 of finalized variants, and preservation of unrelated uploads. Raw provider upload orphans
 remain private inventory candidates; hosted ACL/CORS and orphan-retention QA remain open.
+
+## PostgreSQL 18 compatibility — 2026-10-04
+
+The approved Neon Marketplace resource was provisioned with PostgreSQL 18; its wizard
+had no version selector. Do not assume the hosted major matches local Compose/CI (17).
+At application commit f6b4aeef84bab8439b8c9ce3dd0f5d30f0db1262, a separate disposable
+PostgreSQL 18.6 container passed both migrations from an empty database, synthetic seed,
+all 10 CMS integration tests and all 4 Chromium scenarios. The pinned Payload adapter
+4.0.0-canary.37 and pg 8.20.0 worked for these exercised paths without schema/code changes.
+The container used an isolated loopback port and volatile storage and was removed afterward.
+
+This is local compatibility evidence, not hosted Neon evidence. Before hosted migration,
+verify the actual server version, TLS/pooler connection, runtime/migration role permissions
+and explicit operator target. Use PostgreSQL 18 backup/restore tooling for the hosted
+18 server; keep the existing local 17 database unchanged. No hosted migration was run here.
