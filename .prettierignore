@@ -1,0 +1,11 @@
+package-lock.json
+src/payload-types.ts
+src/app/(payload)/admin/importMap.js
+src/migrations/
+.agents/skills/payload/
+.next/
+media/
+playwright-report/
+test-results/
+patches/
+next-env.d.ts

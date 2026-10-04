@@ -1,0 +1,31 @@
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import './styles.css'
+
+export const metadata: Metadata = {
+  title: { default: 'Studio Lunia', template: '%s · Studio Lunia' },
+  description: 'Studio Lunia photography website preview.',
+  robots: { index: false, follow: false },
+}
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <a className="skip-link" href="#main">
+          Skip to content
+        </a>
+        <header className="site-header">
+          <Link className="wordmark" href="/">
+            studio lunia<span>PHOTOGRAPHY</span>
+          </Link>
+          <span className="preview-label">A new chapter, in progress</span>
+        </header>
+        <main id="main">{children}</main>
+        <footer>
+          <span className="wordmark">studio lunia</span>
+          <p>Website preview · Booking is not available here yet.</p>
+        </footer>
+      </body>
+    </html>
+  )
+}

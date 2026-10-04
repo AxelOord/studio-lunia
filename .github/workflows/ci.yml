@@ -1,0 +1,57 @@
+name: Foundation checks
+on:
+  pull_request:
+  push:
+    branches: ['feature/**', develop]
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: lunia
+          POSTGRES_PASSWORD: synthetic_ci_only
+          POSTGRES_DB: lunia
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U lunia -d lunia"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://lunia:synthetic_ci_only@localhost:5432/lunia
+      PAYLOAD_SECRET: synthetic-ci-only-not-a-deployed-secret-123456789
+      SEED_EMAIL: editor@example.test
+      SEED_PASSWORD: synthetic-ci-only-password-123456789
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run generate:types && npm run generate:importmap
+      - run: npm run check
+      - run: npm run format:check
+      - run: npm run db:migrate
+      - run: npm run seed
+      - run: npm run test:integration
+      - run: npm run build
+      - run: git diff --exit-code -- src/payload-types.ts 'src/app/(payload)/admin/importMap.js'
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - run: npm run test:showcase
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-evidence
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
