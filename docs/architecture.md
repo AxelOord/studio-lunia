@@ -32,12 +32,14 @@ baseline QA and sample-size planning; low traffic may mean inconclusive results.
 
 ## Small specs after foundation
 
-1. `002-publish-to-attributed-inquiry`: real portfolio/service content, request form,
+1. `002-hosted-cms-preview`: protected hosted editor login, durable database/media,
+   password recovery, isolated preview secrets and proven backup/restore; see its spec.
+2. `003-publish-to-attributed-inquiry`: real portfolio/service content, request form,
    permitted campaign attribution, spam controls and private admin review.
-2. `003-booking-outcomes-and-ad-feedback`: confirmed outcomes/value, Google Ads adapter,
+3. `004-booking-outcomes-and-ad-feedback`: confirmed outcomes/value, Google Ads adapter,
    deduplication, retries, cancellation adjustments and consent eligibility.
-3. `004-campaign-performance`: spend ingestion and reconciled campaign reporting.
-4. `005-controlled-experiment`: one hypothesis, stable consent-aware assignment,
+4. `005-campaign-performance`: spend ingestion and reconciled campaign reporting.
+5. `006-controlled-experiment`: one hypothesis, stable consent-aware assignment,
    exposure events and statistical stopping rules.
 
 Booking model (request versus confirmed slots), brand/assets, jurisdiction/consent,
