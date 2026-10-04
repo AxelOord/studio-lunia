@@ -15,8 +15,8 @@
       Depends: T-1
       Verify: npm test; architecture review
       Evidence: 5 unit tests passed; contracts make no network calls or persistence; architecture records Google Ads-first adapters.
-- [ ] T-4: Prepare review and Vercel preview
+- [x] T-4: Prepare review and Vercel preview
       Refs: R-6
       Depends: T-2, T-3
       Verify: draft PR exact-head CI; inspect preview and record infrastructure blockers
-      Evidence: Local showcase smoke passed; draft PR #1 opened, foundation CI passed, separate Vercel project configured. Feature preview verification pending.
+      Evidence: PR #1 is draft; CI run 37219871227 passed on 99a87d3. Vercel feature deployment dpl_4iNJHmCxrLi4m9qwTS5V9QE4WraB is READY: homepage 200/noindex; admin, API and preview return 503. Old project unchanged.

@@ -37,7 +37,9 @@ required before a real CMS launch; passing tests do not establish production sec
 ## External verification
 
 Draft PR #1 is open and the separate studio-lunia Vercel project is configured after
-explicit authorization and GitHub App access. No production or domain change occurred.
+explicit authorization and GitHub App access. No old-site or domain change occurred; the new-project empty baseline deployment
+was unexpectedly labelled production by Vercel (see docs/vercel.md). The actual app
+was deployed only as a feature preview.
 See docs/vercel.md; final preview and exact-head CI results are reported in the PR/task.
 Push and PR CI passed on foundation commit 96e79fba90efe853f6f6cbad8693187548d969b2.
 
@@ -47,3 +49,8 @@ Push and PR CI passed on foundation commit 96e79fba90efe853f6f6cbad8693187548d96
 - [Mobile](evidence/home-mobile.png)
 - [CMS admin](evidence/admin.png)
 - [Authenticated draft preview](evidence/draft-preview.png)
+
+Hosted feature preview verified on 99a87d3: READY, homepage 200/noindex and CMS routes
+503 through authenticated connector fetches. CI run 37219871227 passed on that exact
+commit. Hosted verification was HTTP/content checks; browser screenshots are from the
+local identical application, not a claimed remote browser session.

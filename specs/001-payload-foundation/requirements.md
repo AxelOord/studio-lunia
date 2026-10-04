@@ -1,7 +1,7 @@
 # Payload foundation
 
 Workflow: requirements-first
-Status: ready
+Status: done
 
 Provide a maintainable, reviewable CMS foundation. No booking submission, advertising
 connection, real customer data or production deployment is included.

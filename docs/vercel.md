@@ -26,8 +26,11 @@ install `npm ci`, build `npm run build`. Preview-only `LUNIA_SHOWCASE=true` is c
 Default Vercel Authentication remains enabled (`all_except_custom_domains`); no protection
 was weakened. No custom domains or production secrets were added.
 
-The creation tool initially attempts a preview of empty master; the application preview
-must use feature/payload-foundation. Production branch remains master, where Git deployments
+The creation tool described its initial deployment as a preview, but Vercel recorded
+the empty master baseline as target production (dpl_D28ocawAiRAVSLDgGDT96XZotU3Y).
+It contains no application code and has only new-project vercel.app aliases, no Lunia
+domains. No application was promoted. The actual app is a feature-branch preview
+(target null / non-production): dpl_4iNJHmCxrLi4m9qwTS5V9QE4WraB. Production branch remains master, where Git deployments
 are disabled by this PR's vercel.json once that config exists on the branch. The app also
 explicitly rejects Vercel production builds. PR: https://github.com/AxelOord/studio-lunia/pull/1.
 Final deployment and exact-head CI results are recorded in the PR/task report.
@@ -39,3 +42,8 @@ review migrations/backup/restore, configure email, provision an editor through a
 bootstrap process and exercise drafts/uploads/access tests against that environment.
 Local `media/` and container PostgreSQL are development resources, not hosted persistence.
 The hosted-CMS guard must be removed only in the spec that verifies those prerequisites.
+
+Verified preview: https://studio-lunia-dxng4za6c-axeloords-projects.vercel.app
+Commit 99a87d3254a1e697207d1e24be08a9ec36f750b9: READY, authenticated fetch homepage
+200 with noindex; /admin, /api/pages and /preview?slug=home each returned 503.
+The stable feature alias follows later commits. Access requires Vercel authentication.
