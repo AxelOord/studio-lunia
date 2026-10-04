@@ -4,8 +4,10 @@ Workflow: requirements-first
 Status: ready
 
 Implementation authorized; provider direction is Neon + private Vercel Blob + Resend.
-Status remains ready because hosted acceptance is pending. New resources, credentials,
-spending and hosted activation require their specific approvals.
+Status remains ready because hosted acceptance is pending. Axel approved separate free
+preview resources and branch-scoped connections plus his account mailbox as editor/recipient
+on 2026-10-04. This unpaid synthetic prototype may continue on Hobby; no paid upgrades or
+commercial launch are authorized. Secure provider setup and hosted acceptance remain pending.
 
 Smallest slice: one approved editor signs into the separate protected Studio Lunia
 preview, uploads a synthetic photograph, saves/previews a draft, publishes it and sees
@@ -39,7 +41,8 @@ Check: authorized bootstrap/repeat denial, anonymous registration denial, login/
 
 ### R-4: Protected drafts and preview boundary
 
-An authenticated editor can preview an unpublished draft; unauthenticated CMS users cannot
+An authenticated editor can preview an unpublished draft including private hero/gallery
+images; unauthenticated CMS users cannot
 read it through any page/API/media path. Preview requires a session on every request,
 rejects external redirects and does not cache draft responses. Vercel Authentication,
 noindex and robots disallow remain; production builds remain blocked.

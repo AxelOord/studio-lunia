@@ -7,13 +7,17 @@ import {
 } from '@payloadcms/plugin-cloud-storage/utilities'
 import * as blob from '@vercel/blob'
 import { generateClientTokenFromReadWriteToken } from '@vercel/blob/client'
-import { APIError, Forbidden, type StorageAdapter } from 'payload'
+import { APIError, Forbidden, type PayloadRequest, type StorageAdapter } from 'payload'
 import { assertClientUploadAllowed } from 'payload/internal'
 import { MAX_UPLOAD_BYTES } from './environment'
 import { limitOperation } from './rate-limit'
+import type { Media } from '../payload-types'
 
 type BlobIO = Pick<typeof blob, 'put' | 'get' | 'del'>
 const PREFIX = 'preview-media'
+// Canary delete hooks receive a response document after hidden _objectKey is removed.
+// Retain only the authorized deletion's storage identity in server memory, never its response.
+const deletionFolders = new WeakMap<PayloadRequest, Map<string, string>>()
 
 // The pinned official Blob adapter only supports public storage. This deliberately small
 // private adapter uses Payload's own access, signed receipts, key isolation and validation.
@@ -63,7 +67,7 @@ export function privateBlobAdapter(token: string, io: BlobIO = blob): Adapter {
         }
       },
     },
-    handleUpload: async ({ data, file, storageFilePath }) => {
+    handleUpload: async ({ file, storageFilePath }) => {
       await io.put(storageFilePath, file.buffer, {
         token,
         access: 'private',
@@ -72,10 +76,20 @@ export function privateBlobAdapter(token: string, io: BlobIO = blob): Adapter {
         contentType: file.mimeType,
         cacheControlMaxAge: 60,
       })
-      return data
+      // No provider metadata is added. Echoing data triggers Payload's nested metadata
+      // update, which clears req.file before its client-upload tempfile cleanup.
     },
-    handleDelete: async ({ storageFilePath }) => {
-      await io.del(storageFilePath, { token })
+    handleDelete: async ({ storageFilePath, req, doc, filename }) => {
+      const folder = deletionFolders.get(req)?.get(`${collection.slug}:${doc.id}`)
+      const key =
+        folder === undefined
+          ? storageFilePath
+          : buildStoragePathData({
+              collectionPrefix: prefix,
+              docPrefix: folder,
+              filename,
+            }).storageFilePath
+      await io.del(key, { token })
     },
     staticHandler: async (req, { doc, params: { filename, uploadReference } }) => {
       try {
@@ -121,22 +135,66 @@ export function privateBlobAdapter(token: string, io: BlobIO = blob): Adapter {
   })
 }
 
-export function privateBlobStorage(enabled: boolean, token: string | undefined): StorageAdapter {
+export function privateBlobStorage(
+  enabled: boolean,
+  token: string | undefined,
+  io: BlobIO = blob,
+): StorageAdapter {
   if (enabled && !token)
     throw new Error('Private Blob token missing; local fallback is prohibited.')
   return {
     name: 'lunia-private-blob',
     collections: ['media'],
-    init: (config) =>
-      cloudStoragePlugin({
+    init: (config) => {
+      if (enabled) {
+        config = {
+          ...config,
+          collections: config.collections?.map((collection) =>
+            collection.slug !== 'media'
+              ? collection
+              : {
+                  ...collection,
+                  hooks: {
+                    ...collection.hooks,
+                    beforeDelete: [
+                      ...(collection.hooks?.beforeDelete ?? []),
+                      async ({ id, req }) => {
+                        // Payload has already authorized this exact deletion. Read raw hidden
+                        // storage metadata before the record is removed; no access is granted here.
+                        const doc = await req.payload.db.findOne({
+                          collection: 'media',
+                          req,
+                          where: { id: { equals: id } },
+                        })
+                        if (!doc) throw new Error('Media deletion target unavailable.')
+                        let folders = deletionFolders.get(req)
+                        if (!folders) {
+                          folders = new Map()
+                          deletionFolders.set(req, folders)
+                        }
+                        folders.set(
+                          `media:${id}`,
+                          [(doc as Media).prefix || PREFIX, (doc as Media)._objectKey]
+                            .filter(Boolean)
+                            .join('/'),
+                        )
+                      },
+                    ],
+                  },
+                },
+          ),
+        }
+      }
+      return cloudStoragePlugin({
         enabled,
         collections: {
           media: {
-            adapter: enabled ? privateBlobAdapter(token!) : null,
+            adapter: enabled ? privateBlobAdapter(token!, io) : null,
             prefix: PREFIX,
             disableLocalStorage: enabled,
           },
         },
-      })(config),
+      })(config)
+    },
   }
 }

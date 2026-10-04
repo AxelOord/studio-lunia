@@ -1,15 +1,24 @@
 import Image from 'next/image'
 import type { Page, Media } from '@/payload-types'
 
-function media(value: number | Media | null | undefined): Media | null {
-  return value && typeof value === 'object' && value.visibility === 'public' && value.url
+function media(value: number | Media | null | undefined, editorPreview: boolean): Media | null {
+  return value &&
+    typeof value === 'object' &&
+    (value.visibility === 'public' || editorPreview) &&
+    value.url
     ? value
     : null
 }
-export function ContentBlocks({ blocks }: { blocks: Page['layout'] }) {
+export function ContentBlocks({
+  blocks,
+  editorPreview = false,
+}: {
+  blocks: Page['layout']
+  editorPreview?: boolean
+}) {
   return blocks.map((block, index) => {
     if (block.blockType === 'hero') {
-      const image = media(block.image)
+      const image = media(block.image, editorPreview)
       const Heading = index === 0 ? 'h1' : 'h2'
       return (
         <section className="hero" key={block.id ?? index}>
@@ -58,7 +67,7 @@ export function ContentBlocks({ blocks }: { blocks: Page['layout'] }) {
         <h2>{block.heading}</h2>
         <div className="gallery">
           {block.images?.map((item, i) => {
-            const image = media(item.image)
+            const image = media(item.image, editorPreview)
             return image ? (
               <Image
                 key={item.id ?? i}

@@ -1,9 +1,9 @@
 import 'dotenv/config'
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildConfig, createLocalReq, getPayload, type Payload, type StorageAdapter } from 'payload'
+import { access } from 'node:fs/promises'
+import { buildConfig, createLocalReq, getPayload, type Payload } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
-import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
 import type { GetBlobResult, PutBlobResult } from '@vercel/blob'
 import { getPayloadFromClientToken } from '@vercel/blob/client'
 import { verifyClientUploadReceipt, getFileFromUploadInstructions } from 'payload/internal'
@@ -11,7 +11,7 @@ import sharp from 'sharp'
 import { Media } from '../../src/collections/Media'
 import { Users } from '../../src/collections/Users'
 import { Pages } from '../../src/collections/Pages'
-import { privateBlobAdapter } from '../../src/hosting/private-blob'
+import { privateBlobAdapter, privateBlobStorage } from '../../src/hosting/private-blob'
 
 // In-memory SDK boundary: tests Payload integration, not Vercel's actual store ACL/CORS.
 const objects = new Map<string, { bytes: Buffer; type: string }>()
@@ -42,16 +42,7 @@ const io = {
   },
 }
 const factory = privateBlobAdapter('vercel_blob_rw_syntheticstore_syntheticlocaltestonly', io)
-const storage: StorageAdapter = {
-  name: 'test-private-blob',
-  collections: ['media'],
-  init: (config) =>
-    cloudStoragePlugin({
-      collections: {
-        media: { adapter: factory, prefix: 'preview-media', disableLocalStorage: true },
-      },
-    })(config),
-}
+const storage = privateBlobStorage(true, 'vercel_blob_rw_syntheticstore_syntheticlocaltestonly', io)
 let payload: Payload
 let imageID: number
 const extraImages: number[] = []
@@ -235,6 +226,9 @@ test('a provider upload receipt finalizes validated bytes under its isolated key
     file: grant.file,
     req,
   })
+  assert.ok(file.tempFilePath)
+  const temporaryPath = file.tempFilePath
+  await access(temporaryPath)
   const image = await payload.create({
     collection: 'media',
     user,
@@ -242,8 +236,10 @@ test('a provider upload receipt finalizes validated bytes under its isolated key
     showHiddenFields: true,
     data: { alt: 'Direct synthetic upload', visibility: 'private' },
     file,
+    req,
   })
   extraImages.push(image.id)
+  await assert.rejects(access(temporaryPath), { code: 'ENOENT' })
   assert.ok(image._objectKey)
   const response = await adapter.staticHandler(req, {
     doc: image,
@@ -258,4 +254,76 @@ test('a provider upload receipt finalizes validated bytes under its isolated key
   await assert.rejects(
     getFileFromUploadInstructions({ collectionSlug: 'media', file: forged, req }),
   )
+  // Document deletion must remove every finalized variant, but never unrelated uploads.
+  const finalKeys = [...objects.keys()].filter(
+    (candidate) => candidate.includes(image._objectKey!) && candidate !== key,
+  )
+  const unrelatedKeys = [...objects.keys()].filter(
+    (candidate) => !candidate.includes(image._objectKey!),
+  )
+  assert.ok(finalKeys.length >= 2)
+  await assert.rejects(payload.delete({ collection: 'media', id: image.id, overrideAccess: false }))
+  for (const finalKey of finalKeys) assert.equal(objects.has(finalKey), true)
+  await payload.delete({ collection: 'media', id: image.id, overrideAccess: false, user })
+  extraImages.splice(extraImages.indexOf(image.id), 1)
+  for (const finalKey of finalKeys) assert.equal(objects.has(finalKey), false)
+  for (const unrelatedKey of unrelatedKeys) assert.equal(objects.has(unrelatedKey), true)
+  // Format conversion leaves the original provider upload unreferenced. The inventory
+  // must retain this as a cleanup candidate; automatic provider cleanup is not implemented.
+  assert.equal(objects.has(key), true)
+  objects.delete(key)
+})
+
+test('invalid direct image leaves no record and removes its local temporary file', async () => {
+  const editor = (await payload.find({ collection: 'users', limit: 1, overrideAccess: true }))
+    .docs[0]
+  const user = { ...editor, collection: 'users' as const }
+  const req = await createLocalReq({ user }, payload)
+  const bytes = Buffer.from('not an image')
+  const grant = await factory({
+    collection: Media,
+    prefix: 'preview-media',
+  }).uploadInstructions!.generate({
+    collectionSlug: 'media',
+    filename: `invalid-${Date.now()}.png`,
+    filesize: bytes.length,
+    mimeType: 'image/png',
+    overrideAccess: false,
+    req,
+  })
+  if (grant.type !== 'dispatch') throw new Error('Expected dispatch')
+  const key = (grant.data as { pathname: string }).pathname
+  objects.set(key, { bytes, type: 'image/png' })
+  const file = await getFileFromUploadInstructions({
+    collectionSlug: 'media',
+    file: grant.file,
+    req,
+  })
+  const temporaryPath = file.tempFilePath!
+  await access(temporaryPath)
+  await assert.rejects(
+    payload.create({
+      collection: 'media',
+      user,
+      req,
+      overrideAccess: false,
+      data: { alt: 'Invalid upload', visibility: 'private' },
+      file,
+    }),
+  )
+  await assert.rejects(access(temporaryPath), { code: 'ENOENT' })
+  assert.equal(
+    (
+      await payload.find({
+        collection: 'media',
+        user,
+        overrideAccess: false,
+        where: { filename: { equals: grant.file.filename } },
+      })
+    ).totalDocs,
+    0,
+  )
+  // Failed provider bytes stay private and require the documented orphan review.
+  assert.equal(objects.has(key), true)
+  objects.delete(key)
 })

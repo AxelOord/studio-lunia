@@ -2,8 +2,10 @@
 
 ## Implementation decision record
 
-Axel selected Neon + Vercel Blob + Resend and authorized building. Resource grants and
-commercial hosting remain pending. The exact Payload Blob adapter is public-only; the
+Axel selected Neon + Vercel Blob + Resend and authorized building and separate free preview
+resources with branch-scoped access on 2026-10-04. The current unpaid synthetic prototype
+may continue on Hobby; revisit eligibility before commercial use, with no upgrade authorized.
+Secure provider setup and hosted acceptance remain pending. The exact Payload Blob adapter is public-only; the
 implementation therefore uses an application-owned private adapter on the official Blob
 SDK and Payload cloud-storage interfaces. Its real provider integration is not yet verified.
 The S3 prototype was removed; no alternative provider was provisioned. See
@@ -13,7 +15,8 @@ The S3 prototype was removed; no alternative provider was provisioned. See
 
 Foundation PR #1 is merged into develop; spec PR #2 targets develop. Runtime remains
 Payload 4.0.0-canary.37, PostgreSQL, Next.js and Node 24 until an explicit tested change.
-Recommendations below are not provisioning approval. Record Axel's answers before T-2:
+The original planning table below is superseded for provider/region/access choices by the
+approved inventory in the hosted runbook. It does not authorize paid spending or DNS changes:
 
 | Decision               | Proposed choice                                                                                                 | Approval needed                                                                              |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |

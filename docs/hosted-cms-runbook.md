@@ -8,17 +8,22 @@ its domains, production credentials or production build rejection.
 
 ## Approved direction and remaining access decisions
 
-Axel selected Neon + Vercel Blob + Resend and authorized implementation. That does not
-supply resource creation, new persistent grants or checkout approval. Confirm each actual
-provider action with the user before execution. Proposed resource inventory:
+Axel selected Neon + Vercel Blob + Resend and authorized implementation. On 2026-10-04
+he confirmed that the current prototype is unpaid, synthetic and does not promote services;
+continue bounded preview development on Hobby without an upgrade. Revisit plan eligibility
+before commercial use. He subsequently approved a separate Neon Free database, private Blob
+in Frankfurt, access restricted to this preview branch, Resend Free test mail without DNS
+changes, and his confirmed account mailbox as the first editor/only recipient. Keep the
+actual email in protected configuration, not this public repository. Provider setup is
+handled separately; approval is not evidence that resources or credentials exist.
 
-| Resource | Proposed scope                                                                   | Unresolved before activation                                                             |
-| -------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Vercel   | Existing studio-lunia project; eligible commercial plan; one allowed branch      | User-controlled Pro checkout, taxes/usage budget and alerts                              |
-| Neon     | studio-lunia-preview; Postgres 17; isolated preview branch; Frankfurt if offered | Account, region, free-plan eligibility/quotas, runtime role and separate migration owner |
-| Blob     | studio-lunia-preview; PRIVATE store; Frankfurt if offered                        | Store creation and private mode, region, storage/egress budget, isolated access grant    |
-| Resend   | Free; sending-only access; approved test sender and account-owner mailbox        | Account/key and recipient approval; no existing-domain DNS changes                       |
-| Editor   | One approved email, no signup                                                    | User-chosen password supplied through operator stdin, never chat or a committed file     |
+| Resource | Proposed scope                                                                              | Unresolved before activation                                                             |
+| -------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Vercel   | Existing studio-lunia project; bounded noncommercial prototype on Hobby; one allowed branch | Verify free quotas; no paid upgrade/trial/overage authorization                          |
+| Neon     | studio-lunia-preview; Postgres 17; isolated preview branch; Frankfurt if offered            | Account, region, free-plan eligibility/quotas, runtime role and separate migration owner |
+| Blob     | studio-lunia-preview; PRIVATE store; Frankfurt if offered                                   | Store creation and private mode, region, storage/egress budget, isolated access grant    |
+| Resend   | Free; sending-only access; onboarding@resend.dev to confirmed account-owner mailbox         | Secure account/key setup; no existing-domain DNS changes                                 |
+| Editor   | One approved email, no signup                                                               | User-chosen password supplied through operator stdin, never chat or a committed file     |
 
 Only the allowed branch receives DATABASE_URL, PAYLOAD_SECRET, BLOB_READ_WRITE_TOKEN,
 RESEND_API_KEY, MAIL_FROM and PREVIEW_EDITOR_EMAIL. Scope non-secret mode settings there
@@ -26,6 +31,11 @@ as well. Use a pooled TLS runtime URL, no DDL permissions, and migration access 
 the operator session. Validate permissions against the generated schema (tables, sequences,
 Payload internal tables and lunia_rate_limits); do not grant superuser or account-wide access.
 Do not auto-inject production or all-preview secrets from a marketplace integration.
+
+Exact setup target: project studio-lunia, Vercel Preview branch feature/hosted-cms-preview;
+Functions fra1; Neon project studio-lunia-preview, branch hosted-cms-preview, database
+lunia_preview, AWS Frankfurt aws-eu-central-1; PRIVATE Blob store studio-lunia-preview
+in Frankfurt. Verify actual provider selectors before creation and record returned IDs.
 
 The newest Blob SDK supports OIDC for server operations, but the implemented direct-upload
 flow uses generateClientTokenFromReadWriteToken. Its parent token must be scoped to this
@@ -57,7 +67,9 @@ then private becomes denied including cache/optimizer paths; oversized/malformed
 interrupted requests leave no published record; a redeploy preserves all bytes. Local SDK
 mocks do not prove provider ACLs, CORS, network latency, or execution-time limits.
 
-Failed direct uploads can leave PRIVATE unreferenced objects. `npm run preview:inventory --
+Failed direct uploads and successfully converted source files can leave PRIVATE unreferenced
+objects. Local tests confirm that this remains an operational gap, not automatic cleanup.
+`npm run preview:inventory --
 /path/to/new-manifest.json` produces a mode-0600 read-only manifest of Blob hashes and
 references from media plus media versions. It reports missing references and orphan
 candidates without deleting anything. Review objects older than 24h only after quiescing
@@ -153,3 +165,20 @@ and log checks, provider quotas/budget and an unchanged old-site/domain comparis
   and production readiness are explicitly not established.
 - Audit: 0 critical, 8 high, 5 moderate, 2 low affected-package entries from the same three
   root advisories (braces/esbuild/DOMPurify). Counts include dependency propagation.
+
+## Draft media and cleanup regression — local follow-up
+
+Reproduction: an authenticated draft containing private hero/gallery media rendered zero
+images. The regression test failed before the fix. getPage now returns a server-derived
+editorPreview flag only after session verification; the renderer uses that flag for private
+media. Public reads still enforce Payload access and explicitly public media. Browser tests
+cover loaded hero/gallery bytes, no-store page/image responses, auth-cookie removal with
+draft cookie retained, optimizer denial, and a published page that retains private media.
+
+Cleanup regression tests also exposed two adapter interactions with canary.37: echoing
+unchanged upload metadata cleared req.file before tempfile cleanup, and delete hooks lost
+the hidden object key before deleting provider variants. The adapter now returns no redundant
+metadata and retains the authorized deletion's storage folder only in request-scoped memory.
+Tests require tempfile deletion after success/failure, denial of anonymous deletion, removal
+of finalized variants, and preservation of unrelated uploads. Raw provider upload orphans
+remain private inventory candidates; hosted ACL/CORS and orphan-retention QA remain open.
