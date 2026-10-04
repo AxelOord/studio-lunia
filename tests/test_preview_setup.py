@@ -19,6 +19,49 @@ OWNER = "postgresql://neondb_owner:hidden-test-only@ep-synthetic.eu-central-1.aw
 
 
 class PreviewSetupTests(unittest.TestCase):
+    def test_neon_password_contract_uses_literal_plaintext_stdin_only(self):
+        password = "synthetic-'\\:@$`; SELECT pg_sleep(99); --é-12345"
+        calls = []
+
+        def neon_contract(args, **kwargs):
+            # Simulated provider contract, not a hosted Neon acceptance test.
+            sql = kwargs["input"]
+            prefix = "ALTER ROLE lunia_runtime PASSWORD E'"
+            self.assertTrue(sql.startswith(prefix))
+            self.assertTrue(sql.endswith("';\n"))
+            body = sql[len(prefix):-3]
+            decoded, index = "", 0
+            while index < len(body):
+                char = body[index]
+                if char in "\\'":
+                    self.assertLess(index + 1, len(body))
+                    self.assertEqual(body[index + 1], char)
+                    index += 1
+                decoded += char
+                index += 1
+            if decoded.startswith(("SCRAM-SHA-256$", "md5")):
+                return subprocess.CompletedProcess(args, 1, "", "ERROR:  0A000")
+            self.assertEqual(decoded, password)
+            self.assertNotIn(password, str(args))
+            self.assertNotIn(password, str(kwargs["env"]))
+            self.assertIn("--file=-", args)
+            self.assertNotIn("--command", args)
+            calls.append(sql)
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        with patch.object(setup.subprocess, "run", side_effect=neon_contract):
+            setup.set_runtime_password({}, password)
+            with self.assertRaisesRegex(setup.SetupError, "unsupported-feature; SQLSTATE=0A000"):
+                setup.set_runtime_password({}, "SCRAM-SHA-256$synthetic-rejected-hash")
+        self.assertEqual(len(calls), 1)
+
+    def test_password_sql_rejects_control_input_before_subprocess(self):
+        with patch.object(setup.subprocess, "run") as run:
+            for password in ("short", "x" * 24 + "\n", "x" * 24 + "\r", "x" * 24 + "\0"):
+                with self.assertRaises(setup.SetupError):
+                    setup.set_runtime_password({}, password)
+        run.assert_not_called()
+
     def test_postgres_diagnostics_only_emit_allowlisted_categories(self):
         secret = "sensitive-provider-detail"
         for stderr, expected in (("ERROR:  42501\n" + secret, "insufficient-privilege; SQLSTATE=42501"),

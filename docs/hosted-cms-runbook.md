@@ -154,7 +154,7 @@ prove the later hosted CMS/media recovery acceptance and does not replace quiesc
 
 Only after verified backup/restore does the helper run the serialized migration command,
 apply current/future schema/table/sequence
-grants, sets the runtime password through psql's encrypted password flow, verifies restricted
+grants, sets the runtime password through Neon's plaintext SQL password contract over TLS, verifies restricted
 runtime access, and bootstraps the editor with runtime privileges. It denies runtime DDL,
 database creation/temp privileges and migration-history writes. Child output is withheld;
 only stage results are printed. Inputs stay in process memory/child environment/stdin and
@@ -191,17 +191,28 @@ empty/short password attempts, performed no backup/migration/grant replay, and c
 runtime access plus bootstrap with one editor and two migration records. Four added tests
 cover hidden-input retries, confirmation mismatch, archive integrity and read-only state checks.
 
-Password diagnostics follow-up: PostgreSQL 18's `\password` uses a terminal when present,
-otherwise stdin, and libpq's client-side password encryption. The helper starts a new session
-without a controlling terminal and now passes `-w` to prohibit a separate connection-password
-prompt. `VERBOSITY=sqlstate` plus an allowlist produces safe categories, never provider text.
-A disposable PG18.6 test using a NOSUPERUSER/CREATEDB/CREATEROLE owner that created the runtime
-role successfully changed and authenticated a password with quotes, backslash, URI punctuation
-and non-ASCII characters. A separately owned role was denied with SQLSTATE 42501. This tests
-Linux subprocess behavior and PostgreSQL permissions; it does not reproduce macOS/Neon failure
-or establish its cause. Hosted setup remains stopped pending a safe diagnostic result.
-Source inspection: PostgreSQL 18 [prompt handling](https://github.com/postgres/postgres/blob/REL_18_STABLE/src/common/sprompt.c)
-and [password command](https://github.com/postgres/postgres/blob/REL_18_STABLE/src/bin/psql/command.c).
+Password provider correction: [Neon's SQL role contract](https://github.com/neondatabase/website/blob/main/content/docs/manage/roles.md#manage-roles-with-sql)
+requires plaintext password values and rejects pre-hashed passwords. PostgreSQL's
+[`\password` implementation](https://github.com/postgres/postgres/blob/REL_18_STABLE/src/bin/psql/command.c)
+calls [`PQchangePassword`](https://github.com/postgres/postgres/blob/REL_18_STABLE/src/interfaces/libpq/fe-auth.c),
+which hashes on the client. The previous stock PostgreSQL tests missed this documented
+provider incompatibility; a direct libpq setter would have the same problem.
+
+The corrected helper supplies `ALTER ROLE lunia_runtime PASSWORD E'...'` only through
+psql stdin (`--file=-`), over the validated TLS connection. The role is fixed, quotes and
+backslashes are escaped, and CR/LF/NUL are rejected. `-X -w` prevents startup scripts and
+password prompts; UTF-8 is explicit. No password command enters argv, shell history or a
+temporary file. Child output remains suppressed; only fixed categories/SQLSTATEs are shared.
+This prevents helper-side disclosure, but does not assert that provider-side SQL logging
+is disabled. SQL password handling remains within Neon's documented provider boundary.
+
+Correction evidence: the exact stdin setter passed against PG18.6 with a NOSUPERUSER owner,
+including quotes, backslash, colon, dollar/backtick, semicolon, comment text and Unicode.
+A fresh runtime connection authenticated, verified no DDL privileges and completed rollback
+CRUD. A simulated Neon contract rejects a pre-hashed value and accepts the escaped plaintext
+value; this is a regression test, not a real Neon hook or hosted success claim. Hosted
+password/bootstrap acceptance remains outstanding. Resume still checks the existing backup,
+migrations, zero editors and grants before changing anything; it does not replay those stages.
 
 ### Individual operator commands
 

@@ -115,7 +115,7 @@ def child_env(database, secret="", email="", target="", backup=""):
     env.update({
         "DATABASE_URL": database, "PAYLOAD_SECRET": secret,
         "PGCONNECT_TIMEOUT": "15", "PGAPPNAME": "lunia-preview-operator", "LC_MESSAGES": "C",
-        "PGSSLMODE": "require", "NODE_ENV": "production",
+        "PGSSLMODE": "require", "PGCLIENTENCODING": "UTF8", "NODE_ENV": "production",
         "PREVIEW_EDITOR_EMAIL": email, "LUNIA_OPERATOR_TARGET": target,
         "LUNIA_BACKUP_REFERENCE": backup, "LUNIA_SHOWCASE": "false",
         "LUNIA_CMS_PREVIEW": "false", "LUNIA_STORAGE": "", "CMS_ORIGIN": "",
@@ -138,7 +138,9 @@ def postgres_failure(stderr):
     """Return only fixed categories / known SQLSTATEs, never provider output."""
     codes = {"42501": "insufficient-privilege", "28P01": "authentication",
              "28000": "authorization", "08001": "connection", "08006": "connection",
-             "42704": "missing-role", "22023": "invalid-parameter", "55000": "object-state"}
+             "42704": "missing-role", "22023": "invalid-parameter", "55000": "object-state",
+             "0A000": "unsupported-feature", "XX000": "provider-internal-error",
+             "42601": "sql-syntax"}
     for code, category in codes.items():
         if re.search(r"\b(?:ERROR|FATAL):\s+" + code + r"\b", stderr):
             return category + "; SQLSTATE=" + code
@@ -174,6 +176,18 @@ def run(stage, args, env, data=None, timeout=300):
 def psql(stage, sql, env, data=None):
     return run(stage, ["psql", "-X", "-w", "-qAt", "--set", "ON_ERROR_STOP=1",
                        "--set", "VERBOSITY=sqlstate", "--command", sql], env, data)
+
+
+def set_runtime_password(env, password):
+    # Neon rejects client-side password hashes (including psql's \password).
+    # SQL PASSWORD does not accept a bind parameter. A fixed role plus an escaped
+    # PostgreSQL E-string keeps arbitrary input inside a single string literal.
+    if len(password) < 24 or any(c in password for c in "\r\n\0"):
+        raise SetupError("Invalid runtime password input; no password command sent.")
+    literal = password.replace("\\", "\\\\").replace("'", "''")
+    statement = "ALTER ROLE lunia_runtime PASSWORD E'" + literal + "';\n"
+    run("Runtime password", ["psql", "-X", "-w", "-qAt", "--set", "ON_ERROR_STOP=1",
+                             "--set", "VERBOSITY=sqlstate", "--file=-"], env, statement)
 
 
 def check_tool(binary, major, env):
@@ -333,9 +347,7 @@ def main():
         run("Migration", operator + ["migrate"], env)
         print("Migrations completed.")
         psql("Runtime grants", GRANTS, env)
-    # A new session has no controlling tty: psql reads both hidden prompt answers from
-    # the pipe and uses libpq password encryption. No plaintext password in SQL/argv.
-    psql("Runtime password", "\\password lunia_runtime", env, password + "\n" + password + "\n")
+    set_runtime_password(env, password)
     runtime = runtime_url(owner, password)
     runtime_env = child_env(runtime, secret, email, target, backup)
     psql("Restricted runtime access", RUNTIME_CHECK, runtime_env)
