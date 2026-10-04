@@ -1,0 +1,59 @@
+{
+  "name": "studio-lunia",
+  "version": "0.1.0",
+  "description": "Studio Lunia photography website foundation",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "build": "payload build",
+    "start": "next start --hostname 0.0.0.0",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "generate:types": "payload generate:types",
+    "generate:importmap": "payload generate:importmap",
+    "payload": "payload",
+    "db:migrate": "payload migrate",
+    "db:migrate:create": "payload migrate:create",
+    "seed": "tsx scripts/seed.ts",
+    "test": "tsx --test tests/*.test.ts",
+    "test:integration": "tsx --test tests/integration/*.test.ts",
+    "test:e2e": "playwright test",
+    "spec:check": "python3 scripts/specflow.py check --ready",
+    "check": "npm run spec:check && npm run lint && npm run typecheck && npm test && npm run test:workflow",
+    "postinstall": "patch-package",
+    "test:workflow": "python3 -m unittest discover -s tests -p 'test_*.py' -v",
+    "test:showcase": "node scripts/check-showcase.mjs"
+  },
+  "dependencies": {
+    "@payloadcms/db-postgres": "4.0.0-canary.37",
+    "@payloadcms/next": "4.0.0-canary.37",
+    "@payloadcms/ui": "4.0.0-canary.37",
+    "dotenv": "16.4.7",
+    "graphql": "16.11.0",
+    "next": "16.3.8",
+    "payload": "4.0.0-canary.37",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "sharp": "0.35.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.12.3",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.8",
+    "patch-package": "8.0.1",
+    "prettier": "3.6.2",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3"
+  },
+  "engines": {
+    "node": ">=24.15.0 <25",
+    "npm": ">=11 <12"
+  },
+  "private": true,
+  "packageManager": "npm@11.9.0"
+}

@@ -1,0 +1,26 @@
+diff --git a/node_modules/@payloadcms/next/dist/adapters/layout.js b/node_modules/@payloadcms/next/dist/adapters/layout.js
+index ee69f80..d90e535 100644
+--- a/node_modules/@payloadcms/next/dist/adapters/layout.js
++++ b/node_modules/@payloadcms/next/dist/adapters/layout.js
+@@ -1,18 +1,12 @@
+ import { jsx as _jsx } from "react/jsx-runtime";
+ import { RootLayout as UIRootLayout } from '@payloadcms/ui/layouts';
+ // @ts-expect-error - TS6 NodeNext rejects deep imports into `next` (no `exports` field), but Next.js compiler requires this exact specifier
+-import { Inter, Roboto_Mono } from 'next/font/google';
++// Studio Lunia: use system fonts; avoid build-time Google Fonts requests.
+ import React from 'react';
+ import { initReq } from '../utilities/initReq.js';
+ import { NextRouterAdapter } from './router.js';
+-const inter = Inter({
+-  subsets: ['latin'],
+-  variable: '--font-family-sans'
+-});
+-const robotoMono = Roboto_Mono({
+-  subsets: ['latin'],
+-  variable: '--font-family-mono'
+-});
++const inter = {};
++const robotoMono = {};
+ const nextDependencyChecks = {
+   dependencyVersions: {
+     next: {
