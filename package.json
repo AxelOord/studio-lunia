@@ -31,7 +31,11 @@
     "preview:setup": "python3 scripts/preview-setup.py",
     "preview:connection": "python3 scripts/preview-connection.py",
     "build:preview": "tsx scripts/preview-build.ts",
-    "test:upload-metadata": "node scripts/check-upload-metadata.mjs"
+    "test:upload-metadata": "node scripts/check-upload-metadata.mjs",
+    "prepare": "node .husky/install.mjs",
+    "staged:check": "lint-staged",
+    "commit:check": "node scripts/check-commits.mjs",
+    "test:hooks": "node --import tsx --test tests/commit-workflow.test.ts"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "4.0.0-canary.37",
@@ -51,6 +55,8 @@
     "sharp": "0.35.4"
   },
   "devDependencies": {
+    "@commitlint/cli": "21.2.3",
+    "@commitlint/config-conventional": "21.2.3",
     "@playwright/test": "1.63.0",
     "@types/node": "24.12.3",
     "@types/pg": "8.18.0",
@@ -58,6 +64,8 @@
     "@types/react-dom": "19.2.3",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.8",
+    "husky": "9.1.7",
+    "lint-staged": "17.6.0",
     "patch-package": "8.0.1",
     "prettier": "3.6.2",
     "tsx": "4.22.4",

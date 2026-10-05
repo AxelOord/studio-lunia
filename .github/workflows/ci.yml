@@ -1,6 +1,7 @@
 name: Foundation checks
 on:
   pull_request:
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: ['feature/**', develop]
 permissions:
@@ -31,6 +32,8 @@ jobs:
       NEXT_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, Node 24 action runtime
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0, Node 24 action runtime
         with:
           node-version-file: .node-version
@@ -38,6 +41,13 @@ jobs:
       - name: Verify application Node version
         run: node -e 'const fs = require("node:fs"); const expected = fs.readFileSync(".node-version", "utf8").trim(); console.log(`Application Node ${process.version}`); if (process.versions.node !== expected) process.exit(1)'
       - run: npm ci
+      - name: Check new commit messages and PR title
+        if: github.event_name == 'pull_request'
+        run: npm run commit:check -- --pr
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
       - run: npm run generate:types && npm run generate:importmap
       - run: npm run check
       - run: npm run format:check
