@@ -22,6 +22,8 @@ import {
   promotion,
 } from '../scripts/release-github.mjs'
 
+import { projectBoard, projectConfig, projectGraphql } from '../scripts/release-project.mjs'
+
 const root = fileURLToPath(new URL('../', import.meta.url))
 const git = (cwd, ...args) =>
   execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim()
@@ -133,7 +135,7 @@ function memoryApi(manifest, head) {
     number: 20,
     state: 'open',
     state_reason: null,
-    labels: [{ name: 'Development done' }],
+    node_id: 'I_synthetic_20',
   }
   const api = async (url, method = 'GET', body) => {
     if (method !== 'GET') writes.push({ url, method, body })
@@ -141,7 +143,6 @@ function memoryApi(manifest, head) {
       return {
         data: { repository: { pullRequest: { closingIssuesReferences: { totalCount: 0 } } } },
       }
-    if (url.startsWith('/labels/')) return { name: decodeURIComponent(url.slice(8)) }
     if (url === '/git/refs') {
       tag = { object: { type: 'commit', sha: body.sha } }
       return tag
@@ -166,7 +167,6 @@ function memoryApi(manifest, head) {
       return item
     }
     if (url === '/issues/20') return item
-    if (url.startsWith('/issues/20/labels')) return []
     throw new Error(`Unexpected request ${method} ${url}`)
   }
   return {
@@ -183,15 +183,20 @@ function memoryApi(manifest, head) {
   }
 }
 
-test('development status labels an explicit open issue without closing or reopening any issue', async () => {
+test('development updates the actual board for open issues without repository writes', async () => {
   const m = memoryApi({}, '')
-  await markDevelopment(m.api, [20])
-  assert.deepEqual(m.writes, [
-    { url: '/issues/20/labels', method: 'POST', body: { labels: ['Development done'] } },
-  ])
+  const updates = []
+  const board = {
+    async setStatus(issues, status) {
+      updates.push({ numbers: issues.map((i) => i.number), status })
+    },
+  }
+  await markDevelopment(m.api, [20], board)
+  assert.deepEqual(updates, [{ numbers: [20], status: 'Development done' }])
+  assert.equal(m.writes.length, 0)
   m.item.state = 'closed'
-  m.writes.length = 0
-  await markDevelopment(m.api, [20])
+  await markDevelopment(m.api, [20], board)
+  assert.deepEqual(updates[1].numbers, [])
   assert.equal(m.writes.length, 0)
 })
 
@@ -201,7 +206,16 @@ test('failed publication cannot close issues; retries reuse immutable tag/releas
   try {
     process.chdir(f.cwd)
     const m = memoryApi(f.manifest, f.head)
-    await assert.rejects(closeReleased(m.api, f.head, f.manifest))
+    const board = {
+      async setStatus(issues, status) {
+        assert.equal(status, 'Done')
+        assert.deepEqual(
+          issues.map((i) => i.number),
+          [20],
+        )
+      },
+    }
+    await assert.rejects(closeReleased(m.api, f.head, f.manifest, board))
     assert.equal(m.writes.length, 0)
     m.fail(true)
     await assert.rejects(publish(m.api, f.head, f.manifest))
@@ -209,7 +223,17 @@ test('failed publication cannot close issues; retries reuse immutable tag/releas
     assert.equal(m.writes.filter((w) => w.url === '/git/refs').length, 1)
     m.fail(false)
     await publish(m.api, f.head, f.manifest)
-    await closeReleased(m.api, f.head, f.manifest)
+    await assert.rejects(
+      closeReleased(m.api, f.head, f.manifest, {
+        async setStatus() {
+          throw new Error('Project access denied')
+        },
+      }),
+      /Project access denied/,
+    )
+    assert.equal(m.item.state, 'open')
+    assert.equal(m.writes.filter((w) => w.method === 'PATCH').length, 0)
+    await closeReleased(m.api, f.head, f.manifest, board)
     assert.equal(m.item.state, 'closed')
     assert.equal(m.item.state_reason, 'completed')
     await publish(m.api, f.head, f.manifest)
@@ -218,7 +242,7 @@ test('failed publication cannot close issues; retries reuse immutable tag/releas
     assert.ok(m.writes.filter((w) => w.method === 'PATCH').every((w) => w.url === '/issues/20'))
     m.wrongTag()
     await assert.rejects(publish(m.api, f.head, f.manifest))
-    await assert.rejects(closeReleased(m.api, f.head, f.manifest))
+    await assert.rejects(closeReleased(m.api, f.head, f.manifest, board))
     assert.ok(releaseNotes(f.manifest).includes('0.2.0'))
   } finally {
     process.chdir(original)
@@ -315,6 +339,12 @@ test('workflow writer gates, permission separation and production deployment blo
     assert.match(block, /persist-credentials: false/)
   }
   assert.match(development, /needs: verify/)
+  assert.match(development, /issues: read/)
+  assert.match(development, /environment: project-status/)
+  assert.match(closure, /environment: project-status/)
+  assert.ok(!publication.includes('LUNIA_PROJECT_TOKEN'))
+  for (const statusJob of [development, closure])
+    assert.match(statusJob, /secrets.LUNIA_PROJECT_TOKEN/)
   assert.match(development, /refs\/heads\/develop/)
   assert.match(publication, /needs: verify/)
   assert.match(publication, /environment: release-automation/)
@@ -327,4 +357,149 @@ test('workflow writer gates, permission separation and production deployment blo
     JSON.parse(readFileSync(path.join(root, 'vercel.json'), 'utf8')).git.deploymentEnabled.master,
     false,
   )
+})
+
+const projectSettings = {
+  projectId: 'PVT_synthetic',
+  projectUrl: 'https://github.com/users/AxelOord/projects/999',
+  fieldId: 'PVTSSF_status',
+  developmentId: 'development-option',
+  doneId: 'done-option',
+}
+
+function projectApi() {
+  const mutations = []
+  const fields = [
+    {
+      id: projectSettings.fieldId,
+      name: 'Status',
+      options: [
+        { id: projectSettings.developmentId, name: 'Development done' },
+        { id: projectSettings.doneId, name: 'Done' },
+      ],
+    },
+  ]
+  const items = [
+    {
+      id: 'PVTI_20',
+      isArchived: false,
+      content: {
+        id: 'I_synthetic_20',
+        number: 20,
+        repository: { nameWithOwner: 'AxelOord/studio-lunia' },
+      },
+      fieldValueByName: { optionId: 'in-progress' },
+    },
+  ]
+  let pageCount = 0
+  const query = async (query, variables) => {
+    if (query.includes('query ProjectStatusConfig'))
+      return {
+        node: {
+          id: projectSettings.projectId,
+          url: projectSettings.projectUrl,
+          closed: false,
+          fields: { pageInfo: { hasNextPage: false }, nodes: fields },
+        },
+      }
+    if (query.includes('query ProjectStatusItems')) {
+      assert.match(query, /archivedStates: \[ARCHIVED, NOT_ARCHIVED\]/)
+      pageCount++
+      // Always exercise a second page; do not silently assume the first hundred items.
+      return {
+        node: {
+          items: variables.cursor
+            ? {
+                nodes: items,
+                pageInfo: { hasNextPage: false, endCursor: 'end' },
+              }
+            : { nodes: [], pageInfo: { hasNextPage: true, endCursor: 'next' } },
+        },
+      }
+    }
+    mutations.push({ query, variables })
+    if (query.includes('mutation AddCompletedIssue')) {
+      items.push({
+        id: 'PVTI_new',
+        isArchived: false,
+        content: {
+          id: variables.issue,
+          number: 21,
+          repository: { nameWithOwner: 'AxelOord/studio-lunia' },
+        },
+        fieldValueByName: null,
+      })
+      return { addProjectV2ItemById: { item: { id: 'PVTI_new' } } }
+    }
+    if (query.includes('mutation SetCompletionStatus')) {
+      const item = items.find((value) => value.id === variables.item)
+      item.fieldValueByName = { optionId: variables.option }
+      return {
+        updateProjectV2ItemFieldValue: {
+          projectV2Item: { id: item.id, fieldValueByName: item.fieldValueByName },
+        },
+      }
+    }
+    throw new Error('Unexpected Project request')
+  }
+  return { query, mutations, fields, items, pageCount: () => pageCount }
+}
+
+test('Project backend updates the approved actual Status field, adds missing issues and retries idempotently', async () => {
+  const api = projectApi(),
+    board = projectBoard(api.query, projectSettings)
+  const issues = [
+    { number: 20, node_id: 'I_synthetic_20' },
+    { number: 21, node_id: 'I_synthetic_21' },
+  ]
+  await board.setStatus(issues, 'Development done')
+  assert.equal(api.pageCount(), 2)
+  assert.equal(api.mutations.filter((value) => value.query.includes('AddCompletedIssue')).length, 1)
+  assert.equal(
+    api.mutations.filter((value) => value.query.includes('SetCompletionStatus')).length,
+    2,
+  )
+  assert.ok(api.mutations.every((value) => value.variables.project === projectSettings.projectId))
+  const previous = api.mutations.length
+  await board.setStatus(issues, 'Development done')
+  assert.equal(api.mutations.length, previous)
+  await board.setStatus(issues, 'Done')
+  assert.ok(api.items.every((value) => value.fieldValueByName.optionId === projectSettings.doneId))
+  const completed = api.mutations.length
+  await board.setStatus(issues, 'Development done')
+  assert.equal(api.mutations.length, completed, 'Development reconciliation cannot downgrade Done')
+})
+
+test('wrong Project/options, archived issues and foreign membership stop before any Project write', async () => {
+  for (const failure of ['project', 'option', 'archive', 'foreign']) {
+    const api = projectApi(),
+      config = { ...projectSettings }
+    if (failure === 'project') config.projectUrl = 'https://github.com/users/someone/projects/1'
+    if (failure === 'option') api.fields[0].options[0].name = 'Some other state'
+    if (failure === 'archive') api.items[0].isArchived = true
+    if (failure === 'foreign') api.items[0].content.repository.nameWithOwner = 'someone/other'
+    await assert.rejects(
+      projectBoard(api.query, config).setStatus(
+        [{ number: 20, node_id: 'I_synthetic_20' }],
+        'Development done',
+      ),
+    )
+    assert.equal(api.mutations.length, 0)
+  }
+})
+
+test('Project credential/configuration is mandatory and denial never leaks the provider response or token', async () => {
+  assert.throws(() => projectConfig({}), /Missing Project configuration/)
+  assert.throws(() => projectGraphql(''), /required/)
+  const denied = projectGraphql('synthetic-project-token', async (url, options) => {
+    assert.equal(url, 'https://api.github.com/graphql')
+    assert.equal(options.redirect, 'error')
+    return { ok: true, json: async () => ({ errors: [{ message: 'sensitive provider details' }] }) }
+  })
+  await assert.rejects(denied('query { viewer { login } }', {}), (error) => {
+    assert.ok(
+      !error.message.includes('sensitive') && !error.message.includes('synthetic-project-token'),
+    )
+    return true
+  })
 })

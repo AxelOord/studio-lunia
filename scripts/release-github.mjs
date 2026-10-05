@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
+import { projectBoard, projectConfig, projectGraphql } from './release-project.mjs'
 import {
   repository,
   candidatePath,
@@ -77,22 +78,16 @@ export function validPromotion(pr, head, version) {
   )
 }
 
-async function label(api, name, color) {
-  if (!(await api(`/labels/${encodeURIComponent(name)}`)))
-    await api('/labels', 'POST', { name, color })
-}
-
-export async function markDevelopment(api, numbers) {
-  // Preflight all targets before the first write. Never reopen manually closed issues.
+export async function markDevelopment(api, numbers, board) {
   const targets = await Promise.all(numbers.map((number) => issue(api, number)))
-  // Closed issues are intentionally preserved, never reopened by reconciliation.
-  if (!targets.length) return
-  await label(api, 'Development done', '1d76db')
-  for (const item of targets.filter((value) => value.state === 'open'))
-    await api(`/issues/${item.number}/labels`, 'POST', { labels: ['Development done'] })
+  // Never close or reopen an issue during development reconciliation.
+  await board.setStatus(
+    targets.filter((item) => item.state === 'open'),
+    'Development done',
+  )
 }
 
-export async function development(api, before, head) {
+export async function development(api, before, head, board) {
   sha(before)
   sha(head)
   ancestor(before, head)
@@ -106,7 +101,7 @@ export async function development(api, before, head) {
     noClosingReferences(pr.body ?? '')
     for (const number of completedIssues(pr.body)) numbers.add(number)
   }
-  await markDevelopment(api, [...numbers])
+  await markDevelopment(api, [...numbers], board)
   console.log(`Development completion recorded for ${numbers.size} explicitly completed issues`)
 }
 
@@ -178,24 +173,17 @@ export async function publish(api, head, manifest) {
   return release
 }
 
-export async function closeReleased(api, head, manifest) {
+export async function closeReleased(api, head, manifest, board) {
   const release = await api(`/releases/tags/v${manifest.version}`)
   const reference = await api(`/git/ref/tags/v${manifest.version}`)
   publishedRelease(release, reference?.object?.sha, head, manifest)
-  // Publication proof comes before any issue/label mutation, including retries.
+  // Publication proof comes before any issue/Project mutation, including retries.
   await verifyIssueMembership(api, manifest)
-  if (!manifest.issues.length) return
-  await label(api, 'Done', '0e8a16')
-  for (const entry of manifest.issues) {
-    await api(`/issues/${entry.number}/labels`, 'POST', { labels: ['Done'] })
-    const current = await issue(api, entry.number)
-    if (current.labels.some((value) => value.name === 'Development done'))
-      await api(
-        `/issues/${entry.number}/labels/${encodeURIComponent('Development done')}`,
-        'DELETE',
-      )
-    await api(`/issues/${entry.number}`, 'PATCH', { state: 'closed', state_reason: 'completed' })
-  }
+  const targets = await Promise.all(manifest.issues.map((entry) => issue(api, entry.number)))
+  // Project access/configuration failure cannot silently fall back to labels or close issues.
+  await board.setStatus(targets, 'Done')
+  for (const item of targets)
+    await api(`/issues/${item.number}`, 'PATCH', { state: 'closed', state_reason: 'completed' })
 }
 
 export async function promotion(api, head) {
@@ -250,16 +238,20 @@ async function main() {
   assert.equal(git('rev-parse', 'HEAD'), head)
   const api = github(process.env.GITHUB_TOKEN)
   const mode = process.argv[2]
+  const board =
+    mode === 'publish'
+      ? null
+      : projectBoard(projectGraphql(process.env.LUNIA_PROJECT_TOKEN), projectConfig())
   if (mode === 'development') {
     assert.equal(event.ref, 'refs/heads/develop')
-    await development(api, event.before, head)
+    await development(api, event.before, head, board)
   } else {
     assert.equal(event.ref, 'refs/heads/master')
     assert.ok(['publish', 'close'].includes(mode))
     const manifest = await promotion(api, head)
     if (!manifest) return console.log('No intentional release promotion at this SHA')
     if (mode === 'publish') await publish(api, head, manifest)
-    else await closeReleased(api, head, manifest)
+    else await closeReleased(api, head, manifest, board)
   }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)

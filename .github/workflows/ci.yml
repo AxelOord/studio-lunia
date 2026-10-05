@@ -81,10 +81,11 @@ jobs:
     needs: verify
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && vars.LUNIA_STATUS_AUTOMATION_ENABLED == 'true'
     runs-on: ubuntu-latest
+    environment: project-status
     permissions:
       contents: read
       pull-requests: read
-      issues: write
+      issues: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -96,6 +97,12 @@ jobs:
       - run: node scripts/release-github.mjs development
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          LUNIA_PROJECT_TOKEN: ${{ secrets.LUNIA_PROJECT_TOKEN }}
+          LUNIA_PROJECT_ID: ${{ vars.LUNIA_PROJECT_ID }}
+          LUNIA_PROJECT_URL: ${{ vars.LUNIA_PROJECT_URL }}
+          LUNIA_PROJECT_STATUS_FIELD_ID: ${{ vars.LUNIA_PROJECT_STATUS_FIELD_ID }}
+          LUNIA_PROJECT_DEVELOPMENT_DONE_ID: ${{ vars.LUNIA_PROJECT_DEVELOPMENT_DONE_ID }}
+          LUNIA_PROJECT_DONE_ID: ${{ vars.LUNIA_PROJECT_DONE_ID }}
 
   publish-release:
     needs: verify
@@ -122,6 +129,7 @@ jobs:
     needs: publish-release
     if: github.event_name == 'push' && github.ref == 'refs/heads/master' && vars.LUNIA_RELEASE_AUTOMATION_ENABLED == 'true'
     runs-on: ubuntu-latest
+    environment: project-status
     permissions:
       contents: read
       pull-requests: read
@@ -137,3 +145,9 @@ jobs:
       - run: node scripts/release-github.mjs close
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          LUNIA_PROJECT_TOKEN: ${{ secrets.LUNIA_PROJECT_TOKEN }}
+          LUNIA_PROJECT_ID: ${{ vars.LUNIA_PROJECT_ID }}
+          LUNIA_PROJECT_URL: ${{ vars.LUNIA_PROJECT_URL }}
+          LUNIA_PROJECT_STATUS_FIELD_ID: ${{ vars.LUNIA_PROJECT_STATUS_FIELD_ID }}
+          LUNIA_PROJECT_DEVELOPMENT_DONE_ID: ${{ vars.LUNIA_PROJECT_DEVELOPMENT_DONE_ID }}
+          LUNIA_PROJECT_DONE_ID: ${{ vars.LUNIA_PROJECT_DONE_ID }}

@@ -9,9 +9,9 @@
       Refs: R-1, R-2, R-3, R-4, R-5
       Depends: T-1
       Verify: Real temporary Git candidate tests, simulated API failure/retry/membership and local check; full application CI on the draft PR.
-      Evidence: Clean npm ci and local check passed (19 existing unit, 35 Python, initially7 release tests); expanded9 release tests and lint also pass. review.md records the verification boundary; exact-head hosted CI is reported on the PR. No real lifecycle writes were executed.
+      Evidence: Clean npm ci and local check passed (19 existing unit, 35 Python, initially9 release tests); expanded12 release/Project tests and lint also pass. review.md records the verification boundary; exact-head hosted CI is reported on the PR. No real lifecycle writes were executed.
 - [ ] T-3: Activate approved provider configuration after review
       Refs: R-5
       Depends: T-2
-      Verify: Confirm selected status backend, environment protections, job grants and switches through provider readback.
+      Verify: Confirm approved Project/Status IDs, project-scope credential approval/storage, environment protections, job grants and switches through provider readback.
       Evidence: Blocked pending explicit permission/configuration review; this draft does not merge or enable writers.

@@ -5,7 +5,9 @@
 R-1: A post-verify develop job reconciles Completed issues metadata from merged,
 reachable same-repository PRs. Only explicit complete acceptance is declared this way.
 Development links remain useful; a generic Related mention is not completion evidence.
-Existing closed issues are preserved. No polling app, issue reopen, or closing keyword.
+Update the actual Project Status to Development done, keeping issues open. Existing
+closed issues are preserved. The user delegated the backend decision and the parent
+selected a GitHub Project board; there is no label implementation or fallback.
 
 R-2: `release:prepare` is a local deterministic command. Reviewed input outside the
 checkout selects completed issue→PR mappings and summary/migration/rollback notes.
@@ -24,64 +26,95 @@ manifest. Create a lightweight immutable tag then GitHub Release; fail/retry saf
 publication stops between them. No release event chaining: GITHUB_TOKEN-created events
 do not start new Actions runs. No GitHub Release is created during this implementation.
 
-R-4: A separate issues-write job revalidates candidate/membership and publication
-before closure; it cannot create releases. Done labels and closed-completed state use
-only manifest entries. Preflight all memberships. Repeated closure is idempotent.
-Promotion PRs must have no native Development/closing links and no closing keywords in
-new commit history; read-only verify checks them before merge, and publication checks
-again. Keep verify required when configuring protections; this PR does not edit them.
+R-4: A separate status job revalidates candidate/membership and publication before
+updating the Project Status to Done and closing issues. The job cannot create releases.
+Only manifest issues are included; preflight their membership before updates. Failed
+Project access/configuration blocks closure instead of using labels. Retries reuse the
+same Project item/option and issue. Promotion PRs must have no native Development/closing
+links and no closing keywords in new history; verify checks them before merge and the
+publisher rechecks them. Keep verify required; this PR does not change protections.
 
-R-5: Workflow default is contents/pull-requests/issues read. Job grants are separated:
-development-status and release-status get issues:write (contents/pull-requests read);
-publish-release gets contents:write (issues/pull-requests read). No PR write, new token,
-Actions-create-PR setting, or repository-wide write default. The implementation uses
-labels as the least-privilege status backend pending the explicit provider choice.
-Project Status synchronization is not claimed or implemented.
+R-5: GITHUB_TOKEN remains read-only except contents:write in publish-release and
+issues:write in release-status. Development status only needs repository reads.
+Project API access is a separate, explicitly approved credential, available only to
+status jobs through the project-status environment. It is not given to verify, feature
+PRs, the version preparation command or the contents-write publisher. No PR-write
+permission, repository-wide write default, automatic merging, or production deployment.
+
+## Project adapter
+
+Require explicit Project ID/URL, Status field ID and Development done/Done option IDs.
+Read back and validate their exact identities/names before any mutation. Inventory all
+Project items with pagination, explicitly including archived items; fail on truncated
+inventories, foreign issue identity, ambiguous membership or archived target items.
+Only same-repository issues already selected by the lifecycle logic are updated. Add a
+missing selected issue to this existing Project, then update its Status; never create a
+Project/field/option or modify unrelated items. Read back the mutation's selected option.
+Matching statuses are idempotent and Development done never downgrades an existing Done.
+No issue label calls exist. Missing/expired credentials or wrong fields fail closed.
 
 ## Exact provider activation gate
 
-After approval of these permissions and normal code review (no merge is performed here):
+The native provider worker must perform and verify setup only after explicit approval:
 
-1. Confirm issue labels Development done and Done are the selected status backend.
-   Jobs create only these labels if absent. Parent/native provider worker may configure
-   a Project's own issue-closed→Done automation; do not claim Development done field
-   synchronization. A custom Project Status writer needs separately authorized Project
-   access (GITHUB_TOKEN cannot do it), actual Project/field/option IDs and a new review.
-2. Create/configure GitHub environment `release-automation`, restrict it to master and
-   require maintainer approval. Verify protections actually apply before activation;
-   plan/tier limitations are a blocker, not permission to create an unprotected gate.
-3. Approve the job-scoped grants above. Keep repository default token read-only and
-   Allow GitHub Actions to create/approve PRs unchanged (not needed).
-4. Merge the reviewed implementation via the normal user-controlled process to develop;
-   then set repository variable LUNIA_STATUS_AUTOMATION_ENABLED=true. No retrospective
-   statuses are fabricated: existing PRs need reviewed Completed issues metadata.
-5. Set LUNIA_RELEASE_AUTOMATION_ENABLED=true only after environment/protection review.
-   The writer is first available on master when an intentional release promotion brings
-   this workflow there. It uses push, not default-branch-only dispatch/pull_request_target.
-   No branch/default change or standalone bootstrap merge to master is required.
-6. Keep vercel.json master/develop deploymentEnabled=false and production build guard.
-   Record actual switches, environment restrictions and effective grant verification.
-   Disable either variable to pause that class of writes; retries retain tag identity.
+1. Identify/create the approved user-owned Project and link studio-lunia. Configure a
+   Status field with exact options Development done and Done, preserving other options.
+   Record actual IDs/URL; no guessed IDs. Confirm board-native automations do not mark
+   development merges Done or close issues before verified publication.
+2. Create/configure environment `project-status`, permitting only develop and master.
+   The selected personal owner needs a separately approved classic PAT with **project**
+   scope for Project reads/writes. `read:project` alone cannot update statuses. Do not
+   add repo, workflow, admin, user or other scopes for this public repository. An org
+   GitHub App is not assumed available for this personal Project; GITHUB_TOKEN cannot
+   access it. Fine-grained PAT support for user-owned Projects must not be assumed.
+3. Propose a dedicated token named studio-lunia-project-status, **30-day expiration**,
+   stored only as environment secret `LUNIA_PROJECT_TOKEN` in project-status. The user
+   creates/submits it through GitHub's secret UI after approval, never in chat, source,
+   command arguments, logs or .env. No token has been created or requested as plaintext.
+   Rotate the environment secret before expiry, verify read-only Project identity,
+   then revoke the old token. An expired/revoked token stops status updates and closure.
+4. The classic project scope is broader than a single Project: code ID/URL binding is
+   an application restriction, not a credential-level scope. Explicitly approve that
+   residual access. Keep protected branches/trusted workflow review and environment
+   branch restrictions; possession of the credential permits broader Project writes.
+5. Set non-secret repository variables from verified provider data:
+   LUNIA_PROJECT_ID, LUNIA_PROJECT_URL, LUNIA_PROJECT_STATUS_FIELD_ID,
+   LUNIA_PROJECT_DEVELOPMENT_DONE_ID, LUNIA_PROJECT_DONE_ID.
+6. Configure `release-automation`: master only and required maintainer approval.
+   Verify effective protections before enabling. Plan/tier limitations are a blocker,
+   not permission to use an unprotected environment. Project credential stays in the
+   separate project-status environment; the publisher receives only GITHUB_TOKEN.
+7. Approve the two job-specific GITHUB_TOKEN write grants, retaining repository default
+   read-only and leaving Actions create/approve-PR setting unchanged (not needed).
+8. After a user-controlled reviewed merge into develop, set
+   LUNIA_STATUS_AUTOMATION_ENABLED=true. Only after Project/release protection readback,
+   set LUNIA_RELEASE_AUTOMATION_ENABLED=true. The push-based publisher reaches master
+   through a later intentional promotion; no default-branch change/bootstrap merge.
+   Existing PRs need reviewed Completed issues metadata before backfill is possible.
+9. Keep master/develop Vercel deploymentEnabled=false and the production build guard.
+   Record effective settings and bounded acceptance results. Disable either switch to
+   pause its lifecycle; revoke the Project credential to stop all board writes.
+
+No environment, Project, credential, switch, tag, release or issue state is changed by
+this draft implementation. Choosing the board does not itself authorize the credential.
 
 ## Release Please assessment and sources
 
 [Release Please](https://github.com/googleapis/release-please-action) supports independent
-release branches, target-branch, skip-github-release and skip-github-pull-request. This
-is not a native release-preparation-on-develop then promotion-to-master transaction.
-Using target develop would recognize a release there; target master introduces another
-release PR/version commit. GITHUB_TOKEN-created PRs do not trigger ordinary Actions CI.
-A bot plus app/PAT or explicit dispatch orchestration would add permissions and another
-version source. This implementation therefore uses a small tested local preparation
-command and explicit promotion workflow, with no Release Please dependency or bot.
+release branches, target-branch and skip modes. Its [manifest implementation](https://github.com/googleapis/release-please/blob/main/src/manifest.ts)
+finds merged release PRs through the configured targetBranch. Switching from develop
+preparation to master therefore does not directly provide the complete promotion
+transaction. A bot plus additional credentials/dispatch would add permissions and another
+version path; this implementation uses local preparation and explicit publication.
 
 [GitHub linked-issue behavior](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue)
-closes linked issues at default-branch merge, not develop. Live evidence: PR21 is merged
-into develop (4fed010), default remains master, issue20 was still open on2026-10-05.
-The generic native tooltip is not evidence of closure on develop. On promotion to master,
-closing links are intentionally absent so publication remains the completion gate.
+closes linked issues at default-branch merge, not develop. PR21 merged into develop at
+4fed010 while issue20 stayed open. On master promotion, closing links are absent so
+successful publication remains the completion gate.
 
 [GitHub token permissions](https://docs.github.com/en/actions/tutorials/authenticate-with-github_token)
-support job-specific scopes. [Project automation](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/automating-projects-using-actions)
-explicitly states GITHUB_TOKEN cannot access Projects. A user Project normally needs a
-separately approved PAT; an organization Project can use an appropriately scoped app.
-Neither is created, requested as a secret, or assumed here.
+support job-specific scopes. [Project Actions documentation](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/automating-projects-using-actions)
+states GITHUB_TOKEN cannot access Projects and recommends a PAT for user Projects.
+[Project API authentication](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-api-to-manage-projects)
+documents the classic project scope; the [current GraphQL schema](https://docs.github.com/en/graphql/reference/projects)
+defines the item/Status mutations and archived-item filtering used by the adapter.

@@ -2,7 +2,8 @@
 
 Implementation and activation gate: [spec](../specs/release-automation/design.md).
 A draft PR is not an active release service. Both writer switches default off.
-No Project Status field, public deployment or automatic merge is implied.
+Actual Project Status is the selected backend. Access/setup remain subject to the
+explicit gate; no label fallback, public deployment or automatic merge is implied.
 
 Feature PRs targeting develop declare completed acceptance explicitly:
 
@@ -12,8 +13,8 @@ Completed issues: #20, #6
 
 Use `Completed issues: none` for partial/no-ticket work. Related mentions remain useful
 but do not mark a ticket complete. Development links on develop do not close issues;
-never put closing keywords in commits. An enabled post-verify job labels completed
-open issues Development done. It never reopens issues already closed by a maintainer.
+never put closing keywords in commits. An enabled post-verify job sets completed
+open issues to Project Status Development done. It never reopens issues already closed by a maintainer.
 Older PRs need explicit reviewed completion metadata before any backfill can occur.
 
 ## Prepare an intentional release
@@ -49,7 +50,10 @@ master merge is tested again before protected publication. Do not approve public
 until candidate, migrations and environment configuration have been reviewed.
 
 The enabled publisher creates an immutable tag and GitHub Release; a separate job then
-verifies publication and marks manifest issues Done/closed. Retrying a failure reuses
+verifies publication, sets manifest issues to Project Status Done, then closes them.
+Missing Project access or incorrect field/options blocks closure; no labels substitute
+for the board. Project items already Done are never downgraded during development
+reconciliation, and archived targets require explicit maintainer handling. Retrying a failure reuses
 the same tag/SHA; conflicting tags/releases fail rather than being changed. A failed
 publication does not close issues. Rerun failed jobs after fixing the external blocker;
 do not manufacture another version to bypass a publication failure.
@@ -58,3 +62,13 @@ Merge master back into develop afterward to preserve ancestry. This does not mak
 second version commit. The previous release tag must be reachable before preparing the
 next candidate. Code rollback cannot undo database/media migrations. Never move a tag.
 Master/develop Vercel builds remain disabled; launch is a separate approved operation.
+
+## Project access handoff
+
+Provider setup requires verified Project ID/URL, Status field ID and two option IDs;
+see the exact variable names and access gate in the spec. For this personally owned
+Project the proposed credential is a dedicated classic PAT with project scope only,
+30-day expiration, held in environment project-status as LUNIA_PROJECT_TOKEN. That
+scope can access more than one Project; approval must acknowledge this breadth.
+Restrict the environment to develop/master, rotate before expiry, and never put the
+credential in chat or repository files. No token has been created by this task.

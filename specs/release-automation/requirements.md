@@ -15,7 +15,7 @@ PR21 merged into develop at 4fed010; master remains default and issue20 remains 
 ### R-1: Development completion
 
 WHEN a verified develop push contains an explicitly completed issue mapping, the
-system SHALL add Development done without closing or reopening any issue. Reconcile
+system SHALL set actual Project Status to Development done without closing or reopening any issue. Reconcile
 reachable merged PRs so superseded pending push jobs do not lose completion events.
 Check: explicit Completed issues metadata only; ordinary mentions, partial work and
 unmerged/foreign PRs do not supply completion. Existing closed issues stay closed.
@@ -41,26 +41,27 @@ retry and conflicting tag; master Vercel deployment remains disabled.
 
 ### R-4: Release completion
 
-WHEN the matching release is proven published, the system SHALL mark only manifest
-issues Done/closed-completed. Each issue must be explicitly completed by a merged
+WHEN the matching release is proven published, the system SHALL set actual Project Status to Done and mark only manifest
+issues closed-completed. Each issue must be explicitly completed by a merged
 same-repository develop PR contained in the frozen source. Publication failure cannot
 close issues. Reject premature native closing links/references on the promotion PR.
-Check: API simulation proves publication-before-closure and explicit issue membership;
+Check: API simulation proves publication-before-closure, Project failure-before-closure and explicit issue membership;
 read-only PR validation rejects Development closing links and closing keywords.
 
 ### R-5: Access and activation
 
 WHEN the automation is unapproved/unmerged or its switches are absent, the system
-SHALL perform no lifecycle writes. Use ephemeral GITHUB_TOKEN with job-scoped contents
-or issues write only; no app/PAT, PR creation, repository-wide write default, Project
-access, secrets, production deployment or automatic merging.
-Check: writer jobs require explicit repository switches, correct push branch, successful
-verify, and release publication additionally requires release-automation environment.
-Provider activation evidence must be recorded separately; draft code is not activation.
+SHALL perform no lifecycle writes. Use job-scoped GITHUB_TOKEN contents/issue grants
+and a separately approved Project credential confined to the project-status environment.
+Missing Project access/configuration SHALL fail closed, with no label fallback.
+Check: writer jobs require explicit switches, correct push branch and successful verify;
+publication requires release-automation approval. Validate Project ID/URL/Status options,
+paginated membership and selected option readback before claiming a board update.
+No credential setup, default token permission change or provider activation occurs here.
 
 ## Open questions
 
-The parent/provider worker must confirm label-based status versus an actual Project
-Status field and approve the exact access/activation in design.md before enabling.
-No Project writer is implemented; GITHUB_TOKEN cannot access Projects. First release
+The parent selected an actual user-owned GitHub Project. The native worker must confirm
+its IDs/options and obtain explicit approval for classic project-scope access, protected
+environment storage and activation in design.md. No credential permission exists yet. First release
 membership/migration/rollback notes are deliberately supplied at candidate preparation.
