@@ -7,7 +7,8 @@
     "deploymentEnabled": {
       "master": false,
       "develop": false,
-      "feature/hosted-cms-preview": false
+      "feature/hosted-cms-preview": false,
+      "feature/reusable-page-blocks": false
     }
   }
 }

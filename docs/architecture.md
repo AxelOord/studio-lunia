@@ -8,7 +8,8 @@ Content reads enforce publication and media visibility. Draft preview requires a
 editor session on entry and on every page request. Dynamic rendering avoids stale
 published content and draft cache leaks; caching can be added with targeted invalidation later.
 
-Typed hero, text and gallery blocks are the first reusable components. Image upload
+Typed hero, text and gallery blocks are reused alongside image/text, service cards and
+internal CTA blocks. Styling is provisional; real brand assets and copy are still pending. Image upload
 requires alt text and supports raster derivatives. The foundation stays noindex, including
 robots.txt; publication SEO/sitemap requires real domain/content approval later.
 
@@ -34,12 +35,14 @@ baseline QA and sample-size planning; low traffic may mean inconclusive results.
 
 1. `002-hosted-cms-preview`: protected hosted editor login, durable database/media,
    password recovery, isolated preview secrets and proven backup/restore; see its spec.
-2. `003-publish-to-attributed-inquiry`: real portfolio/service content, request form,
+2. `003-reusable-page-blocks`: editor-configurable editorial sections with provisional
+   styling, additive migrations and local desktop/mobile CMS/browser verification.
+3. `004-publish-to-attributed-inquiry`: real portfolio/service content, request form,
    permitted campaign attribution, spam controls and private admin review.
-3. `004-booking-outcomes-and-ad-feedback`: confirmed outcomes/value, Google Ads adapter,
+4. `005-booking-outcomes-and-ad-feedback`: confirmed outcomes/value, Google Ads adapter,
    deduplication, retries, cancellation adjustments and consent eligibility.
-4. `005-campaign-performance`: spend ingestion and reconciled campaign reporting.
-5. `006-controlled-experiment`: one hypothesis, stable consent-aware assignment,
+5. `006-campaign-performance`: spend ingestion and reconciled campaign reporting.
+6. `007-controlled-experiment`: one hypothesis, stable consent-aware assignment,
    exposure events and statistical stopping rules.
 
 Booking model (request versus confirmed slots), brand/assets, jurisdiction/consent,

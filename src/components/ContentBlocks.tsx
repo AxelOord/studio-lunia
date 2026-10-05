@@ -1,7 +1,11 @@
 import Image from 'next/image'
 import type { Page, Media } from '@/payload-types'
+import { isInternalPagePath } from '@/lib/internal-path'
 
-function media(value: number | Media | null | undefined, editorPreview: boolean): Media | null {
+function visibleMedia(
+  value: number | Media | null | undefined,
+  editorPreview: boolean,
+): Media | null {
   return value &&
     typeof value === 'object' &&
     (value.visibility === 'public' || editorPreview) &&
@@ -9,6 +13,35 @@ function media(value: number | Media | null | undefined, editorPreview: boolean)
     ? value
     : null
 }
+
+function BlockImage({
+  image,
+  size = 'hero',
+  priority = false,
+  className,
+  sizes = '(max-width: 760px) 100vw, 50vw',
+}: {
+  image: Media
+  size?: 'hero' | 'card'
+  priority?: boolean
+  className?: string
+  sizes?: string
+}) {
+  const source = image.sizes?.[size]?.url ? image.sizes[size] : image
+  return (
+    <Image
+      className={className}
+      src={source!.url!}
+      alt={image.alt}
+      width={source!.width ?? image.width ?? 1600}
+      height={source!.height ?? image.height ?? 1200}
+      sizes={sizes}
+      priority={priority}
+      style={{ objectPosition: `${image.focalX ?? 50}% ${image.focalY ?? 50}%` }}
+    />
+  )
+}
+
 export function ContentBlocks({
   blocks,
   editorPreview = false,
@@ -17,70 +50,108 @@ export function ContentBlocks({
   editorPreview?: boolean
 }) {
   return blocks.map((block, index) => {
-    if (block.blockType === 'hero') {
-      const image = media(block.image, editorPreview)
-      const Heading = index === 0 ? 'h1' : 'h2'
-      return (
-        <section className="hero" key={block.id ?? index}>
-          <div className="hero-copy">
-            <p className="eyebrow">{block.eyebrow}</p>
-            <Heading>{block.heading}</Heading>
-            <p className="intro">{block.body}</p>
-            <a className="text-link" href="#discover">
-              Explore the studio <span aria-hidden="true">&gt;</span>
-            </a>
-          </div>
-          {image ? (
-            <Image
-              className="hero-image"
-              src={image.sizes?.hero?.url || image.url!}
-              alt={image.alt}
-              width={image.width ?? 1600}
-              height={image.height ?? 1200}
-              sizes="(max-width: 760px) 100vw, 50vw"
-              priority={index === 0}
-            />
-          ) : (
-            <div className="artwork" role="img" aria-label="Abstract study of light and shadow">
-              <div className="sun" />
-              <div className="arch" />
-              <span>LIGHT STUDY / 01</span>
+    const Heading = index === 0 ? 'h1' : 'h2'
+    const CardHeading = index === 0 ? 'h2' : 'h3'
+    const key = block.id ?? index
+    switch (block.blockType) {
+      case 'hero': {
+        const image = visibleMedia(block.image, editorPreview)
+        return (
+          <section className="hero" key={key}>
+            <div className="hero-copy">
+              {block.eyebrow && <p className="eyebrow">{block.eyebrow}</p>}
+              <Heading>{block.heading}</Heading>
+              {block.body && <p className="intro">{block.body}</p>}
             </div>
-          )}
-        </section>
-      )
+            {image ? (
+              <BlockImage className="hero-image" image={image} priority={index === 0} />
+            ) : (
+              <div className="artwork" role="img" aria-label="Abstract study of light and shadow">
+                <div className="sun" />
+                <div className="arch" />
+                <span>LIGHT STUDY / 01</span>
+              </div>
+            )}
+          </section>
+        )
+      }
+      case 'text':
+        return (
+          <section className="text-section" key={key}>
+            <Heading>{block.heading}</Heading>
+            <p>{block.body}</p>
+          </section>
+        )
+      case 'gallery': {
+        const images = (block.images ?? []).flatMap((item) => {
+          const image = visibleMedia(item.image, editorPreview)
+          return image ? [{ ...item, image }] : []
+        })
+        const pair = images.length === 2
+        return (
+          <section className="gallery-section" key={key}>
+            <Heading>{block.heading}</Heading>
+            <div className={`gallery${pair ? ' gallery-pair' : ''}`}>
+              {images.map((item, i) => (
+                <BlockImage
+                  key={item.id ?? i}
+                  image={item.image}
+                  size={pair ? 'hero' : 'card'}
+                  sizes={`(max-width: 760px) 100vw, ${pair ? '50vw' : '33vw'}`}
+                />
+              ))}
+            </div>
+          </section>
+        )
+      }
+      case 'imageText': {
+        const image = visibleMedia(block.image, editorPreview)
+        return (
+          <section
+            className={`image-text image-${block.imageSide === 'right' ? 'right' : 'left'}`}
+            key={key}
+          >
+            <div className="image-text-copy">
+              <Heading>{block.heading}</Heading>
+              <p>{block.body}</p>
+            </div>
+            {image ? (
+              <BlockImage image={image} priority={index === 0} />
+            ) : (
+              <div className="image-placeholder">
+                <span>Image unavailable</span>
+              </div>
+            )}
+          </section>
+        )
+      }
+      case 'services':
+        return (
+          <section className="services-section" key={key}>
+            <Heading>{block.heading}</Heading>
+            {block.body && <p className="section-intro">{block.body}</p>}
+            <ul className="service-cards">
+              {block.items?.map((item, i) => (
+                <li key={item.id ?? i}>
+                  <CardHeading>{item.title}</CardHeading>
+                  <p>{item.body}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
+      case 'callToAction':
+        return (
+          <section className="cta-section" key={key}>
+            <Heading>{block.heading}</Heading>
+            {block.body && <p>{block.body}</p>}
+            {block.label && isInternalPagePath(block.href) && (
+              <a className="button-link" href={block.href}>
+                {block.label}
+              </a>
+            )}
+          </section>
+        )
     }
-    if (block.blockType === 'text')
-      return (
-        <section
-          className="text-section"
-          id={index === 1 ? 'discover' : undefined}
-          key={block.id ?? index}
-        >
-          <p className="eyebrow">A NEW CHAPTER</p>
-          <h2>{block.heading}</h2>
-          <p>{block.body}</p>
-        </section>
-      )
-    return (
-      <section className="gallery-section" key={block.id ?? index}>
-        <h2>{block.heading}</h2>
-        <div className="gallery">
-          {block.images?.map((item, i) => {
-            const image = media(item.image, editorPreview)
-            return image ? (
-              <Image
-                key={item.id ?? i}
-                src={image.sizes?.card?.url || image.url!}
-                alt={image.alt}
-                width={image.width ?? 720}
-                height={image.height ?? 720}
-                sizes="(max-width: 760px) 100vw, 33vw"
-              />
-            ) : null
-          })}
-        </div>
-      </section>
-    )
   })
 }

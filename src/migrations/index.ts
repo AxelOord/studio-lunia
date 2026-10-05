@@ -1,5 +1,6 @@
 import * as migration_20261004_164202_initial from './20261004_164202_initial';
 import * as migration_20261004_175013_hosted_preview from './20261004_175013_hosted_preview';
+import * as migration_20261005_065653_reusable_page_blocks from './20261005_065653_reusable_page_blocks';
 
 export const migrations = [
   {
@@ -10,6 +11,11 @@ export const migrations = [
   {
     up: migration_20261004_175013_hosted_preview.up,
     down: migration_20261004_175013_hosted_preview.down,
-    name: '20261004_175013_hosted_preview'
+    name: '20261004_175013_hosted_preview',
+  },
+  {
+    up: migration_20261005_065653_reusable_page_blocks.up,
+    down: migration_20261005_065653_reusable_page_blocks.down,
+    name: '20261005_065653_reusable_page_blocks'
   },
 ];

@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { editors, publishedOrEditor } from '../access'
-import { Gallery, Hero, Text } from '../blocks'
+import { CallToAction, Gallery, Hero, ImageText, Services, Text } from '../blocks'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
@@ -31,7 +31,7 @@ export const Pages: CollectionConfig = {
     {
       name: 'layout',
       type: 'blocks',
-      blocks: [Hero, Text, Gallery],
+      blocks: [Hero, Text, Gallery, ImageText, Services, CallToAction],
       required: true,
       minRows: 1,
       maxRows: 20,
