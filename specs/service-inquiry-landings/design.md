@@ -85,9 +85,9 @@ were opened and inspected. The primary CTA precedes the mobile artwork; form err
 all details and focus the error summary. Optional tracking/provider settings are unchanged.
 
 Delivery depends on PR #39 and PR #38, with the corrected queue navigation included.
-Actual Neon branch capacity cannot be read using the exposed tools; the parent reported
-that PR #39 likely consumed the final slot. Keep this branch local until capacity is
-confirmed. Do not delete data, change preview settings, create credentials or upgrade plans.
+Parent verified actual Neon capacity at 10/10 on 2026-10-05 23:34 UTC and explicitly
+authorized draft PR publication with hosted verification blocked. Do not retry a
+quota-blocked automatic deployment. Do not delete data, change preview settings, create credentials or upgrade plans.
 
 ## Final local verification
 
@@ -113,6 +113,6 @@ Landing and form have no horizontal overflow at 390px. No browser errors were re
 in the complete public-to-private journey. This is focused QA, not WCAG certification.
 
 Remaining: independent review, actual Neon capacity confirmation, draft PR with Development
-link to #33, exact-head remote CI and automatic full-CMS hosted verification. The branch
-has not been pushed because pushing would attempt the new native preview allocation.
+link to #33, exact-head remote CI and automatic full-CMS hosted verification. The draft is not merge-ready until capacity and hosted checks are resolved. Automatic
+preview provisioning may fail at the verified quota; no retry or provider mutation is authorized.
 No owner-approved genuine content or provider activation is claimed.
