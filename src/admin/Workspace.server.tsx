@@ -39,7 +39,12 @@ export async function CustomerView(props: AdminViewServerProps) {
     )
   return (
     <WorkspaceTemplate props={props}>
-      <CustomerWorkspace initial={await workspace(req.payload, req.user, id)} />
+      <CustomerWorkspace
+        initial={await workspace(req.payload, req.user, id, {
+          enquiry: props.searchParams?.enquiry,
+          plan: props.searchParams?.plan,
+        })}
+      />
     </WorkspaceTemplate>
   )
 }

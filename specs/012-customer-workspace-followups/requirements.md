@@ -33,6 +33,8 @@ Staff SHALL prepare a reply/proposal, review exact email content, update booking
 and return to the inbox without navigating raw collections for the main journey.
 Check: complete enquiry-to-proposal-to-private-draft-to-follow-up flow; multiple enquiries
 per contact, original snapshots and explicit contact linkage remain distinguishable.
+Queue deep links SHALL select the plan's own enquiry, including a target outside the recent
+record window, and SHALL validate that selected records belong to the requested customer.
 
 ### R-3: Clear actions and accessible recovery (#35)
 
@@ -42,6 +44,7 @@ mobile SHALL have readable amounts/dates, labelled controls, keyboard access and
 focus. Test-only sending and unavailable reply detection/automation SHALL be explicit.
 Check: keyboard and responsive browser journey, repeated clicks, back/cancel, expired
 session, validation failure, failed load/write retry, no overflow or console errors.
+Closing an email preview or selecting a newer message SHALL invalidate pending older reads.
 
 ### R-4: Reviewable planned messages (#25, #35 entry points)
 
@@ -51,6 +54,9 @@ They SHALL edit, pause, cancel, resume or reschedule eligible plans with dated h
 Editing a pending plan SHALL create a revision; prepared/sent email snapshots stay immutable.
 Check: edit/cancel/reschedule, stale revision conflict, invalid or ambiguous time inputs,
 unchanged frozen email, clear overdue/blocked/failed and empty states.
+After a revision conflict, refresh SHALL preserve the unsaved wording. Staff SHALL explicitly
+accept the latest revision and review the exact message again before saving their edits.
+A newly cancelled or simulated plan SHALL remain uneditable without discarding draft text.
 
 ### R-5: Explicit triggers and conservative stop rules (#25)
 

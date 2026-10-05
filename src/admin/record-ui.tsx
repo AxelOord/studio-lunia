@@ -47,7 +47,7 @@ export function useRecordAction(endpoint = '/api/customer-records') {
       setBusy(false)
     }
   }
-  return { busy, message, run }
+  return { busy, message, run, clearMessage: () => setMessage('') }
 }
 export const recordURL = (collection: string, id: number) =>
   `/admin/collections/${collection}/${id}`

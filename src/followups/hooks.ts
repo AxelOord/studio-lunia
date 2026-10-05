@@ -1,6 +1,7 @@
 import type { CollectionAfterChangeHook, PayloadRequest } from 'payload'
 import type { CustomerActivity } from '../payload-types'
 import { idInput, object, relationID } from '../customer-records/core'
+import { deliveryEvents } from '../customer-records/webhook'
 import { eligibility } from './eligibility'
 import { createPlan, lockConversation } from './operations'
 
@@ -138,6 +139,7 @@ export const updateFollowUps: CollectionAfterChangeHook<CustomerActivity> = asyn
       'enquiry_updated',
       'contact_corrected',
       'email_status',
+      ...deliveryEvents,
     ].includes(doc.kind)
   )
     return doc

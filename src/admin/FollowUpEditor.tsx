@@ -2,7 +2,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { Booking, EmailTemplate, FollowUp } from '../payload-types'
-import { localTimeAt, purposeLabels, purposes, timeCandidates } from '../followups/domain'
+import {
+  editableStates,
+  localTimeAt,
+  purposeLabels,
+  purposes,
+  timeCandidates,
+} from '../followups/domain'
 import { EmailFrame, useRecordAction } from './record-ui'
 import { workspaceJSON } from './workspace-ui'
 
@@ -21,6 +27,7 @@ export function FollowUpEditor({
   plan,
   onDone,
   onCancel,
+  onRefresh,
 }: {
   enquiry: number
   bookings: Booking[]
@@ -28,12 +35,16 @@ export function FollowUpEditor({
   plan?: FollowUp
   onDone: () => Promise<void>
   onCancel: () => void
+  onRefresh: () => Promise<void>
 }) {
   const heading = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     heading.current?.focus()
   }, [])
   const [purpose, setPurpose] = useState(plan?.purpose || 'enquiry_followup')
+  const [baseRevision, setBaseRevision] = useState(plan?.revision)
+  const changed = Boolean(plan && plan.revision !== baseRevision)
+  const terminal = Boolean(plan && !editableStates.includes(plan.state))
   const [booking, setBooking] = useState(String(plan?.booking || ''))
   const [template, setTemplate] = useState(String(plan?.template || ''))
   const [timeZone, setTimeZone] = useState(plan?.timeZone || 'UTC')
@@ -47,7 +58,7 @@ export function FollowUpEditor({
   const [preview, setPreview] = useState<{ value: string; data: Preview }>()
   const [error, setError] = useState('')
   const [previewing, setPreviewing] = useState(false)
-  const { run, busy, message } = useRecordAction('/api/customer-workspace')
+  const { run, busy, message, clearMessage } = useRecordAction('/api/customer-workspace')
   const input = {
     enquiry,
     purpose,
@@ -67,7 +78,7 @@ export function FollowUpEditor({
       return []
     } // Validation appears on explicit preview.
   }, [time, timeZone])
-  const reviewed = preview?.value === value ? preview.data : undefined
+  const reviewed = !changed && !terminal && preview?.value === value ? preview.data : undefined
   return (
     <form
       className="workspace-editor"
@@ -78,15 +89,47 @@ export function FollowUpEditor({
           ...input,
           action: plan ? 'editFollowUp' : 'createFollowUp',
           plan: plan?.id,
-          revision: plan?.revision,
+          revision: baseRevision,
           previewToken: reviewed.previewToken,
         })
         if (result) await onDone()
+        else await onRefresh()
       }}
     >
       <h3 ref={heading} tabIndex={-1}>
         {plan ? 'Edit planned message' : 'Plan a test follow-up'}
       </h3>
+      {(changed || terminal) && plan && (
+        <section aria-label="Plan changed" role="alert">
+          <h4>This plan changed while you were editing</h4>
+          <p>
+            Your unsaved edits are still below. Latest saved revision {plan.revision}:{' '}
+            {plan.subject} · {plan.state} · {plan.plannedAt} ({plan.timeZone}).
+          </p>
+          {terminal ? (
+            <p>This plan can no longer be edited. Keep a copy of your wording before closing.</p>
+          ) : (
+            <>
+              <p>
+                Review the latest saved plan above, then explicitly reapply your edits and review
+                the exact message again.
+              </p>
+              <button
+                type="button"
+                disabled={busy || previewing}
+                onClick={() => {
+                  setBaseRevision(plan.revision)
+                  setPreview(undefined)
+                  setError('')
+                  clearMessage()
+                }}
+              >
+                Use latest revision and keep my edits
+              </button>
+            </>
+          )}
+        </section>
+      )}
       <div className="customer-grid">
         <label>
           Purpose
@@ -209,7 +252,7 @@ export function FollowUpEditor({
       <div className="customer-actions">
         <button
           type="button"
-          disabled={previewing || busy}
+          disabled={previewing || busy || changed || terminal}
           onClick={async () => {
             setError('')
             setPreviewing(true)

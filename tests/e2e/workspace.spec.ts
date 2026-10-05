@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { Client } from 'pg'
-import { test, expect, type APIRequestContext } from '@playwright/test'
+import { test, expect, type APIRequestContext, type Page } from '@playwright/test'
 const origin = 'http://127.0.0.1:3000'
 let editor: APIRequestContext
 let contact = 0,
@@ -8,8 +8,19 @@ let contact = 0,
   pageID = 0,
   template = 0
 let keys: string[] = []
-test.beforeEach(async ({ playwright }) => {
+let service = ''
+let ownedEnquiries: number[] = [],
+  ownedContacts: number[] = []
+test.beforeEach(async ({ playwright, page }) => {
   keys = []
+  ownedEnquiries = []
+  ownedContacts = []
+  page.on('request', (request) => {
+    if (/api\/customer-(workspace|records)$/.test(request.url()) && request.method() === 'POST') {
+      const body = request.postDataJSON()
+      if (body.key) keys.push(body.key)
+    }
+  })
   editor = await playwright.request.newContext({ baseURL: origin })
   expect(
     (
@@ -36,13 +47,14 @@ test.beforeEach(async ({ playwright }) => {
   expect(response.ok()).toBe(true)
   const { doc } = await response.json()
   pageID = doc.id
+  service = `${pageID}:${doc.layout[0].items[0].id}`
   const email = `guided-${randomUUID()}@example.test`
   expect(
     (
       await editor.post('/api/inquiry', {
         headers: { origin },
         data: {
-          service: `${pageID}:${doc.layout[0].items[0].id}`,
+          service,
           name: 'Synthetic Guided Customer',
           email,
           message: 'I would like to discuss this synthetic portrait enquiry.',
@@ -57,6 +69,8 @@ test.beforeEach(async ({ playwright }) => {
   ).json()
   enquiry = leads.docs[0].id
   contact = leads.docs[0].contact
+  ownedEnquiries.push(enquiry)
+  ownedContacts.push(contact)
   const wording = await editor.post('/api/email-templates', {
     data: {
       name: `Guided test wording ${enquiry}`,
@@ -76,16 +90,16 @@ test.afterEach(async () => {
   await db.connect()
   try {
     await db.query(
-      "DELETE FROM payload_jobs WHERE id IN (SELECT job_i_d FROM follow_ups WHERE contact_id = $1) OR input->>'plan' IN (SELECT id::text FROM follow_ups WHERE contact_id = $1)",
-      [contact],
+      "DELETE FROM payload_jobs WHERE id IN (SELECT job_i_d FROM follow_ups WHERE contact_id = ANY($1)) OR input->>'plan' IN (SELECT id::text FROM follow_ups WHERE contact_id = ANY($1))",
+      [ownedContacts],
     )
-    await db.query('DELETE FROM follow_ups WHERE contact_id = $1', [contact])
-    await db.query('DELETE FROM incoming_replies WHERE contact_id = $1', [contact])
-    await db.query('DELETE FROM customer_activities WHERE contact_id = $1', [contact])
-    await db.query('DELETE FROM email_messages WHERE contact_id = $1', [contact])
-    await db.query('DELETE FROM bookings WHERE contact_id = $1', [contact])
-    await db.query('DELETE FROM enquiries WHERE id = $1', [enquiry])
-    await db.query('DELETE FROM contacts WHERE id = $1', [contact])
+    await db.query('DELETE FROM follow_ups WHERE contact_id = ANY($1)', [ownedContacts])
+    await db.query('DELETE FROM incoming_replies WHERE contact_id = ANY($1)', [ownedContacts])
+    await db.query('DELETE FROM customer_activities WHERE contact_id = ANY($1)', [ownedContacts])
+    await db.query('DELETE FROM email_messages WHERE contact_id = ANY($1)', [ownedContacts])
+    await db.query('DELETE FROM bookings WHERE contact_id = ANY($1)', [ownedContacts])
+    await db.query('DELETE FROM enquiries WHERE id = ANY($1)', [ownedEnquiries])
+    await db.query('DELETE FROM contacts WHERE id = ANY($1)', [ownedContacts])
     await db.query('DELETE FROM email_templates WHERE id = $1', [template])
     await db.query('DELETE FROM customer_operations WHERE operation_key = ANY($1)', [keys])
   } finally {
@@ -247,4 +261,226 @@ test('workspace errors are visible and private, job and real receiving endpoints
     page.getByRole('link', { name: 'Synthetic Guided Customer', exact: true }),
   ).toBeVisible()
   await expect(page.getByText('Synthetic temporary search failure. Try again.')).toHaveCount(0)
+})
+
+async function command(
+  path: 'customer-records' | 'customer-workspace',
+  data: Record<string, unknown>,
+) {
+  const key = randomUUID()
+  keys.push(key)
+  const response = await editor.post(`/api/${path}`, {
+    headers: { origin },
+    data: { ...data, key },
+  })
+  expect(response.ok(), await response.text()).toBe(true)
+  return response.json()
+}
+async function createTestPlan(subject: string) {
+  const values = {
+    enquiry,
+    template,
+    purpose: 'enquiry_followup',
+    timeZone: 'UTC',
+    plannedAt: new Date(Date.now() + 86400000).toISOString(),
+    subject,
+  }
+  const preview = await editor.post('/api/customer-workspace', {
+    headers: { origin },
+    data: { ...values, action: 'previewFollowUp' },
+  })
+  expect(preview.ok()).toBe(true)
+  return command('customer-workspace', {
+    ...values,
+    action: 'createFollowUp',
+    previewToken: (await preview.json()).previewToken,
+  })
+}
+async function openWorkspace(page: Page, plan?: number) {
+  await page.context().addCookies((await editor.storageState()).cookies)
+  await page.goto(`/admin/customers/${contact}${plan ? `?plan=${plan}` : ''}`)
+  await expect(
+    page.getByRole('heading', { name: 'Synthetic Guided Customer', exact: true }),
+  ).toBeVisible()
+}
+
+test('queue deep link selects an older request and its exact plan for a customer with multiple enquiries', async ({
+  page,
+}) => {
+  const plan = await createTestPlan('Older request follow-up')
+  const email = `second-${randomUUID()}@example.test`
+  expect(
+    (
+      await editor.post('/api/inquiry', {
+        headers: { origin },
+        data: {
+          service,
+          name: 'Synthetic second request',
+          email,
+          message: 'A newer synthetic request with a separate original identity.',
+          website: '',
+          submissionId: randomUUID(),
+        },
+      })
+    ).ok(),
+  ).toBe(true)
+  const newer = (
+    await (
+      await editor.get(`/api/enquiries?where[email][equals]=${encodeURIComponent(email)}&depth=0`)
+    ).json()
+  ).docs[0]
+  ownedEnquiries.push(newer.id)
+  ownedContacts.push(newer.contact)
+  expect((await editor.patch(`/api/enquiries/${newer.id}`, { data: { contact } })).ok()).toBe(true)
+  await openWorkspace(page)
+  await expect(page.getByLabel('Customer request')).toHaveValue(String(newer.id))
+  await page.goto('/admin/follow-ups')
+  await page
+    .locator('article')
+    .filter({ has: page.getByRole('heading', { name: 'Older request follow-up', exact: true }) })
+    .getByRole('link', { name: 'Review and manage plan' })
+    .click()
+  await expect(page.getByLabel('Customer request')).toHaveValue(String(enquiry))
+  await expect(page.locator(`#follow-up-${plan.id}`)).toBeVisible()
+  await expect(
+    page.locator(`#follow-up-${plan.id}`).getByRole('button', { name: 'Edit or reschedule' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Refresh workspace' }).click()
+  await expect(page.getByLabel('Customer request')).toHaveValue(String(enquiry))
+})
+
+test('delayed saved email previews cannot reopen after close or replace a newer selection', async ({
+  page,
+}) => {
+  async function draft(subject: string) {
+    expect(
+      (
+        await editor.patch(`/api/email-templates/${template}`, {
+          data: { subject, approved: true },
+        })
+      ).ok(),
+    ).toBe(true)
+    // Editing wording clears approval, so explicitly approve the saved version.
+    expect(
+      (await editor.patch(`/api/email-templates/${template}`, { data: { approved: true } })).ok(),
+    ).toBe(true)
+    return command('customer-records', { action: 'prepareEmail', enquiry, template })
+  }
+  const b = await draft('Delayed synthetic email B')
+  await draft('Latest synthetic email C')
+  await openWorkspace(page)
+  async function delayedRequest() {
+    let ready!: () => void, release!: () => void
+    const readyPromise = new Promise<void>((resolve) => {
+      ready = resolve
+    })
+    const releasePromise = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await page.route(
+      `**/api/customer-records?message=${b.id}`,
+      async (route) => {
+        const response = await route.fetch()
+        ready()
+        await releasePromise
+        await route.fulfill({ response })
+      },
+      { times: 1 },
+    )
+    await page.getByRole('button', { name: 'Delayed synthetic email B', exact: true }).click()
+    await readyPromise
+    return async () => {
+      const response = page.waitForResponse((response) =>
+        response.url().endsWith(`/api/customer-records?message=${b.id}`),
+      )
+      release()
+      await (await response).finished()
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      )
+    }
+  }
+  const preview = page.getByRole('region', { name: 'Saved email preview' })
+  await page.getByRole('button', { name: 'Latest synthetic email C', exact: true }).click()
+  await expect(preview.getByRole('heading', { name: 'Latest synthetic email C' })).toBeVisible()
+  const releaseFirst = await delayedRequest()
+  await page.getByRole('button', { name: 'Close email preview' }).click()
+  await releaseFirst()
+  await expect(preview).toHaveCount(0)
+  const releaseSecond = await delayedRequest()
+  await page.getByRole('button', { name: 'Latest synthetic email C', exact: true }).click()
+  await expect(preview.getByRole('heading', { name: 'Latest synthetic email C' })).toBeVisible()
+  await releaseSecond()
+  await expect(preview.getByRole('heading', { name: 'Latest synthetic email C' })).toBeVisible()
+  await expect(preview.getByRole('heading', { name: 'Delayed synthetic email B' })).toHaveCount(0)
+})
+
+test('concurrent plan changes preserve edits and require explicit reapply and a fresh exact review', async ({
+  page,
+}) => {
+  const plan = await createTestPlan('Original synthetic plan')
+  await openWorkspace(page, plan.id)
+  await page.getByRole('button', { name: 'Edit or reschedule' }).click()
+  const form = page.getByRole('region', { name: 'Follow-up editor' })
+  await form.getByLabel('Message subject').fill('My preserved draft subject')
+  await form
+    .getByLabel('Message wording')
+    .fill('Hello {{contact_name}}, this wording must survive the conflict.')
+  await form.getByRole('button', { name: 'Review exact message' }).click()
+  await expect(form.getByRole('region', { name: 'Reviewed follow-up' })).toBeVisible()
+  await command('customer-workspace', { action: 'pauseFollowUp', plan: plan.id, revision: 1 })
+  const conflict = page.waitForResponse(
+    (response) => response.url().endsWith('/api/customer-workspace') && response.status() === 409,
+  )
+  await form.getByRole('button', { name: 'Save reviewed test plan' }).click()
+  await conflict
+  await expect(
+    form.getByRole('heading', { name: 'This plan changed while you were editing' }),
+  ).toBeVisible()
+  await expect(form.getByLabel('Message subject')).toHaveValue('My preserved draft subject')
+  await expect(form.getByLabel('Message wording')).toHaveValue(
+    'Hello {{contact_name}}, this wording must survive the conflict.',
+  )
+  await expect(form.getByRole('button', { name: 'Save reviewed test plan' })).toBeDisabled()
+  await page.screenshot({ path: 'test-results/workspace-conflict-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/workspace-conflict-mobile.png', fullPage: true })
+  await page.getByRole('button', { name: 'Refresh workspace' }).click()
+  await expect(form.getByLabel('Message subject')).toHaveValue('My preserved draft subject')
+  await form.getByRole('button', { name: 'Use latest revision and keep my edits' }).click()
+  await expect(form.getByRole('region', { name: 'Reviewed follow-up' })).toHaveCount(0)
+  await expect(form.getByRole('button', { name: 'Save reviewed test plan' })).toBeDisabled()
+  await form.getByRole('button', { name: 'Review exact message' }).click()
+  await expect(form.getByRole('region', { name: 'Reviewed follow-up' })).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(
+    form
+      .frameLocator('iframe')
+      .getByText('Hello Synthetic Guided Customer, this wording must survive the conflict.'),
+  ).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({
+    path: 'test-results/workspace-conflict-recovery-mobile.png',
+    fullPage: true,
+  })
+  await form.getByRole('button', { name: 'Save reviewed test plan' }).click()
+  await expect(form).toHaveCount(0)
+  const saved = await (await editor.get(`/api/follow-ups/${plan.id}?depth=0`)).json()
+  expect(saved.revision).toBe(3)
+  expect(saved.subject).toBe('My preserved draft subject')
+  expect(saved.text).toContain('this wording must survive the conflict')
+  await page.getByRole('button', { name: 'Edit or reschedule' }).click()
+  await form.getByLabel('Message subject').fill('Keep this copy after cancellation')
+  await command('customer-workspace', { action: 'cancelFollowUp', plan: plan.id, revision: 3 })
+  await page.getByRole('button', { name: 'Refresh workspace' }).click()
+  await expect(form.getByText('This plan can no longer be edited.', { exact: false })).toBeVisible()
+  await expect(form.getByLabel('Message subject')).toHaveValue('Keep this copy after cancellation')
+  await expect(form.getByRole('button', { name: 'Save reviewed test plan' })).toBeDisabled()
+  await expect(
+    form.getByRole('button', { name: 'Use latest revision and keep my edits' }),
+  ).toHaveCount(0)
 })

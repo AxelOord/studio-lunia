@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { workspace } from '../followups/queries'
 import type { EmailMessage, FollowUp } from '../payload-types'
@@ -14,20 +14,57 @@ const relation = (value: number | { id: number } | null | undefined) =>
   typeof value === 'object' ? value?.id : value
 export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
   const [data, setData] = useState(initial)
-  const [enquiryID, setEnquiryID] = useState(initial.enquiries[0]?.id)
-  const [editor, setEditor] = useState<FollowUp | 'new'>()
+  const [enquiryID, setEnquiryID] = useState(initial.selectedEnquiry || initial.enquiries[0]?.id)
+  const [editor, setEditor] = useState<number | 'new'>()
   const [error, setError] = useState('')
   const [reply, setReply] = useState('')
   const [email, setEmail] = useState<EmailMessage>()
+  const [emailLoading, setEmailLoading] = useState(false)
+  const [emailError, setEmailError] = useState('')
+  const emailRequest = useRef(0)
+  useEffect(
+    () => () => {
+      emailRequest.current++
+    },
+    [],
+  )
   const [showProposal, setShowProposal] = useState(false)
   const { run, busy, message } = useRecordAction('/api/customer-workspace')
   const enquiry = data.enquiries.find((item) => item.id === enquiryID)
   const bookings = data.bookings.filter((item) => relation(item.enquiry) === enquiryID)
   const plans = data.plans.filter((item) => relation(item.enquiry) === enquiryID)
+  const editingPlan = data.plans.find((item) => item.id === editor)
+  function closeEmail() {
+    emailRequest.current++
+    setEmail(undefined)
+    setEmailLoading(false)
+    setEmailError('')
+  }
+  async function openEmail(id: number) {
+    const version = ++emailRequest.current
+    setEmail(undefined)
+    setEmailError('')
+    setEmailLoading(true)
+    try {
+      const result = await workspaceJSON<{ message: EmailMessage }>(
+        `/api/customer-records?message=${id}`,
+      )
+      if (version === emailRequest.current) setEmail(result.message)
+    } catch {
+      if (version === emailRequest.current)
+        setEmailError('The email preview could not load. Try again.')
+    } finally {
+      if (version === emailRequest.current) setEmailLoading(false)
+    }
+  }
   async function reload() {
     try {
       setError('')
-      setData(await workspaceJSON(`/api/customer-workspace?contact=${data.contact.id}`))
+      const selectedPlan = typeof editor === 'number' ? editor : data.selectedPlan
+      const params = new URLSearchParams({ contact: String(data.contact.id) })
+      if (enquiryID) params.set('enquiry', String(enquiryID))
+      if (selectedPlan) params.set('plan', String(selectedPlan))
+      setData(await workspaceJSON(`/api/customer-workspace?${params}`))
     } catch {
       setError(
         'The action may have saved, but this workspace could not refresh. Refresh before repeating it.',
@@ -51,6 +88,9 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
         <button onClick={() => void reload()}>Refresh workspace</button>
       </div>
       {error && <p role="alert">{error}</p>}
+      {data.selectionUnavailable && (
+        <p role="alert">The linked request or plan is no longer available for this customer.</p>
+      )}
       {data.truncated && (
         <p role="status">
           Showing the latest 100 records per section. Older records remain in the collection views.
@@ -99,6 +139,7 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
                 setEnquiryID(Number(event.target.value))
                 setEditor(undefined)
                 setShowProposal(false)
+                closeEmail()
               }}
             >
               {data.enquiries.map((item) => (
@@ -171,19 +212,7 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
                   <p key={`mail-${item.id}`}>
                     <button
                       className="workspace-text-button"
-                      onClick={async () => {
-                        try {
-                          setEmail(
-                            (
-                              await workspaceJSON<{ message: EmailMessage }>(
-                                `/api/customer-records?message=${item.id}`,
-                              )
-                            ).message,
-                          )
-                        } catch {
-                          setError('The email preview could not load. Try again.')
-                        }
-                      }}
+                      onClick={() => void openEmail(item.id)}
                     >
                       {item.subject}
                     </button>{' '}
@@ -191,14 +220,20 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
                     {item.kind.replaceAll('_', ' ')}
                   </p>
                 ))}
-                {email && (
+                {(email || emailLoading || emailError) && (
                   <section aria-label="Saved email preview">
-                    <h3>{email.subject}</h3>
-                    <p>
-                      To: {email.recipient} · {email.status}
-                    </p>
-                    <button onClick={() => setEmail(undefined)}>Close email preview</button>
-                    <EmailFrame html={email.html} />
+                    <button onClick={closeEmail}>Close email preview</button>
+                    {emailLoading && <p role="status">Loading saved email…</p>}
+                    {emailError && <p role="alert">{emailError}</p>}
+                    {email && (
+                      <>
+                        <h3>{email.subject}</h3>
+                        <p>
+                          To: {email.recipient} · {email.status}
+                        </p>
+                        <EmailFrame html={email.html} />
+                      </>
+                    )}
                   </section>
                 )}
                 <ol className="workspace-timeline">
@@ -253,7 +288,7 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
                 <button onClick={() => setEditor('new')}>Plan a follow-up</button>
                 {!plans.length && <p>No follow-ups planned for this request.</p>}
                 {plans.map((plan) => (
-                  <article className="workspace-plan" key={plan.id}>
+                  <article className="workspace-plan" key={plan.id} id={`follow-up-${plan.id}`}>
                     <PlanSummary plan={plan} />
                     <details>
                       <summary>Exact planned message</summary>
@@ -262,7 +297,7 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
                     </details>
                     {editableStates.includes(plan.state) && (
                       <div className="customer-actions">
-                        <button onClick={() => setEditor(plan)}>Edit or reschedule</button>
+                        <button onClick={() => setEditor(plan.id)}>Edit or reschedule</button>
                         {plan.state === 'paused' ? (
                           <button
                             disabled={busy}
@@ -291,14 +326,15 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
               </section>
             </aside>
           </div>
-          {editor && enquiry && (
+          {editor && enquiry && (editor === 'new' || editingPlan) && (
             <section className="workspace-card" aria-label="Follow-up editor">
               <FollowUpEditor
-                key={typeof editor === 'string' ? 'new' : `${editor.id}:${editor.revision}`}
+                key={editor}
                 enquiry={enquiry.id}
                 bookings={bookings}
                 templates={data.templates}
-                plan={typeof editor === 'string' ? undefined : editor}
+                plan={editingPlan}
+                onRefresh={reload}
                 onCancel={() => setEditor(undefined)}
                 onDone={async () => {
                   await reload()

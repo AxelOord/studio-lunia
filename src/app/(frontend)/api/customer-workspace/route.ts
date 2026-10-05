@@ -12,9 +12,13 @@ export async function GET(request: Request) {
     if (!user) return new Response(null, { status: 401 })
     const params = new URL(request.url).searchParams
     if (params.has('contact'))
-      return Response.json(await workspace(payload, user, idInput(Number(params.get('contact')))), {
-        headers,
-      })
+      return Response.json(
+        await workspace(payload, user, idInput(Number(params.get('contact'))), {
+          enquiry: params.get('enquiry'),
+          plan: params.get('plan'),
+        }),
+        { headers },
+      )
     const page = Math.min(10000, Math.max(1, Number(params.get('page')) || 1))
     const plans = await payload.find({
       collection: 'follow-ups',

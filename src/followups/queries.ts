@@ -5,6 +5,7 @@ export async function workspace(
   payload: Payload,
   user: NonNullable<PayloadRequest['user']>,
   contact: number,
+  selection: { enquiry?: unknown; plan?: unknown } = {},
 ) {
   const customer = await customerView(payload, user, contact)
   const [plans, templates] = await Promise.all([
@@ -27,10 +28,68 @@ export async function workspace(
       sort: 'name',
     }),
   ])
+  const selectedID = (value: unknown) => {
+    const id = Number(value)
+    return Number.isSafeInteger(id) && id > 0 ? id : undefined
+  }
+  const planID = selectedID(selection.plan)
+  const selectedPlan = planID
+    ? (
+        await payload.find({
+          collection: 'follow-ups',
+          user,
+          overrideAccess: false,
+          where: { and: [{ contact: { equals: contact } }, { id: { equals: planID } }] },
+          depth: 0,
+          limit: 1,
+        })
+      ).docs[0]
+    : undefined
+  const enquiryID = selectedPlan
+    ? typeof selectedPlan.enquiry === 'object'
+      ? selectedPlan.enquiry.id
+      : selectedPlan.enquiry
+    : selectedID(selection.enquiry)
+  const selectedEnquiry = enquiryID
+    ? (
+        await payload.find({
+          collection: 'enquiries',
+          user,
+          overrideAccess: false,
+          where: { and: [{ contact: { equals: contact } }, { id: { equals: enquiryID } }] },
+          depth: 0,
+          limit: 1,
+        })
+      ).docs[0]
+    : undefined
+  // Deep links remain useful when the target falls outside the bounded recent lists.
+  if (selectedPlan && !plans.docs.some((item) => item.id === selectedPlan.id))
+    plans.docs.push(selectedPlan)
+  if (selectedEnquiry && !customer.enquiries.some((item) => item.id === selectedEnquiry.id))
+    customer.enquiries.push(selectedEnquiry)
+  const bookingID = selectedPlan?.booking
+    ? typeof selectedPlan.booking === 'object'
+      ? selectedPlan.booking.id
+      : selectedPlan.booking
+    : undefined
+  if (bookingID && !customer.bookings.some((item) => item.id === bookingID)) {
+    const booking = await payload.find({
+      collection: 'bookings',
+      user,
+      overrideAccess: false,
+      where: { and: [{ contact: { equals: contact } }, { id: { equals: bookingID } }] },
+      depth: 0,
+      limit: 1,
+    })
+    customer.bookings.push(...booking.docs)
+  }
   return {
     ...customer,
     plans: plans.docs,
     templates: templates.docs,
+    selectedEnquiry: selectedEnquiry?.id,
+    selectedPlan: selectedPlan?.id,
+    selectionUnavailable: Boolean((planID && !selectedPlan) || (enquiryID && !selectedEnquiry)),
     truncated: customer.truncated || plans.hasNextPage || templates.hasNextPage,
   }
 }

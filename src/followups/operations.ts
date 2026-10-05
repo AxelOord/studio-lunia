@@ -8,6 +8,7 @@ import {
   dateInput,
   idInput,
   internalTransaction,
+  object,
   textInput,
   transactionDB,
 } from '../customer-records/core'
@@ -372,6 +373,10 @@ export async function followUpOperation(
           'The planned message changed. Review the exact preview again before saving.',
           409,
         )
+      if (plan.rule && 'templateSnapshot' in data)
+        Object.assign(object(data.templateSnapshot), {
+          ruleRevision: object(plan.templateSnapshot).ruleRevision,
+        })
       plan = await savePlan(req, plan.id, {
         ...data,
         revision,

@@ -12,7 +12,7 @@ import {
   simulateFollowUp,
 } from '../../src/followups/operations'
 import { submitInquiry } from '../../src/inquiries/submit'
-import { inbox } from '../../src/followups/queries'
+import { inbox, workspace } from '../../src/followups/queries'
 let fixture: Awaited<ReturnType<typeof createTestCMS>>
 let payload: Payload
 let user: Awaited<ReturnType<typeof createEditor>>
@@ -512,4 +512,140 @@ test('verified incoming boundary deduplicates exact references and keeps unmatch
   )
   expect(unknown.state).toBe('review')
   expect(unknown.contact).toBeNull()
+})
+
+test('editing and rescheduling a rule-generated plan preserve the original rule revision', async () => {
+  const rule = await payload.create({
+    collection: 'follow-up-rules',
+    user,
+    overrideAccess: false,
+    data: {
+      name: 'Synthetic editable preparation',
+      revision: 1,
+      purpose: 'preparation',
+      template,
+      hours: 24,
+      timeZone: 'Europe/Amsterdam',
+      approvedForTests: true,
+    },
+  })
+  await op({
+    action: 'changeBooking',
+    booking,
+    status: 'confirmed',
+    expectedMinor: 12000,
+    reason: 'Synthetic trigger for editing a rule plan',
+  })
+  const original = (
+    await payload.find({ collection: 'follow-ups', user, overrideAccess: false, depth: 0 })
+  ).docs[0]
+  const edit = {
+    ...planInput(),
+    plannedAt: new Date(Date.now() + 3600000).toISOString(),
+    subject: 'Reviewed adjusted preparation',
+  }
+  const preview = await renderPlan(await createLocalReq({ user }, payload), edit)
+  await follow({
+    action: 'editFollowUp',
+    plan: original.id,
+    revision: original.revision,
+    ...edit,
+    previewToken: preview.previewToken,
+  })
+  const updated = await planDoc(original.id)
+  expect(updated.state).toBe('planned')
+  expect(updated.blockReason).toBeNull()
+  expect(updated.rule).toBe(rule.id)
+  expect(updated.templateSnapshot).toMatchObject({ ruleRevision: 1 })
+  expect(updated.plannedAt).toBe(edit.plannedAt)
+  await payload.update({
+    collection: 'follow-up-rules',
+    id: rule.id,
+    user,
+    overrideAccess: false,
+    data: { hours: 12 },
+  })
+  await payload.update({
+    collection: 'follow-up-rules',
+    id: rule.id,
+    user,
+    overrideAccess: false,
+    data: { approvedForTests: true },
+  })
+  await follow({
+    action: 'editFollowUp',
+    plan: updated.id,
+    revision: updated.revision,
+    ...edit,
+    previewToken: preview.previewToken,
+  })
+  expect((await planDoc(updated.id)).blockReason).toBe('rule_changed')
+  expect((await planDoc(updated.id)).templateSnapshot).toMatchObject({ ruleRevision: 1 })
+})
+test.each(['email.bounced', 'email.failed', 'email.delivery_delayed', 'email.suppressed'] as const)(
+  'real delivery adapter event %s immediately blocks the plan and refreshes attention state',
+  async (kind) => {
+    const { prepareEmail, receiveDelivery } = await import('../../src/customer-records/mail')
+    const prepared = await prepareEmail(payload, user, {
+      action: 'prepareEmail',
+      key: randomUUID(),
+      template,
+      booking,
+    })
+    const providerId = `synthetic-provider-${randomUUID()}`
+    await internalTransaction(payload, async (req) => {
+      // A synthetic accepted delivery fixture exercises the existing callback path;
+      // no sender or real webhook is activated by this test.
+      await payload.update({
+        collection: 'email-messages',
+        id: Number(prepared.id),
+        req,
+        overrideAccess: false,
+        data: { providerId, attempts: 1, status: 'accepted' },
+      })
+    })
+    const item = await plan()
+    expect(item.state).toBe('planned')
+    const fact = {
+      eventId: `synthetic-event-${randomUUID()}`,
+      providerId,
+      kind,
+      occurredAt: new Date().toISOString(),
+    }
+    expect(await receiveDelivery(payload, fact)).toBe('recorded')
+    const stopped = await planDoc(item.id)
+    expect(stopped.state).toBe('blocked')
+    expect(stopped.blockReason).toBe('delivery_problem')
+    expect(stopped.jobID).toBeNull()
+    expect(stopped.revision).toBe(item.revision + 1)
+    expect((await inbox(payload, user, { filter: 'attention' })).rows[0].plan?.state).toBe(
+      'blocked',
+    )
+    await receiveDelivery(payload, fact)
+    expect((await planDoc(item.id)).revision).toBe(stopped.revision)
+  },
+)
+
+test('workspace deep links resolve only plans and enquiries belonging to the selected customer', async () => {
+  const item = await plan()
+  const selected = await workspace(payload, user, contact, { plan: String(item.id) })
+  expect(selected.selectedPlan).toBe(item.id)
+  expect(selected.selectedEnquiry).toBe(enquiry)
+  expect(selected.selectionUnavailable).toBe(false)
+  const other = await payload.create({
+    collection: 'contacts',
+    user,
+    overrideAccess: false,
+    data: { name: 'Other synthetic customer', email: 'other@example.test' },
+  })
+  const wrong = await workspace(payload, user, other.id, { plan: item.id, enquiry })
+  expect(wrong.selectionUnavailable).toBe(true)
+  expect(wrong.selectedPlan).toBeUndefined()
+  expect(wrong.selectedEnquiry).toBeUndefined()
+  expect(wrong.plans).toEqual([])
+  expect(wrong.enquiries).toEqual([])
+  expect(wrong.bookings).toEqual([])
+  expect(
+    (await workspace(payload, user, contact, { plan: 'invalid', enquiry: -1 })).selectedPlan,
+  ).toBeUndefined()
 })

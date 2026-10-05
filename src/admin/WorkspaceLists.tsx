@@ -190,7 +190,7 @@ export function FollowUpQueue({ initial }: { initial: PaginatedDocs<FollowUp> })
             <PlanSummary plan={plan} />
             <p>{typeof plan.contact === 'object' ? plan.contact.name : 'Customer'}</p>
             <Link
-              href={`/admin/customers/${typeof plan.contact === 'object' ? plan.contact.id : plan.contact}#follow-ups`}
+              href={`/admin/customers/${typeof plan.contact === 'object' ? plan.contact.id : plan.contact}?plan=${plan.id}#follow-up-${plan.id}`}
             >
               Review and manage plan
             </Link>
