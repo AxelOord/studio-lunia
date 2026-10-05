@@ -23,3 +23,9 @@ Feature branches target develop; master is reserved for reviewed releases. Do no
 change repository permissions, purchase services, grant credentials or deploy production
 without authorization. Existing authorization for draft PRs and previews carries forward.
 Never overwrite unrelated work. Record blockers honestly and keep specs synchronized.
+
+Use Conventional Commits for new commits and PR titles (for example `feat: add a gallery`).
+`npm ci` installs hooks; pre-commit checks staged formatting/lint only. Fix failures
+and restage intended hunks; never advance `.commit-policy.json` to bypass validation.
+Keep ticket links, verification results and the exact preview in PR descriptions.
+Versioning/status behavior in specs/commit-workflow/release-plan.md is a proposal only.

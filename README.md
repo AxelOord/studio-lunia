@@ -72,3 +72,15 @@ Read AGENTS.md before working. Create a spec with `python3 scripts/specflow.py n
 The checker maps acceptance criteria to tasks but does not execute tests or prove evidence.
 Use small feature branches targeting develop, draft PRs and explicit verification.
 Master is reserved for reviewed releases. No automatic merging or production promotion.
+
+## Commit workflow
+
+`npm ci` installs fast staged formatting/lint checks and Conventional Commit validation.
+Use subjects such as `feat(media): add image selection` or `fix: preserve draft images`.
+Run `npm run test:hooks` for disposable-repository hook tests. CI checks new PR commits
+and titles inside the existing `verify` job; Windows hooks have a portability check.
+`.commit-policy.json` fixes the already-published history exemption; do not advance it.
+CI/hosted/production/non-Git installs skip hooks. No branch protections are changed.
+See [the workflow spec](specs/commit-workflow/requirements.md) and the **plan-only**
+[release design](specs/commit-workflow/release-plan.md). Hooks require Node24 and Git
+for Windows on Windows; hook entrypoints use POSIX shell and LF line endings.

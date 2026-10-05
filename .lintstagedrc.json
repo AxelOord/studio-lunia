@@ -1,0 +1,7 @@
+{
+  "*.{js,cjs,mjs,jsx,ts,tsx}": [
+    "prettier --check --ignore-unknown",
+    "eslint --max-warnings=0 --no-warn-ignored"
+  ],
+  "*.{json,md,yml,yaml,css}": "prettier --check --ignore-unknown"
+}
