@@ -1,13 +1,7 @@
 import 'dotenv/config'
-import { test } from 'node:test'
+import { test } from 'vitest'
 import assert from 'node:assert/strict'
-import { Client } from 'pg'
-import { buildConfig, getPayload } from 'payload'
-import { postgresAdapter } from '@payloadcms/db-postgres'
-import sharp from 'sharp'
-import { Users } from '../../src/collections/Users'
-import { Pages } from '../../src/collections/Pages'
-import { Media } from '../../src/collections/Media'
+import { createTestCMS, testMigrations } from '../helpers/payload'
 import { initializePreview } from '../../scripts/prepare-preview'
 
 // A fresh local-only database verifies the real migration/bootstrap path without
@@ -16,29 +10,10 @@ const defaultPassword = 'synthetic-shared-preview-default-only'
 const changedDefault = 'synthetic-replacement-default-only'
 for (const branch of ['first', 'second']) {
   test(`fresh ${branch} preview uses the shared default and preserves its own changed password and content`, async () => {
-    const source = new URL(process.env.DATABASE_URL!)
-    assert.ok(['localhost', '127.0.0.1'].includes(source.hostname), 'Test requires local database')
-    const database = `lunia_preview_test_${branch}_${Date.now()}`
-    const client = new Client({ connectionString: source.href })
-    await client.connect()
-    await client.query(`CREATE DATABASE "${database}"`)
-    source.pathname = `/${database}`
-    let payload: Awaited<ReturnType<typeof getPayload>> | undefined
+    const fixture = await createTestCMS(undefined, { migrate: false })
+    const payload = fixture.payload
     try {
-      payload = await getPayload({
-        key: database,
-        config: buildConfig({
-          secret: 'synthetic-bootstrap-test-only-long-secret',
-          db: postgresAdapter({
-            pool: { connectionString: source.href },
-            push: false,
-            migrationDir: `${process.cwd()}/src/migrations`,
-          }),
-          collections: [Users, Pages, Media],
-          sharp,
-        }),
-      })
-      const result = await payload.db.migrate({ shouldPrompt: false })
+      const result = await payload.db.migrate({ shouldPrompt: false, migrations: testMigrations })
       assert.ok(!result?.cancelled)
       await assert.rejects(
         initializePreview(payload, 'bootstrap@example.test', () => {
@@ -93,7 +68,7 @@ for (const branch of ['first', 'second']) {
         draft: true,
         overrideAccess: true,
       })
-      const again = await payload.db.migrate({ shouldPrompt: false })
+      const again = await payload.db.migrate({ shouldPrompt: false, migrations: testMigrations })
       assert.equal(again?.migrated.length, 0)
       await initializePreview(payload, 'bootstrap@example.test', () => {
         assert.fail('An existing account must not read or require the default secret')
@@ -137,13 +112,7 @@ for (const branch of ['first', 'second']) {
       for (const media of (await payload.find({ collection: 'media', overrideAccess: true })).docs)
         await payload.delete({ collection: 'media', id: media.id, overrideAccess: true })
     } finally {
-      if (payload) {
-        const pool = payload.db.pool
-        await payload.destroy()
-        await pool?.end()
-      }
-      await client.query(`DROP DATABASE "${database}"`)
-      await client.end()
+      await fixture.close()
     }
   })
 }

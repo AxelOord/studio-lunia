@@ -30,19 +30,18 @@ Docker volume. Back up both together. Do not use either as Vercel filesystem sto
 ## Verification
 
 ```sh
-npm run check
-npm run test:integration
-npm run build
+npm ci
+docker compose up -d
 npx playwright install chromium
-npm run test:e2e
-npm run format:check
+npm run verify
 ```
 
-Integration tests use the configured local database, create uniquely named synthetic
-records and clean them up. Never run against a production database. E2E needs the local
-seed credentials and a built app; Playwright starts `next start`. Set
-`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium` if using system Chromium.
-Screenshots/traces are in ignored `test-results/` and `playwright-report/`.
+This runs the same lint/types, unit, tooling/security, isolated PostgreSQL, build and
+browser stages as CI. Tests create and remove their own local databases; they never use
+hosted data or require provider credentials. Each integration case owns its fixtures.
+See [testing and selected-test commands](docs/testing.md) and [coding standards](docs/coding-standards.md).
+Screenshots, traces and reports are in ignored `test-results/` and `playwright-report/`.
+Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium` when using system Chromium.
 
 ## Environment
 

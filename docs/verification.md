@@ -1,4 +1,7 @@
-# Foundation verification
+# Historical foundation verification
+
+For current commands, isolation and CI stages, see [Testing Studio Lunia](testing.md).
+The results below record the original foundation; current exact-head evidence belongs in its PR.
 
 Local environment: Node 24.19.0, npm 11.9.0, PostgreSQL 17 container, Linux Chromium.
 Payload and official adapters/UI: exactly 4.0.0-canary.37. Next.js 16.3.8 and React 19.2.6.

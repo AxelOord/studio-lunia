@@ -169,6 +169,8 @@ test('template live preview never sends; prepared email has exact frozen content
       if (data.action === 'sendEmail') sends.push(request.url())
     }
   })
+  await page.goto(`/admin/collections/enquiries/${enquiryID}`)
+  await expect(page.getByRole('heading', { name: 'Booking proposal', exact: true })).toBeVisible()
   await page.goto(`/admin/collections/email-templates/${templateID}`)
   await expect(page.getByRole('heading', { name: 'Live email preview' })).toBeVisible()
   const subject = page.getByRole('textbox', { name: /^Subject/ })
@@ -179,7 +181,13 @@ test('template live preview never sends; prepared email has exact frozen content
   await expect(page.frameLocator('iframe').locator('p').first()).toBeVisible()
   await page.screenshot({ path: 'test-results/customer-template-preview.png', fullPage: true })
   expect(sends).toEqual([])
-  // Unsaved editor preview does not rewrite the saved approved source.
+  // Going back abandons the unsaved preview without changing the approved source.
+  page.on('dialog', (dialog) => void dialog.accept())
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Booking proposal', exact: true })).toBeVisible()
+  expect((await (await editor.get(`/api/email-templates/${templateID}`)).json()).subject).toBe(
+    'Hello {{contact_name}}',
+  )
   const key = randomUUID()
   operationKeys.push(key)
   const proposed = await editor.post('/api/customer-records', {
@@ -188,7 +196,6 @@ test('template live preview never sends; prepared email has exact frozen content
   })
   expect(proposed.ok()).toBe(true)
   bookingID = (await proposed.json()).id
-  page.on('dialog', (dialog) => void dialog.accept())
   await page.goto(`/admin/collections/bookings/${bookingID}`)
   await page.getByLabel('Approved template').selectOption(String(templateID))
   await page.getByRole('button', { name: 'Prepare private customer draft' }).click()

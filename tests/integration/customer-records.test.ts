@@ -1,9 +1,9 @@
 import 'dotenv/config'
-import { test, before, after } from 'node:test'
+import { test, beforeAll, beforeEach, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { getPayload, type Payload } from 'payload'
-import config from '../../src/payload.config'
+import type { Payload } from 'payload'
+import { createTestCMS } from '../helpers/payload'
 import type { User } from '../../src/payload-types'
 import { submitInquiry } from '../../src/inquiries/submit'
 import { recordOperation } from '../../src/customer-records/operations'
@@ -24,9 +24,7 @@ let enquiry: number
 let contact: number
 let booking: number
 let template: number
-const contactIDs: number[] = []
-const enquiryIDs: number[] = []
-const keys: string[] = []
+let fixture: Awaited<ReturnType<typeof createTestCMS>>
 const envKeys = [
   'LUNIA_CMS_PREVIEW',
   'RESEND_API_KEY',
@@ -35,12 +33,10 @@ const envKeys = [
 ] as const
 let oldEnv: Record<string, string | undefined>
 const op = (input: Record<string, unknown>, key = randomUUID()) => {
-  keys.push(key)
   return recordOperation(payload, user, { ...input, key })
 }
 const prepare = (action = 'prepareTestEmail') => {
   const key = randomUUID()
-  keys.push(key)
   return prepareEmail(payload, user, { action, key, template, booking })
 }
 const doc = (id: number) =>
@@ -59,14 +55,21 @@ async function newEnquiry() {
     { analytics: false, campaigns: false, decided: false },
   )
   assert.ok(result.doc)
-  enquiryIDs.push(result.doc.id)
-  contactIDs.push(relationID(result.doc.contact)!)
   return result.doc
 }
-before(async () => {
-  assert.ok(['localhost', '127.0.0.1'].includes(new URL(process.env.DATABASE_URL!).hostname))
-  payload = await getPayload({ config })
+beforeAll(async () => {
+  fixture = await createTestCMS()
+  payload = fixture.payload
   oldEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]))
+})
+beforeEach(async () => {
+  for (const key of envKeys) {
+    if (oldEnv[key] === undefined) delete process.env[key]
+    else process.env[key] = oldEnv[key]
+  }
+  await fixture.reset()
+  booking = 0
+  template = 0
   const created = await payload.create({
     collection: 'users',
     overrideAccess: true,
@@ -109,42 +112,47 @@ before(async () => {
   enquiry = lead.id
   contact = relationID(lead.contact)!
 })
-after(async () => {
-  for (const key of envKeys) {
-    if (oldEnv[key] === undefined) delete process.env[key]
-    else process.env[key] = oldEnv[key]
-  }
-  try {
-    // Delete only this suite's owned synthetic graph, in dependency order.
-    if (contactIDs.length)
-      for (const collection of [
-        'customer-activities',
-        'revenue-entries',
-        'email-messages',
-        'bookings',
-      ] as const)
-        await payload.delete({
-          collection,
-          where: { contact: { in: contactIDs } },
-          overrideAccess: true,
-        })
-    for (const id of enquiryIDs)
-      await payload.delete({ collection: 'enquiries', id, overrideAccess: true })
-    for (const id of contactIDs)
-      await payload.delete({ collection: 'contacts', id, overrideAccess: true })
-    if (template)
-      await payload.delete({ collection: 'email-templates', id: template, overrideAccess: true })
-    await payload.db.pool.query('DELETE FROM customer_operations WHERE operation_key = ANY($1)', [
-      keys,
-    ])
-    if (page) await payload.delete({ collection: 'pages', id: page, overrideAccess: true })
-    if (user) await payload.delete({ collection: 'users', id: user.id, overrideAccess: true })
-  } finally {
-    const pool = payload.db.pool
-    await payload.destroy()
-    await pool.end()
-  }
+afterAll(async () => {
+  if (oldEnv)
+    for (const key of envKeys) {
+      if (oldEnv[key] === undefined) delete process.env[key]
+      else process.env[key] = oldEnv[key]
+    }
+  await fixture?.close()
 })
+async function confirmedBooking() {
+  const result = await op({
+    action: 'proposeBooking',
+    enquiry,
+    expectedMinor: 12345,
+    currency: 'EUR',
+  })
+  booking = Number(result.id)
+  await op({
+    action: 'changeBooking',
+    booking,
+    status: 'confirmed',
+    sessionAt: new Date(Date.now() + 86400000).toISOString(),
+    expectedMinor: 12345,
+    reason: 'Synthetic confirmed fixture',
+  })
+}
+async function approvedEmailFixture() {
+  await confirmedBooking()
+  const item = await payload.create({
+    collection: 'email-templates',
+    user,
+    overrideAccess: false,
+    data: {
+      name: 'Synthetic approved example',
+      kind: 'booking',
+      subject: 'For {{contact_name}}',
+      body: 'About {{service_title}}: {{booking_status}}',
+      approved: true,
+    },
+  })
+  template = item.id
+}
 test('same email stays separate until explicit linking; timeline retains source and original enquiry snapshot', async () => {
   const second = await newEnquiry()
   assert.notEqual(relationID(second.contact), contact)
@@ -232,6 +240,7 @@ test('booking commands deduplicate concurrently, reject conflicting reuse and pr
   )
 })
 test('manual money corrections append reversals, preserve totals and roll back invalid refunds atomically', async () => {
+  await confirmedBooking()
   const common = {
     booking,
     occurredAt: new Date().toISOString(),
@@ -296,6 +305,7 @@ test('manual money corrections append reversals, preserve totals and roll back i
   )
 })
 test('template approval, rendered snapshots, private drafts and staff reply provenance are preserved', async () => {
+  await confirmedBooking()
   const item = await payload.create({
     collection: 'email-templates',
     user,
@@ -368,6 +378,14 @@ test('template approval, rendered snapshots, private drafts and staff reply prov
   )
 })
 test('sandbox sender freezes recipient/body/key, bounds retries and keeps failures truthful', async () => {
+  await approvedEmailFixture()
+  await payload.update({
+    collection: 'contacts',
+    id: contact,
+    user,
+    overrideAccess: false,
+    data: { name: 'Synthetic corrected name' },
+  })
   const message = await prepare()
   const requests: RequestInit[] = []
   assert.equal(
@@ -428,6 +446,7 @@ test('sandbox sender freezes recipient/body/key, bounds retries and keeps failur
   }
 })
 test('early signed facts correlate by opaque tag and concurrent/reordered callbacks cannot regress delivery', async () => {
+  await approvedEmailFixture()
   const message = await prepare()
   const saved = await doc(message.id)
   const providerId = `synthetic-${randomUUID()}`
@@ -484,6 +503,7 @@ test('early signed facts correlate by opaque tag and concurrent/reordered callba
   )
 })
 test('expired and historical notifications never invent snapshots or retry changed old payloads', async () => {
+  await approvedEmailFixture()
   const message = await prepare()
   await sendEmailMessage(payload, message.id, async () => new Response('{}', { status: 500 }))
   await payload.db.pool.query(
@@ -514,22 +534,22 @@ test('expired and historical notifications never invent snapshots or retry chang
   )
 })
 test('anonymous and forged capabilities cannot access private operational records or rewrite history', async () => {
-  if (contactIDs.length)
-    for (const collection of [
-      'contacts',
-      'bookings',
-      'revenue-entries',
-      'customer-activities',
-      'email-templates',
-      'email-messages',
-    ] as const)
-      await assert.rejects(
-        payload.find({
-          collection,
-          overrideAccess: false,
-          context: { recordsCapability: 'studio-lunia.customer-records' },
-        }),
-      )
+  await approvedEmailFixture()
+  for (const collection of [
+    'contacts',
+    'bookings',
+    'revenue-entries',
+    'customer-activities',
+    'email-templates',
+    'email-messages',
+  ] as const)
+    await assert.rejects(
+      payload.find({
+        collection,
+        overrideAccess: false,
+        context: { recordsCapability: 'studio-lunia.customer-records' },
+      }),
+    )
   const message = await prepare()
   await assert.rejects(
     payload.update({

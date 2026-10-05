@@ -1,9 +1,9 @@
 import 'dotenv/config'
-import { test, before, after } from 'node:test'
+import { test, beforeAll, beforeEach, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import { Readable } from 'node:stream'
 import { access } from 'node:fs/promises'
-import { buildConfig, createLocalReq, getPayload, type Payload } from 'payload'
+import { buildConfig, createLocalReq, type Payload } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import type { GetBlobResult, PutBlobResult } from '@vercel/blob'
 import { getPayloadFromClientToken } from '@vercel/blob/client'
@@ -13,6 +13,7 @@ import {
   getUploadInstructions,
 } from 'payload/internal'
 import sharp from 'sharp'
+import { createTestCMS, createEditor } from '../helpers/payload'
 // Exercise the exact pinned canary's real file endpoint, including its access lookup.
 import { getFileHandler } from '../../node_modules/payload/dist/uploads/endpoints/getFile.js'
 import { Media } from '../../src/collections/Media'
@@ -56,46 +57,54 @@ const io = {
 const factory = privateBlobAdapter('vercel_blob_rw_syntheticstore_syntheticlocaltestonly', io)
 const storage = privateBlobStorage(true, 'vercel_blob_rw_syntheticstore_syntheticlocaltestonly', io)
 let payload: Payload
-let imageID: number
-const extraImages: number[] = []
-before(async () => {
-  payload = await getPayload({
-    config: buildConfig({
+let fixture: Awaited<ReturnType<typeof createTestCMS>>
+let editor: Awaited<ReturnType<typeof createEditor>>
+beforeAll(async () => {
+  fixture = await createTestCMS((url, mediaDirectory) =>
+    buildConfig({
       secret: process.env.PAYLOAD_SECRET!,
-      db: postgresAdapter({ pool: { connectionString: process.env.DATABASE_URL }, push: false }),
-      collections: [Users, Media, Pages],
+      db: postgresAdapter({ pool: { connectionString: url, max: 5 }, push: false }),
+      collections: [
+        Users,
+        { ...Media, upload: { ...(Media.upload as object), staticDir: mediaDirectory } },
+        Pages,
+      ],
       storage: [storage],
       sharp,
       upload: { limits: { fileSize: 20 * 1024 * 1024 } },
     }),
-  })
+  )
+  payload = fixture.payload
 })
-after(async () => {
-  for (const id of extraImages)
-    await payload.delete({ collection: 'media', id, overrideAccess: true })
-  if (imageID) await payload.delete({ collection: 'media', id: imageID, overrideAccess: true })
-  const pool = payload.db.pool
-  await payload.destroy()
-  await pool?.end()
+beforeEach(async () => {
+  await fixture.reset()
+  objects.clear()
+  editor = await createEditor(payload)
 })
-test('private Blob integration writes derivatives without local files and serves no-store bytes', async () => {
+afterAll(async () => {
+  await fixture?.close()
+})
+async function createImage() {
   const bytes = await sharp({
     create: { width: 1800, height: 1200, channels: 3, background: '#65745a' },
   })
     .png()
     .toBuffer()
-  const image = await payload.create({
+  return payload.create({
     collection: 'media',
     overrideAccess: true,
     data: { alt: 'Synthetic Blob integration', visibility: 'private' },
     file: {
       data: bytes,
       mimetype: 'image/png',
-      name: `blob-${Date.now()}.png`,
+      name: 'owned-blob-fixture.png',
       size: bytes.length,
     },
   })
-  imageID = image.id
+}
+test('private Blob integration writes derivatives without local files and serves no-store bytes', async () => {
+  const image = await createImage()
+  const imageID = image.id
   assert.equal(objects.size, 3)
   assert.equal(
     (
@@ -160,8 +169,6 @@ test('private Blob integration writes derivatives without local files and serves
   )
 })
 test('direct upload grants are editor-bound, short-lived, bounded and use opaque paths', async () => {
-  const editor = (await payload.find({ collection: 'users', limit: 1, overrideAccess: true }))
-    .docs[0]
   const req = await createLocalReq({ user: { ...editor, collection: 'users' } }, payload)
   const anonymous = await createLocalReq({}, payload)
   const generate = factory({ collection: Media, prefix: 'preview-media' }).uploadInstructions!
@@ -214,8 +221,6 @@ test('direct upload grants are editor-bound, short-lived, bounded and use opaque
 })
 
 test('a provider upload receipt finalizes validated bytes under its isolated key', async () => {
-  const editor = (await payload.find({ collection: 'users', limit: 1, overrideAccess: true }))
-    .docs[0]
   const user = { ...editor, collection: 'users' as const }
   const req = await createLocalReq({ user }, payload)
   const adapter = factory({ collection: Media, prefix: 'preview-media' })
@@ -251,7 +256,6 @@ test('a provider upload receipt finalizes validated bytes under its isolated key
     file,
     req,
   })
-  extraImages.push(image.id)
   await assert.rejects(access(temporaryPath), { code: 'ENOENT' })
   // Match REST/admin: hidden storage fields must not be exposed to the client.
   assert.equal(image._objectKey, undefined)
@@ -343,7 +347,6 @@ test('a provider upload receipt finalizes validated bytes under its isolated key
   await assert.rejects(payload.delete({ collection: 'media', id: image.id, overrideAccess: false }))
   for (const finalKey of finalKeys) assert.equal(objects.has(finalKey), true)
   await payload.delete({ collection: 'media', id: image.id, overrideAccess: false, user })
-  extraImages.splice(extraImages.indexOf(image.id), 1)
   for (const finalKey of finalKeys) assert.equal(objects.has(finalKey), false)
   for (const unrelatedKey of unrelatedKeys) assert.equal(objects.has(unrelatedKey), true)
   // Format conversion leaves the original provider upload unreferenced. The inventory
@@ -353,8 +356,6 @@ test('a provider upload receipt finalizes validated bytes under its isolated key
 })
 
 test('invalid direct image leaves no record and removes its local temporary file', async () => {
-  const editor = (await payload.find({ collection: 'users', limit: 1, overrideAccess: true }))
-    .docs[0]
   const user = { ...editor, collection: 'users' as const }
   const req = await createLocalReq({ user }, payload)
   const bytes = Buffer.from('not an image')
@@ -407,7 +408,7 @@ test('invalid direct image leaves no record and removes its local temporary file
 })
 
 test('a different preview namespace cannot read or delete this branch media', async () => {
-  const image = await payload.findByID({ collection: 'media', id: imageID, overrideAccess: true })
+  const image = await createImage()
   const foreign = factory({ collection: Media, prefix: 'preview-media/another-branch' })
   const req = await createLocalReq({}, payload)
   const response = await foreign.staticHandler(req, {
@@ -438,8 +439,6 @@ test('a different preview namespace cannot read or delete this branch media', as
 })
 
 test('real upload instruction pipeline accepts a tiny PNG and distinguishes empty input', async () => {
-  const editor = (await payload.find({ collection: 'users', limit: 1, overrideAccess: true }))
-    .docs[0]
   const req = await createLocalReq({ user: { ...editor, collection: 'users' } }, payload)
   const bytes = await sharp({
     create: { width: 240, height: 160, channels: 3, background: '#65745a' },

@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { test } from 'node:test'
+import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { validateInquiry } from '../src/lib/inquiry'

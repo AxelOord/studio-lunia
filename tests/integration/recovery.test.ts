@@ -1,26 +1,35 @@
 import 'dotenv/config'
-import { test, before, after } from 'node:test'
+import { test, beforeAll, beforeEach, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
-import { getPayload, type Payload } from 'payload'
+import type { Payload } from 'payload'
 import { Client } from 'pg'
-import config from '../../src/payload.config'
+import { createHmac } from 'node:crypto'
+import { createTestCMS, applicationConfig } from '../helpers/payload'
 import { limitOperation } from '../../src/hosting/rate-limit'
 let payload: Payload
 const sent: { html: string }[] = []
 let userID: number
+let fixture: Awaited<ReturnType<typeof createTestCMS>>
 const email = `recovery-${Date.now()}@example.test`
-before(async () => {
-  const resolved = await config
-  resolved.email = () => ({
-    name: 'in-memory-test',
-    defaultFromAddress: 'test@example.test',
-    defaultFromName: 'Test',
-    sendEmail: async (message) => {
-      sent.push({ html: String(message.html) })
-      return {}
-    },
+beforeAll(async () => {
+  fixture = await createTestCMS(async (url, directory) => {
+    const resolved = await applicationConfig(url, directory)
+    resolved.email = () => ({
+      name: 'in-memory-test',
+      defaultFromAddress: 'test@example.test',
+      defaultFromName: 'Test',
+      sendEmail: async (message) => {
+        sent.push({ html: String(message.html) })
+        return {}
+      },
+    })
+    return resolved
   })
-  payload = await getPayload({ config: Promise.resolve(resolved) })
+  payload = fixture.payload
+})
+beforeEach(async () => {
+  await fixture.reset()
+  sent.length = 0
   const user = await payload.create({
     collection: 'users',
     overrideAccess: true,
@@ -29,11 +38,8 @@ before(async () => {
   })
   userID = user.id
 })
-after(async () => {
-  if (userID) await payload.delete({ collection: 'users', id: userID, overrideAccess: true })
-  const pool = payload.db.pool
-  await payload.destroy()
-  await pool?.end()
+afterAll(async () => {
+  await fixture?.close()
 })
 test('recovery sends a fixed-origin link, throttles email and rejects reused/expired tokens', async () => {
   await payload.forgotPassword({ collection: 'users', data: { email } })
@@ -90,7 +96,13 @@ test('database throttling is atomic across concurrent requests and expires', asy
   const client = new Client({ connectionString: process.env.DATABASE_URL })
   await client.connect()
   try {
-    await client.query("UPDATE lunia_rate_limits SET expires_at = now() - interval '1 minute'")
+    const key = createHmac('sha256', process.env.PAYLOAD_SECRET!)
+      .update(`test:${identity}`)
+      .digest('hex')
+    await client.query(
+      "UPDATE lunia_rate_limits SET expires_at = now() - interval '1 minute' WHERE key = $1",
+      [key],
+    )
     await limitOperation('test', identity, 3)
   } finally {
     await client.end()

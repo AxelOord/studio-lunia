@@ -2,10 +2,16 @@
 
 Read README.md, docs/architecture.md and the active spec before changes. Use English.
 Follow requirements → design → tasks → implementation → tests and visual QA → small draft PRs.
+Keep code readable: clear names, direct control flow and small functions with a useful purpose.
+Follow docs/coding-standards.md; avoid clever abstractions, extra layers and arbitrary complexity rules.
 Run `python3 scripts/specflow.py new <name>` for substantive work. Keep stable R-/P- IDs,
 map them to tasks, and record real evidence before checking tasks off. Run `npm run check`,
 `npm run build`, integration tests and browser tests for relevant changes. A checker verifies
 structure, not truth. Bug fixes need reproduction and preservation criteria.
+Use `npm run verify` for the same application/tooling stages as CI; see docs/testing.md.
+Integration tests own isolated local databases and fixtures. Each test must run alone;
+never borrow arbitrary rows, rely on order, weaken assertions or hide failures with retries.
+Preserve the Python bootstrap/backup/connection/spec security checks when changing test runners.
 
 Use `.agents/skills/payload/SKILL.md` for Payload work and docs/ai-tooling.md for exact-version
 sources. Installed types and tagged source take precedence over generic skill examples.
