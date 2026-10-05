@@ -30,7 +30,8 @@
     "preview:inventory": "tsx scripts/preview-inventory.ts",
     "preview:setup": "python3 scripts/preview-setup.py",
     "preview:connection": "python3 scripts/preview-connection.py",
-    "build:preview": "tsx scripts/preview-build.ts"
+    "build:preview": "tsx scripts/preview-build.ts",
+    "test:upload-metadata": "node scripts/check-upload-metadata.mjs"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "4.0.0-canary.37",

@@ -41,12 +41,14 @@ baseline QA and sample-size planning; low traffic may mean inconclusive results.
    trusted branch reviews; hosted CMS stays isolated.
 4. `005-full-cms-pr-previews`: native database branches, automatic migrations, synthetic
    CMS bootstrap and shared preview services; supersedes showcase as the default.
-5. `006-publish-to-attributed-inquiry`: real portfolio/service content, request form,
+5. `006-upload-size-feedback`: accurate empty-upload feedback and real file-picker
+   metadata regression for private storage.
+6. `007-publish-to-attributed-inquiry`: real portfolio/service content, request form,
    permitted campaign attribution, spam controls and private admin review.
-6. `007-booking-outcomes-and-ad-feedback`: confirmed outcomes/value, Google Ads adapter,
+7. `008-booking-outcomes-and-ad-feedback`: confirmed outcomes/value, Google Ads adapter,
    deduplication, retries, cancellation adjustments and consent eligibility.
-7. `008-campaign-performance`: spend ingestion and reconciled campaign reporting.
-8. `009-controlled-experiment`: one hypothesis, stable consent-aware assignment,
+8. `009-campaign-performance`: spend ingestion and reconciled campaign reporting.
+9. `010-controlled-experiment`: one hypothesis, stable consent-aware assignment,
    exposure events and statistical stopping rules.
 
 Booking model (request versus confirmed slots), brand/assets, jurisdiction/consent,

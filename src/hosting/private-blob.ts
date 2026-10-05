@@ -34,8 +34,14 @@ export function privateBlobAdapter(token: string, io: BlobIO = blob): Adapter {
       requiresUploadReceipt: true,
       generate: async ({ collectionSlug, filename, filesize, mimeType, req }) => {
         if (!req.user) throw new Forbidden(req.t)
-        if (!Number.isSafeInteger(filesize) || filesize <= 0 || filesize > MAX_UPLOAD_BYTES)
-          throw new APIError('Upload exceeds the permitted size.', 400)
+        if (!Number.isSafeInteger(filesize) || filesize < 0)
+          throw new APIError('Invalid upload size. Choose the image again.', 400)
+        if (filesize === 0)
+          throw new APIError(
+            'The selected file is empty. Choose a non-empty image and try again.',
+            400,
+          )
+        if (filesize > MAX_UPLOAD_BYTES) throw new APIError('Upload exceeds the 20 MB limit.', 400)
         assertClientUploadAllowed({ collection, filename, mimeType })
         if (process.env.LUNIA_CMS_PREVIEW === 'true')
           await limitOperation('upload', String(req.user.id), 30, 3600)

@@ -7,7 +7,11 @@ import { buildConfig, createLocalReq, getPayload, type Payload } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import type { GetBlobResult, PutBlobResult } from '@vercel/blob'
 import { getPayloadFromClientToken } from '@vercel/blob/client'
-import { verifyClientUploadReceipt, getFileFromUploadInstructions } from 'payload/internal'
+import {
+  verifyClientUploadReceipt,
+  getFileFromUploadInstructions,
+  getUploadInstructions,
+} from 'payload/internal'
 import sharp from 'sharp'
 // Exercise the exact pinned canary's real file endpoint, including its access lookup.
 import { getFileHandler } from '../../node_modules/payload/dist/uploads/endpoints/getFile.js'
@@ -429,4 +433,36 @@ test('a different preview namespace cannot read or delete this branch media', as
     }),
   )
   assert.deepEqual([...objects.keys()], keysBefore)
+})
+
+test('real upload instruction pipeline accepts a tiny PNG and distinguishes empty input', async () => {
+  const editor = (await payload.find({ collection: 'users', limit: 1, overrideAccess: true }))
+    .docs[0]
+  const req = await createLocalReq({ user: { ...editor, collection: 'users' } }, payload)
+  const bytes = await sharp({
+    create: { width: 240, height: 160, channels: 3, background: '#65745a' },
+  })
+    .png()
+    .toBuffer()
+  const input = {
+    collectionSlug: 'media' as const,
+    filename: 'tiny.png',
+    filesize: bytes.length,
+    mimeType: 'image/png',
+    req,
+    overrideAccess: false,
+  }
+  const instructions = await getUploadInstructions(input)
+  assert.equal(instructions.file.size, bytes.length)
+  assert.equal(instructions.type, 'dispatch')
+  if (instructions.type !== 'dispatch') throw new Error('Expected direct upload')
+  assert.equal(
+    getPayloadFromClientToken((instructions.data as { token: string }).token).maximumSizeInBytes,
+    bytes.length,
+  )
+  await assert.rejects(getUploadInstructions({ ...input, filesize: 0 }), /selected file is empty/)
+  await assert.rejects(
+    getUploadInstructions({ ...input, filesize: 21 * 1024 * 1024 }),
+    /file size limit/,
+  )
 })

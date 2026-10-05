@@ -93,3 +93,16 @@ integration uses an in-memory provider boundary, not a claim of hosted provider 
 Hosted acceptance must still prove native branch identity, real Blob upload/read,
 mailbox reset, both URL forms, rebuild persistence, two distinct branches and latest-
 commit behavior. Do not label the read-only showcase as that evidence.
+
+## Preview control and upload diagnosis
+
+In Payload canary.37 the chain-link preview control copies the URL on ordinary click;
+Ctrl/Cmd-click opens it in a new tab. A logged-in editor can also visit
+`/preview?slug=<page-slug>` on the same preview host. This is session-authenticated;
+the URL contains no bearer token.
+
+For a rejected upload, distinguish the actual browser/request byte count from the
+source file's disk size. Empty uploads receive an explicit empty-file message; the
+20 MiB cap remains unchanged. `npm run test:upload-metadata` exercises the actual
+browser file picker and private-adapter instruction endpoint with a synthetic tiny
+PNG, while blocking provider traffic. It does not replace real hosted upload QA.
