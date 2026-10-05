@@ -104,3 +104,22 @@ manual payment/refund history. Approved email templates provide desktop/mobile p
 immutable private drafts; sandbox tests use synthetic content and the own-editor recipient.
 Customer mail and live delivery callbacks remain gated. See
 [the records and email runbook](docs/customer-records-and-email.md).
+
+The admin dashboard opens the enquiry inbox, with counted task filters and private search.
+Each customer has separate enquiry/reply, booking, follow-up and history sections; switching
+sections keeps drafts. The follow-up queue supports status filters. Simulation tools and
+customer follow-up preferences are secondary disclosures. All customer sending and real
+incoming replies remain off. See the [workspace UX audit and evidence](specs/photographer-workspace-ux/design.md).
+
+## Service landing pages
+
+Publish a service card, then choose it under a page's **Page settings → Landing page service**.
+Use an intro/hero for the campaign headline and approved media in the existing blocks.
+The service card owns the description, optional inclusions, price guidance and approved
+human-response wording; the same published details appear on the landing and enquiry form.
+Missing services disable the landing action without substituting another offer.
+
+Local and preview initialization add `/service-demo` with clearly synthetic content and
+abstract artwork, preserving existing edits. Real photos, offer wording and any response
+promise still need owner input. The receipt saves an enquiry; it does not reserve a date,
+confirm a booking or send visitor mail in preview. See [the landing spec](specs/service-inquiry-landings/requirements.md).

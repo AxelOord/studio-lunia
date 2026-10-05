@@ -1,6 +1,7 @@
 import type { CollectionConfig, Field } from 'payload'
 import { editors } from '../access'
 import { internalWrite } from '../customer-records/core'
+import { updateFollowUps } from '../followups/hooks'
 import { contactActivity } from '../customer-records/hooks'
 
 const no = () => false
@@ -57,6 +58,14 @@ export const Contacts: CollectionConfig = {
       unique: true,
       access: { create: internalWrite, update: no },
       admin: { hidden: true },
+    },
+    {
+      name: 'followUpsStopped',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description: 'Stops every planned follow-up for this customer, including test simulations.',
+      },
     },
     ui('activityView', './admin/CustomerTimeline#CustomerTimeline'),
   ],
@@ -145,6 +154,7 @@ export const RevenueEntries: CollectionConfig = {
 }
 export const CustomerActivities: CollectionConfig = {
   slug: 'customer-activities',
+  hooks: { afterChange: [updateFollowUps] },
   versions: false,
   access: privateRead,
   admin: {
