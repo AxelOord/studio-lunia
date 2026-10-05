@@ -97,6 +97,7 @@ test('desktop/mobile accessible form validates, retains details after failure an
   )
   await page.screenshot({ path: 'test-results/inquiry-desktop-errors.png', fullPage: true })
   await page.getByRole('button', { name: 'Decline optional' }).click()
+  await expect(page.getByRole('heading', { name: 'Your privacy choices' })).not.toBeVisible()
   const email = await fill(page)
   let first = true
   await page.route('**/api/inquiry', async (route) => {
@@ -133,6 +134,7 @@ test('campaign opt-in keeps supported first/last identifiers across navigation; 
   )
   await page.getByRole('checkbox', { name: /Remember campaign/ }).check()
   await page.getByRole('button', { name: 'Save choices' }).click()
+  await expect(page.getByRole('heading', { name: 'Your privacy choices' })).not.toBeVisible()
   await expect
     .poll(async () => (await page.context().cookies()).some((c) => c.name === 'lunia_campaign'))
     .toBe(true)
@@ -204,6 +206,9 @@ test('measurement consent alone emits only fixed view/start events once and stop
   await page.goto('/inquire')
   await page.getByRole('checkbox', { name: /Measure service/ }).check()
   await page.getByRole('button', { name: 'Save choices' }).click()
+  // A click starts an asynchronous consent save. Actions before it completes are
+  // correctly withheld, so the consented journey must await its visible confirmation.
+  await expect(page.getByRole('heading', { name: 'Your privacy choices' })).not.toBeVisible()
   await fill(page)
   await page
     .getByLabel('What do you have in mind?')

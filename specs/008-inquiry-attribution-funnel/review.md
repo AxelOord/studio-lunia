@@ -55,3 +55,28 @@ No booking, live calendar, payments, Google Ads feedback, experiment, CRM timeli
 scheduled follow-up engine was added. The future roadmap must reuse the operational
 lead ID without transmitting contact information to analytics. No workflow changes.
 Completed issues remain none while provider acceptance is incomplete; issues stay open.
+
+## Hosted checkpoint
+
+Draft [PR #29](https://github.com/AxelOord/studio-lunia/pull/29) targets verified develop.
+GitHub timelines for all three issues contain cross-reference events to PR29; no closing
+keywords or status transitions were used. This proves related references, not a native
+Development-sidebar link (the connector exposes no such mutation).
+
+Automatic deployment `dpl_6YdLiQRjBYk7y4GyNL77WVvMV3Qe` reached READY at
+`26534065f6555af6a1df069129eda986cf057f2d` on the approved studio-lunia project.
+[Immutable URL](https://studio-lunia-h7oyxnynm-axeloords-projects.vercel.app) and
+[branch URL](https://studio-lunia-git-feat-inquiry-attribu-9f811b-axeloords-projects.vercel.app)
+serve the form with seeded published service choices. `/admin/login` serves Payload;
+`/api/enquiries` denies anonymous reads (403); `/api/privacy` returns all choices false
+and `configured:false`. Build used `build:preview`, so it did not fall back to showcase.
+Direct executor HTTP/browser access is blocked by the network proxy (CONNECT 403), even
+with authorized network escalation; connector GET verification succeeds. Authenticated
+hosted submission/CMS inspection and mailbox delivery are therefore still unverified.
+
+First exact-head CI passed hooks, aggregate checks, fresh migrations, 19 integration
+tests and build, then caught a browser-test race: the measurement journey selected a
+service before the asynchronous consent save completed. Correct behavior withheld that
+pre-consent view. The test now waits for the visible saved state before the consented
+journey. No unrelated base page-management failure occurred. Updated exact-head results
+and deployment are maintained in PR29 to avoid a commit/SHA evidence loop.
