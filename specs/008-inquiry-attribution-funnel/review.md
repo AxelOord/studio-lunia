@@ -80,3 +80,10 @@ service before the asynchronous consent save completed. Correct behavior withhel
 pre-consent view. The test now waits for the visible saved state before the consented
 journey. No unrelated base page-management failure occurred. Updated exact-head results
 and deployment are maintained in PR29 to avoid a commit/SHA evidence loop.
+
+Develop advanced to `29425ec` during verification; it was merged into the feature branch
+without changing the inherited release-workflow files. All local aggregate checks also
+passed on that base. A final privacy review found that confirming an old idempotency key
+after granting consent could create a late completion. Submission now reports whether
+it actually created the record, and only that winning create emits completion. Concurrent
+and late-consent retry integration assertions preserve one lead and one eligible conversion.

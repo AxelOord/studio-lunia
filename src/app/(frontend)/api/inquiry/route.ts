@@ -35,12 +35,16 @@ export async function POST(request: Request) {
     })
     // Measurement must never turn a committed enquiry into an apparent failure.
     try {
-      await captureMeasurement(
-        payload,
-        preferences.analytics ? session : undefined,
-        doc.serviceId,
-        'inquiry_submitted',
-      )
+      // A retry can confirm an older lead after consent/session changes. It must
+      // never backfill a pre-consent submission or emit a second completion.
+      if (result.created) {
+        await captureMeasurement(
+          payload,
+          preferences.analytics ? session : undefined,
+          doc.serviceId,
+          'inquiry_submitted',
+        )
+      }
     } catch {
       /* best effort, no replay queue */
     }

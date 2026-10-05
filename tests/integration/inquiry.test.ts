@@ -60,7 +60,15 @@ test('concurrent and lost-response retries create one lead; conflicting reuse re
   const ids = results.map((r) => r.doc!.id)
   leads.push(...ids)
   assert.equal(new Set(ids).size, 1)
+  assert.equal(results.filter((r) => r.created).length, 1)
   assert.equal(new Set(results.map((r) => r.receipt)).size, 1)
+  // Granting consent later must not turn an idempotent lookup into a new conversion.
+  const laterConsent = await submitInquiry(payload, data, {
+    ...preferences,
+    analytics: true,
+    decided: true,
+  })
+  assert.equal(laterConsent.created, false)
   await assert.rejects(
     submitInquiry(payload, { ...data, message: 'A different synthetic request.' }, preferences),
     { status: 409 },

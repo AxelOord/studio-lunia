@@ -32,6 +32,7 @@ export async function submitInquiry(
       })
     ).docs[0]
   let doc = await existing()
+  let created = false
   if (doc && doc.contentHash !== contentHash) throw new APIError('Conflicting submission.', 409)
   if (!doc) {
     const service = (await publishedServices(payload)).find((s) => s.id === data.service)
@@ -61,11 +62,12 @@ export async function submitInquiry(
           attribution: leadAttribution(preferences, campaign),
         },
       })
+      created = true
     } catch (error) {
       doc = await existing()
       if (!doc) throw error
       if (doc.contentHash !== contentHash) throw new APIError('Conflicting submission.', 409)
     }
   }
-  return { doc, receipt: key.slice(0, 12).toUpperCase() }
+  return { doc, receipt: key.slice(0, 12).toUpperCase(), created }
 }
