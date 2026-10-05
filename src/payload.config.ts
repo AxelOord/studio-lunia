@@ -16,6 +16,13 @@ import { Users } from './collections/Users'
 import { Media } from './collections/Media'
 import { Pages } from './collections/Pages'
 import { Enquiries } from './collections/Enquiries'
+import {
+  Contacts,
+  Bookings,
+  RevenueEntries,
+  CustomerActivities,
+} from './collections/CustomerRecords'
+import { EmailTemplates, EmailMessages } from './collections/EmailRecords'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const mode = deploymentMode(process.env)
@@ -76,7 +83,18 @@ export default buildConfig({
     importMap: { baseDir: dirname },
     meta: { titleSuffix: '— Studio Lunia' },
   },
-  collections: [Users, Media, Pages, Enquiries],
+  collections: [
+    Users,
+    Media,
+    Pages,
+    Enquiries,
+    Contacts,
+    Bookings,
+    RevenueEntries,
+    CustomerActivities,
+    EmailTemplates,
+    EmailMessages,
+  ],
   secret: process.env.PAYLOAD_SECRET || 'showcase-only-cms-routes-are-disabled-0000',
   db: postgresAdapter({
     pool: {

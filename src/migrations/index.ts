@@ -2,6 +2,7 @@ import * as migration_20261004_164202_initial from './20261004_164202_initial';
 import * as migration_20261004_175013_hosted_preview from './20261004_175013_hosted_preview';
 import * as migration_20261005_065653_reusable_page_blocks from './20261005_065653_reusable_page_blocks';
 import * as migration_20261005_145239_inquiry_attribution_funnel from './20261005_145239_inquiry_attribution_funnel';
+import * as migration_20261005_181401_customer_records_email_history from './20261005_181401_customer_records_email_history';
 
 export const migrations = [
   {
@@ -22,6 +23,11 @@ export const migrations = [
   {
     up: migration_20261005_145239_inquiry_attribution_funnel.up,
     down: migration_20261005_145239_inquiry_attribution_funnel.down,
-    name: '20261005_145239_inquiry_attribution_funnel'
+    name: '20261005_145239_inquiry_attribution_funnel',
+  },
+  {
+    up: migration_20261005_181401_customer_records_email_history.up,
+    down: migration_20261005_181401_customer_records_email_history.down,
+    name: '20261005_181401_customer_records_email_history'
   },
 ];

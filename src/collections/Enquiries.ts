@@ -1,6 +1,7 @@
 import type { CollectionConfig, Field } from 'payload'
 import { editors } from '../access'
 import { inquiryCapability } from '../inquiries/access'
+import { enquiryActivity, linkNewEnquiry } from '../customer-records/hooks'
 
 const immutable = { update: () => false }
 const readonly = { readOnly: true }
@@ -13,6 +14,7 @@ const input = (name: string, type: 'text' | 'textarea' | 'email', maxLength: num
 export const Enquiries: CollectionConfig = {
   slug: 'enquiries',
   versions: false,
+  hooks: { beforeChange: [linkNewEnquiry], afterChange: [enquiryActivity] },
   admin: {
     useAsTitle: 'serviceTitle',
     defaultColumns: ['serviceTitle', 'followUp', 'notificationStatus', 'createdAt'],
@@ -28,9 +30,19 @@ export const Enquiries: CollectionConfig = {
           ? { submissionHash: { equals: String(req.context.inquiryKey) } }
           : false,
     update: editors,
-    delete: editors,
+    delete: () => false,
   },
   fields: [
+    {
+      name: 'contact',
+      type: 'relationship',
+      relationTo: 'contacts',
+      index: true,
+      admin: {
+        description:
+          'Link to an existing contact only after checking identity. Matching email alone is not sufficient.',
+      },
+    },
     input('serviceId', 'text', 100),
     input('serviceTitle', 'text', 100),
     input('name', 'text', 100),
@@ -66,6 +78,7 @@ export const Enquiries: CollectionConfig = {
       access: immutable,
       admin: {
         ...readonly,
+        components: { Field: './admin/PrivateJSON#PrivateJSON' },
         description:
           'Immutable submission snapshot for future booking/revenue linkage. Optional identifiers are absent without campaign consent.',
       },
@@ -92,6 +105,11 @@ export const Enquiries: CollectionConfig = {
       name: 'notificationHelp',
       type: 'ui',
       admin: { components: { Field: './admin/RetryNotification#RetryNotification' } },
+    },
+    {
+      name: 'customerActions',
+      type: 'ui',
+      admin: { components: { Field: './admin/EnquiryActions#EnquiryActions' } },
     },
   ],
 }

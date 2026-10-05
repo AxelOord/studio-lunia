@@ -57,3 +57,12 @@ baseline QA and sample-size planning; low traffic may mean inconclusive results.
 Booking model (request versus confirmed slots), brand/assets, jurisdiction/consent,
 and notification route remain decisions. Preview services are configured; outstanding
 hosted acceptance is tracked in the preview runbook. No CRM expansion.
+
+## Selected private records slice (#10, #23, #24)
+
+The owner-selected batch supersedes the general no-CRM boundary for private Contacts,
+Bookings, RevenueEntries, CustomerActivities, EmailTemplates and EmailMessages only.
+Bookings are staff records, with separate expected value and manual realised money history.
+There is no calendar, payment provider, mailbox sync, scheduled follow-up or Ads feedback.
+See [the active design](../specs/009-customer-records-and-email-history/design.md) and
+[activation limits](customer-records-and-email.md).

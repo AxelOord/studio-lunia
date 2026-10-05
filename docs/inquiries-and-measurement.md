@@ -21,9 +21,9 @@ Review `new` enquiries in `/admin/collections/enquiries`, contact the person man
 appropriate, and change follow-up to `contacted` or `closed`. No automated visitor email
 is promised. Preview photographer notifications contain only a fixed review instruction,
 use the existing editor mailbox and never redirect visitor content to an arbitrary address.
-A successful provider response is labelled `accepted`, not delivered; mailbox delivery and later bounces must be checked in Resend. The persistent manual queue remains the source of follow-up work. Local mail for this feature is disabled. Provider rejection/timeouts become `failed`;
+A successful provider response is labelled `accepted`, not delivered; mailbox delivery and later bounces must be checked in Resend. The persistent manual queue remains the source of follow-up work. Local mail for this feature is disabled. Provider rejection becomes `failed`; timeouts are `uncertain` in the exact email history and appear as `failed` in this legacy enquiry summary;
 interrupted attempts remain visible. The retry button uses an atomic claim and the same
-Resend idempotency key, at most three attempts within 23 hours. After that the record is
+Resend idempotency key, at most three attempts within 23 hours of the first attempt. After that the record is
 marked `manual`; do not blindly retry outside Resend's 24-hour idempotency window.
 
 The visitor sees **Thank you. Your enquiry is saved.**, the saved record's reference,
@@ -36,10 +36,10 @@ plain-text body is:
 
 It contains no name, email, message, service, attribution, lead reference or attachment;
 the editor opens the private CMS queue to review the record. This notification path runs
-only with `LUNIA_CMS_PREVIEW=true`. Missing provider configuration, rejection or an
-eight-second timeout marks the attempted notification `failed`; it never undoes the lead.
+only with `LUNIA_CMS_PREVIEW=true`. Missing provider configuration or rejection is `failed`; an eight-second timeout is `uncertain`
+in the email history. These failures never undo the lead. See [the shared sender runbook](customer-records-and-email.md).
 
-An editor can delete a synthetic enquiry after review. No production retention period is
+Operational enquiry deletion is now blocked to preserve linked booking/email history. Synthetic test cleanup uses the local-only test database role. No production retention period is
 invented. A live policy, controller/contact details and operational retention decision are
 required before real customer use. Enquiries have no version history to duplicate PII.
 
