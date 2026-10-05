@@ -19,4 +19,4 @@
       Refs: R-1, R-2, R-3, R-4, R-5, R-6
       Depends: T-1, T-2, T-3
       Verify: npm run check, format:check, integration, build, e2e, exact-head CI and full CMS preview.
-      Evidence: pending
+      Evidence: review.md records passing local aggregate/browser/screenshot checks, application-head Foundation 37332558356 and hooks 37332558721, and READY automatic full CMS preview. Authenticated hosted CMS/mailbox journeys and native issue links remain with the coordinating parent; PostHog activation awaits exact provider approval.

@@ -1,6 +1,7 @@
 # Implementation review and evidence
 
-Base: develop `4fed0109a758b47ccb4e4305d3d9d93be310ac78`, fetched again before PR.
+Base: initially develop `4fed0109a758b47ccb4e4305d3d9d93be310ac78`; updated to
+`29425ec115769563c6ca55800f6c5ef1237fae15` by merging develop during verification.
 Branch: `feat/inquiry-attribution-funnel`. Latest #9/#11/#12 issue text and comments
 were read before implementation; no comments changed the acceptance criteria.
 
@@ -24,7 +25,8 @@ were read before implementation; no comments changed the acceptance criteria.
 
 Local Node 24.19.0, PostgreSQL 17 in the repository's Docker service, synthetic data only.
 
-- `npm run check`: specs, lint, TypeScript, 27 Node tests and 35 Python workflow tests pass.
+- `npm run check`: specs, lint, TypeScript, 27 Node tests, 35 Python workflow tests and
+  12 inherited release-automation tests pass.
 - `npm run test:integration`: 19 tests pass, including five enquiry/measurement cases.
 - `npm run build`: production build passes with the exact pinned Payload/Next packages.
 - Full browser suite: 15 tests pass, including five new enquiry/privacy journeys covering validation, focus, mobile overflow,
@@ -63,9 +65,10 @@ GitHub timelines for all three issues contain cross-reference events to PR29; no
 keywords or status transitions were used. This proves related references, not a native
 Development-sidebar link (the connector exposes no such mutation).
 
-Automatic deployment `dpl_6YdLiQRjBYk7y4GyNL77WVvMV3Qe` reached READY at
-`26534065f6555af6a1df069129eda986cf057f2d` on the approved studio-lunia project.
-[Immutable URL](https://studio-lunia-h7oyxnynm-axeloords-projects.vercel.app) and
+Automatic deployment `dpl_B8yWTHAQaAC2WQoTMP5CMo4gGAuG` reached READY at the
+final application commit `a266b56afd588f54916ea483ece91e9d9caa70bc` on the approved
+studio-lunia project `prj_RiVoPaLLyHgqAwR2Hivx3X2hRTAM`.
+[Immutable URL](https://studio-lunia-5f353uf4j-axeloords-projects.vercel.app) and
 [branch URL](https://studio-lunia-git-feat-inquiry-attribu-9f811b-axeloords-projects.vercel.app)
 serve the form with seeded published service choices. `/admin/login` serves Payload;
 `/api/enquiries` denies anonymous reads (403); `/api/privacy` returns all choices false
@@ -80,6 +83,19 @@ service before the asynchronous consent save completed. Correct behavior withhel
 pre-consent view. The test now waits for the visible saved state before the consented
 journey. No unrelated base page-management failure occurred. Updated exact-head results
 and deployment are maintained in PR29 to avoid a commit/SHA evidence loop.
+
+Final application commit `a266b56afd588f54916ea483ece91e9d9caa70bc` passed
+[Foundation checks](https://github.com/AxelOord/studio-lunia/actions/runs/37332558356)
+and [Hook portability](https://github.com/AxelOord/studio-lunia/actions/runs/37332558721).
+Foundation's `verify` job passed every step: commit/completion policy, generated files,
+aggregate/format checks, fresh migrations and seed, integration, production build, all
+browser tests, upload checks and showcase. Publication/status mutation jobs were skipped
+as expected for this draft feature PR. Documentation-only evidence follow-ups get their
+own exact-head checks; see PR29 for the final branch SHA and run links.
+
+The coordinating parent is handling authenticated hosted browser/CMS/mailbox acceptance
+and native GitHub Development links. Their outcomes are not assumed here. T-4 remains open
+until that evidence is available, and #12 also retains its separate provider activation gate.
 
 Develop advanced to `29425ec` during verification; it was merged into the feature branch
 without changing the inherited release-workflow files. All local aggregate checks also

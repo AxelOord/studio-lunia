@@ -26,6 +26,19 @@ interrupted attempts remain visible. The retry button uses an atomic claim and t
 Resend idempotency key, at most three attempts within 23 hours. After that the record is
 marked `manual`; do not blindly retry outside Resend's 24-hour idempotency window.
 
+The visitor sees **Thank you. Your enquiry is saved.**, the saved record's reference,
+manual follow-up wording, and **Preview: no email confirmation is sent to visitors.**
+The photographer notification uses `MAIL_FROM` as sender and only `PREVIEW_EDITOR_EMAIL`
+as recipient. Its subject is **Studio Lunia preview: enquiry to review** and its complete
+plain-text body is:
+
+> A synthetic preview enquiry is ready in Payload. Open the Enquiries collection in your Studio Lunia preview, review the record and update its follow-up status. No visitor email has been sent.
+
+It contains no name, email, message, service, attribution, lead reference or attachment;
+the editor opens the private CMS queue to review the record. This notification path runs
+only with `LUNIA_CMS_PREVIEW=true`. Missing provider configuration, rejection or an
+eight-second timeout marks the attempted notification `failed`; it never undoes the lead.
+
 An editor can delete a synthetic enquiry after review. No production retention period is
 invented. A live policy, controller/contact details and operational retention decision are
 required before real customer use. Enquiries have no version history to duplicate PII.
@@ -86,6 +99,61 @@ a deterministic event UUID and explicit `$process_person_profile=false`, `$geoip
 `$ip=null`. Visitor headers, IP, contact, messages, campaign tags and URLs never enter the
 provider payload. Server mediation still means the hosting provider processes HTTP requests.
 
+### Concrete approval proposal (not activated)
+
+- Approve a dedicated **Studio Lunia Preview** project in an owner-controlled PostHog
+  EU (Frankfurt) account/organization. Use the free plan without a card, add-on or upgrade.
+  The current free plan allows one project; do not replace an existing project or alter
+  another organization's membership to make room without a separate decision.
+- Keep Axel as the only human with access initially. The application needs only the
+  ingestion project token; it needs no personal API key, management scope, billing role
+  or invitation. Axel can inspect events and create the funnel in the UI. If a named
+  collaborator is later approved, organization Member is sufficient for analysis;
+  the free plan does **not** provide project/resource isolation and members can edit
+  all resources. Do not promise a restricted viewer role on this plan or grant Admin.
+- Turn **Discard client IP data** on, disable GeoIP enrichment, and opt out of data use
+  for provider model training before the first event. Leave replay, autocapture, person
+  profiles, surveys, experiments and error tracking off. Confirm these in the actual UI;
+  no settings change has been made by this task.
+- Approve the current terms and DPA before signup/use. The terms' model-training opt-out
+  applies prospectively, so select it before capture rather than after testing.
+- Proposed preview data policy: synthetic events only, disable capture at the end of
+  acceptance, and have the owner delete the dedicated test project after acceptance,
+  with a target within 30 days of the first test. This is an operational proposal, not
+  an automated retention job or a claim about the provider's deletion completion time.
+  Record confirmation when that deletion actually completes.
+- PostHog's documented free event retention is **one year**. It is not a deletion
+  guarantee, cannot be shortened through a setting, and a shorter period is not offered
+  on request. There is no implemented 30-day provider TTL. Continued use requires explicit
+  approval of those actual terms and a deletion policy; otherwise leave capture disabled.
+  Live enquiry/contact retention is a separate decision and remains unset.
+
+The exact JSON shape sent by this implementation is below; placeholders are descriptions,
+not values to paste into provider settings. `event` is exactly one of `service_viewed`,
+`inquiry_started`, `inquiry_submitted`.
+
+```json
+{
+  "api_key": "<project ingestion token from Preview environment>",
+  "uuid": "<deterministic UUID for session + service + event>",
+  "event": "service_viewed",
+  "distinct_id": "<random browser-session UUID, maximum 24 hours>",
+  "properties": {
+    "service_id": "<first 24 hex characters of SHA-256 of service ID>",
+    "schema_version": 1,
+    "$process_person_profile": false,
+    "$geoip_disable": true,
+    "$ip": null
+  }
+}
+```
+
+No client timestamp is sent; provider ingestion supplies event time. The ordered funnel
+uses unique `distinct_id` values (each represents a session here), a 24-hour window, and
+constant `service_id`. A submission event is eligible only on the successful new-record
+commit with measurement consent at that time. Retrying a saved enquiry never backfills
+a conversion after later consent or starts another completion in a new session.
+
 ## Hosted acceptance still required before activation
 
 Verify the automatic preview's exact SHA, full CMS login and native migrations. Using only
@@ -101,6 +169,10 @@ PostHog public docs source pinned at `89b603752551ec71ad914e76e51bfa952af1e098`:
 [capture API](https://github.com/PostHog/posthog.com/blob/89b603752551ec71ad914e76e51bfa952af1e098/contents/docs/api/capture.mdx),
 [data collection controls](https://github.com/PostHog/posthog.com/blob/89b603752551ec71ad914e76e51bfa952af1e098/contents/docs/privacy/data-collection.mdx),
 [ingestion](https://github.com/PostHog/posthog.com/blob/89b603752551ec71ad914e76e51bfa952af1e098/contents/docs/how-posthog-works/ingestion-pipeline.mdx).
+[Event retention](https://github.com/PostHog/posthog.com/blob/89b603752551ec71ad914e76e51bfa952af1e098/contents/docs/data/events-retention.mdx),
+[storage/deletion controls](https://github.com/PostHog/posthog.com/blob/89b603752551ec71ad914e76e51bfa952af1e098/contents/docs/privacy/data-storage.mdx),
+and [access control / free-plan limits](https://github.com/PostHog/posthog.com/blob/89b603752551ec71ad914e76e51bfa952af1e098/contents/docs/settings/access-control.mdx)
+were also checked for the concrete approval proposal.
 HTTP API chosen instead of an SDK to avoid automatic metadata and external scripts;
 there is no unpinned SDK dependency. Approval references: [terms](https://posthog.com/terms),
 [privacy](https://posthog.com/privacy), [pricing](https://posthog.com/pricing).
