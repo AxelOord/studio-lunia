@@ -28,6 +28,13 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
     },
     [],
   )
+  const [section, setSection] = useState(data.selectedPlan ? 'followups' : 'reply')
+  const planTrigger = useRef<HTMLButtonElement | null>(null)
+  const previousEditor = useRef(editor)
+  useEffect(() => {
+    if (previousEditor.current && !editor) planTrigger.current?.focus()
+    previousEditor.current = editor
+  }, [editor])
   const [showProposal, setShowProposal] = useState(false)
   const { run, busy, message } = useRecordAction('/api/customer-workspace')
   const enquiry = data.enquiries.find((item) => item.id === enquiryID)
@@ -77,17 +84,16 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
   return (
     <WorkspaceShell
       title={data.contact.name}
-      description="The request, conversation, booking and next steps in one place."
+      description={`${data.contact.email}${data.contact.phone ? ` · ${data.contact.phone}` : ''}`}
+      actions={
+        <>
+          <Link href={`/admin/collections/contacts/${data.contact.id}`}>Edit contact details</Link>
+          <button onClick={() => void reload()}>Refresh workspace</button>
+        </>
+      }
     >
-      <div className="workspace-contact">
-        <p>
-          {data.contact.email}
-          {data.contact.phone && <> · {data.contact.phone}</>}
-        </p>
-        <Link href={`/admin/collections/contacts/${data.contact.id}`}>Edit contact details</Link>
-        <button onClick={() => void reload()}>Refresh workspace</button>
-      </div>
       {error && <p role="alert">{error}</p>}
+      {message && <p role="status">{message}</p>}
       {data.selectionUnavailable && (
         <p role="alert">The linked request or plan is no longer available for this customer.</p>
       )}
@@ -96,38 +102,10 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
           Showing the latest 100 records per section. Older records remain in the collection views.
         </p>
       )}
-      <div className="workspace-stop">
-        <p>
-          {data.contact.followUpsStopped
-            ? 'Follow-ups are stopped for this customer. Existing plans stay blocked until explicitly reviewed.'
-            : 'Follow-ups may be planned for tests. You can stop them for this customer at any time.'}
-        </p>
-        <button
-          disabled={busy}
-          onClick={async () => {
-            if (
-              await run({
-                action: 'stopFollowUps',
-                contact: data.contact.id,
-                stopped: !data.contact.followUpsStopped,
-              })
-            )
-              await reload()
-          }}
-        >
-          {data.contact.followUpsStopped
-            ? 'Allow new test planning'
-            : 'Stop all customer follow-ups'}
-        </button>
-        <p role="status">{message}</p>
-      </div>
       {!data.enquiries.length ? (
         <section className="workspace-card">
           <h2>No enquiry linked yet</h2>
-          <p>
-            Link an existing enquiry explicitly in its record before preparing a proposal or
-            follow-up.
-          </p>
+          <p>Link an existing enquiry in its record before preparing a proposal or follow-up.</p>
         </section>
       ) : (
         <>
@@ -139,6 +117,7 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
                 setEnquiryID(Number(event.target.value))
                 setEditor(undefined)
                 setShowProposal(false)
+                setSection('reply')
                 closeEmail()
               }}
             >
@@ -149,33 +128,196 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
               ))}
             </select>
           </label>
-          <div className="workspace-columns">
-            <div>
-              {enquiry && (
-                <section className="workspace-card">
-                  <p className="workspace-label">
-                    Original enquiry · {localDate(enquiry.createdAt)}
-                  </p>
-                  <h2>{enquiry.serviceTitle}</h2>
-                  <span className="workspace-badge">{enquiry.followUp}</span>
-                  <p className="workspace-message">{enquiry.message}</p>
-                  <Link href={`/admin/collections/enquiries/${enquiry.id}`}>
-                    Update enquiry status or link
-                  </Link>
-                  <hr />
-                  <DraftAction
-                    key={enquiry.id}
+          <nav className="workspace-task-nav" aria-label="Customer tasks">
+            {[
+              ['reply', 'Enquiry & reply'],
+              ['booking', `Booking${bookings.length ? ` (${bookings.length})` : ''}`],
+              ['followups', `Follow-ups${plans.length ? ` (${plans.length})` : ''}`],
+              ['history', 'Conversation & history'],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                aria-pressed={section === value}
+                aria-controls={`task-${value}`}
+                onClick={() => setSection(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+          <div id="task-reply" hidden={section !== 'reply'}>
+            <div className="workspace-next-step">
+              <strong>
+                {enquiry?.followUp === 'new'
+                  ? 'Next step: prepare a personal reply'
+                  : 'Continue the conversation'}
+              </strong>
+            </div>
+            {enquiry && (
+              <section className="workspace-card">
+                <p className="workspace-label">Original enquiry · {localDate(enquiry.createdAt)}</p>
+                <h2>{enquiry.serviceTitle}</h2>
+                <span className="workspace-badge">{enquiry.followUp}</span>
+                <p className="workspace-message">{enquiry.message}</p>
+                <Link href={`/admin/collections/enquiries/${enquiry.id}`}>
+                  Update enquiry status or link
+                </Link>
+                <hr />
+                <DraftAction
+                  key={enquiry.id}
+                  enquiry={enquiry.id}
+                  templates={data.templates}
+                  onDone={reload}
+                />
+              </section>
+            )}
+          </div>
+          <aside id="task-booking" hidden={section !== 'booking'} aria-label="Customer booking">
+            <section className="workspace-card">
+              <h2>Booking</h2>
+              {bookings.length ? (
+                bookings.map((booking) => (
+                  <details key={`${booking.id}:${booking.updatedAt}`}>
+                    <summary>
+                      {booking.title} · {booking.status}
+                    </summary>
+                    <BookingAction booking={booking} onDone={reload} />
+                    <Link href={`/admin/collections/bookings/${booking.id}`}>
+                      Open value and money records
+                    </Link>
+                  </details>
+                ))
+              ) : (
+                <p>No booking proposal yet.</p>
+              )}
+              <button onClick={() => setShowProposal(!showProposal)}>
+                {showProposal ? 'Cancel proposal editing' : 'New booking proposal'}
+              </button>
+              {showProposal && enquiry && (
+                <ProposalAction
+                  enquiry={enquiry.id}
+                  onDone={async () => {
+                    await reload()
+                    setShowProposal(false)
+                  }}
+                />
+              )}
+            </section>
+          </aside>
+          <div id="task-followups" hidden={section !== 'followups'}>
+            <section className="workspace-card" id="follow-ups">
+              <h2>Planned follow-ups</h2>
+              <button
+                className="workspace-primary"
+                disabled={Boolean(editor)}
+                onClick={(event) => {
+                  planTrigger.current = event.currentTarget
+                  setEditor('new')
+                }}
+              >
+                Plan a follow-up
+              </button>
+              {editor && enquiry && (editor === 'new' || editingPlan) && (
+                <section className="workspace-card" aria-label="Follow-up editor">
+                  <FollowUpEditor
+                    key={editor}
                     enquiry={enquiry.id}
+                    bookings={bookings}
                     templates={data.templates}
-                    onDone={reload}
+                    plan={editingPlan}
+                    onRefresh={reload}
+                    onCancel={() => {
+                      setEditor(undefined)
+                    }}
+                    onDone={async () => {
+                      await reload()
+                      setEditor(undefined)
+                    }}
                   />
                 </section>
               )}
-              <section className="workspace-card">
-                <h2>Conversation and history</h2>
-                <p>
-                  Staff notes and simulated replies are labelled. A real mailbox is not connected.
+
+              {!plans.length && <p>No follow-ups planned for this request.</p>}
+              {plans.map((plan) => (
+                <article className="workspace-plan" key={plan.id} id={`follow-up-${plan.id}`}>
+                  <PlanSummary plan={plan} />
+                  <details>
+                    <summary>Exact planned message</summary>
+                    <p>To: {plan.recipient}</p>
+                    <EmailFrame html={plan.html} />
+                  </details>
+                  {editableStates.includes(plan.state) && (
+                    <div className="customer-actions">
+                      <button
+                        disabled={Boolean(editor)}
+                        onClick={(event) => {
+                          planTrigger.current = event.currentTarget
+                          setEditor(plan.id)
+                        }}
+                      >
+                        Edit or reschedule
+                      </button>
+                      {plan.state === 'paused' ? (
+                        <button
+                          disabled={busy}
+                          onClick={() => void planAction('resumeFollowUp', plan)}
+                        >
+                          Review and resume
+                        </button>
+                      ) : (
+                        <button
+                          disabled={busy}
+                          onClick={() => void planAction('pauseFollowUp', plan)}
+                        >
+                          Pause plan
+                        </button>
+                      )}
+                      <button
+                        disabled={busy}
+                        onClick={() => void planAction('cancelFollowUp', plan)}
+                      >
+                        Cancel plan
+                      </button>
+                    </div>
+                  )}
+                </article>
+              ))}
+            </section>
+          </div>
+          <div id="task-history" hidden={section !== 'history'}>
+            <section className="workspace-card">
+              <h2>Conversation and history</h2>
+              <p>
+                Staff notes and simulated replies are labelled. A real mailbox is not connected.
+              </p>
+              {!data.messages.length && !data.events.length && <p>No conversation activity yet.</p>}
+              {data.messages.map((item) => (
+                <p key={`mail-${item.id}`}>
+                  <button className="workspace-text-button" onClick={() => void openEmail(item.id)}>
+                    {item.subject}
+                  </button>{' '}
+                  <span className="workspace-badge">{item.status}</span> ·{' '}
+                  {item.kind.replaceAll('_', ' ')}
                 </p>
+              ))}
+              {(email || emailLoading || emailError) && (
+                <section aria-label="Saved email preview">
+                  <button onClick={closeEmail}>Close email preview</button>
+                  {emailLoading && <p role="status">Loading saved email…</p>}
+                  {emailError && <p role="alert">{emailError}</p>}
+                  {email && (
+                    <>
+                      <h3>{email.subject}</h3>
+                      <p>
+                        To: {email.recipient} · {email.status}
+                      </p>
+                      <EmailFrame html={email.html} />
+                    </>
+                  )}
+                </section>
+              )}
+              <details className="workspace-secondary">
+                <summary>Record a simulated reply</summary>
                 <form
                   onSubmit={async (event) => {
                     event.preventDefault()
@@ -205,146 +347,54 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
                   </label>
                   <button disabled={busy}>Record simulated reply</button>
                 </form>
-                {!data.messages.length && !data.events.length && (
-                  <p>No conversation activity yet.</p>
-                )}
-                {data.messages.map((item) => (
-                  <p key={`mail-${item.id}`}>
-                    <button
-                      className="workspace-text-button"
-                      onClick={() => void openEmail(item.id)}
-                    >
-                      {item.subject}
-                    </button>{' '}
-                    <span className="workspace-badge">{item.status}</span> ·{' '}
-                    {item.kind.replaceAll('_', ' ')}
-                  </p>
-                ))}
-                {(email || emailLoading || emailError) && (
-                  <section aria-label="Saved email preview">
-                    <button onClick={closeEmail}>Close email preview</button>
-                    {emailLoading && <p role="status">Loading saved email…</p>}
-                    {emailError && <p role="alert">{emailError}</p>}
-                    {email && (
-                      <>
-                        <h3>{email.subject}</h3>
-                        <p>
-                          To: {email.recipient} · {email.status}
-                        </p>
-                        <EmailFrame html={email.html} />
-                      </>
-                    )}
-                  </section>
-                )}
-                <ol className="workspace-timeline">
-                  {data.events.map((event) => {
-                    const details = event.details as { note?: string } | undefined
-                    return (
-                      <li key={event.id}>
-                        <strong>{event.summary}</strong>
-                        <small>
-                          {localDate(event.occurredAt)} · {event.source}
-                        </small>
-                        {details?.note && <p className="workspace-message">{details.note}</p>}
-                      </li>
-                    )
-                  })}
-                </ol>
-              </section>
-            </div>
-            <aside>
-              <section className="workspace-card">
-                <h2>Booking</h2>
-                {bookings.length ? (
-                  bookings.map((booking) => (
-                    <details key={`${booking.id}:${booking.updatedAt}`}>
-                      <summary>
-                        {booking.title} · {booking.status}
-                      </summary>
-                      <BookingAction booking={booking} onDone={reload} />
-                      <Link href={`/admin/collections/bookings/${booking.id}`}>
-                        Open value and money records
-                      </Link>
-                    </details>
-                  ))
-                ) : (
-                  <p>No booking proposal yet.</p>
-                )}
-                <button onClick={() => setShowProposal(!showProposal)}>
-                  {showProposal ? 'Cancel proposal editing' : 'New booking proposal'}
-                </button>
-                {showProposal && enquiry && (
-                  <ProposalAction
-                    enquiry={enquiry.id}
-                    onDone={async () => {
-                      await reload()
-                      setShowProposal(false)
-                    }}
-                  />
-                )}
-              </section>
-              <section className="workspace-card" id="follow-ups">
-                <h2>Planned follow-ups</h2>
-                <button onClick={() => setEditor('new')}>Plan a follow-up</button>
-                {!plans.length && <p>No follow-ups planned for this request.</p>}
-                {plans.map((plan) => (
-                  <article className="workspace-plan" key={plan.id} id={`follow-up-${plan.id}`}>
-                    <PlanSummary plan={plan} />
-                    <details>
-                      <summary>Exact planned message</summary>
-                      <p>To: {plan.recipient}</p>
-                      <EmailFrame html={plan.html} />
-                    </details>
-                    {editableStates.includes(plan.state) && (
-                      <div className="customer-actions">
-                        <button onClick={() => setEditor(plan.id)}>Edit or reschedule</button>
-                        {plan.state === 'paused' ? (
-                          <button
-                            disabled={busy}
-                            onClick={() => void planAction('resumeFollowUp', plan)}
-                          >
-                            Review and resume
-                          </button>
-                        ) : (
-                          <button
-                            disabled={busy}
-                            onClick={() => void planAction('pauseFollowUp', plan)}
-                          >
-                            Pause plan
-                          </button>
-                        )}
-                        <button
-                          disabled={busy}
-                          onClick={() => void planAction('cancelFollowUp', plan)}
-                        >
-                          Cancel plan
-                        </button>
-                      </div>
-                    )}
-                  </article>
-                ))}
-              </section>
-            </aside>
-          </div>
-          {editor && enquiry && (editor === 'new' || editingPlan) && (
-            <section className="workspace-card" aria-label="Follow-up editor">
-              <FollowUpEditor
-                key={editor}
-                enquiry={enquiry.id}
-                bookings={bookings}
-                templates={data.templates}
-                plan={editingPlan}
-                onRefresh={reload}
-                onCancel={() => setEditor(undefined)}
-                onDone={async () => {
-                  await reload()
-                  setEditor(undefined)
-                }}
-              />
+              </details>
+              <ol className="workspace-timeline">
+                {data.events.map((event) => {
+                  const details = event.details as { note?: string } | undefined
+                  return (
+                    <li key={event.id}>
+                      <strong>{event.summary}</strong>
+                      <small>
+                        {localDate(event.occurredAt)} · {event.source}
+                      </small>
+                      {details?.note && <p className="workspace-message">{details.note}</p>}
+                    </li>
+                  )
+                })}
+              </ol>
             </section>
-          )}
+          </div>
         </>
       )}
+      <details className="workspace-secondary" open={data.contact.followUpsStopped || undefined}>
+        <summary>
+          Customer follow-up preferences{data.contact.followUpsStopped ? ' · stopped' : ''}
+        </summary>
+        <div className="workspace-stop">
+          <p>
+            {data.contact.followUpsStopped
+              ? 'Follow-ups are stopped for this customer. Existing plans stay blocked until explicitly reviewed.'
+              : 'Follow-ups may be planned for tests. You can stop them for this customer at any time.'}
+          </p>
+          <button
+            disabled={busy}
+            onClick={async () => {
+              if (
+                await run({
+                  action: 'stopFollowUps',
+                  contact: data.contact.id,
+                  stopped: !data.contact.followUpsStopped,
+                })
+              )
+                await reload()
+            }}
+          >
+            {data.contact.followUpsStopped
+              ? 'Allow new test planning'
+              : 'Stop all customer follow-ups'}
+          </button>
+        </div>
+      </details>
     </WorkspaceShell>
   )
 }

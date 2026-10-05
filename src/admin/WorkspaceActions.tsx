@@ -60,7 +60,9 @@ export function ProposalAction({
           />
         </label>
       </div>
-      <button disabled={busy}>Record proposal</button>
+      <button className="workspace-primary" disabled={busy}>
+        Record proposal
+      </button>
       {error && <p role="alert">{error}</p>}
       <p role="status">{message}</p>
     </form>
@@ -131,7 +133,9 @@ export function BookingAction({
           onChange={(event) => setReason(event.target.value)}
         />
       </label>
-      <button disabled={busy}>Save booking change</button>
+      <button className="workspace-primary" disabled={busy}>
+        Save booking change
+      </button>
       <p role="status">{message}</p>
     </form>
   )
@@ -171,6 +175,7 @@ export function DraftAction({
         </p>
       )}
       <button
+        className="workspace-primary"
         disabled={!template || busy}
         onClick={async () => {
           setError('')

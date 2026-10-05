@@ -1,4 +1,4 @@
-import { APIError, type Payload, type PayloadRequest } from 'payload'
+import { APIError, type Payload, type PayloadRequest, type Where } from 'payload'
 import { customerView } from '../customer-records/queries'
 
 export async function workspace(
@@ -116,12 +116,18 @@ export async function inbox(
   if (!Object.hasOwn(clauses, filter)) throw new APIError('Choose a valid inbox filter.', 422)
   const query =
     typeof input.query === 'string' ? input.query.slice(0, 100).replace(/[\\%_]/g, '\\$&') : ''
-  const ids = await payload.db.pool.query<{ id: number }>(
-    `SELECT c.id FROM contacts c WHERE (c.name ILIKE $1 OR c.email ILIKE $1) AND (${clauses[filter]}) ORDER BY c.updated_at DESC, c.id DESC LIMIT 21 OFFSET $2`,
+  const ids = await payload.db.pool.query<{ id: number; enquiry_id: number | null }>(
+    `SELECT c.id, (SELECT e.id FROM enquiries e WHERE e.contact_id = c.id ORDER BY (e.follow_up = 'new') DESC, e.created_at DESC, e.id DESC LIMIT 1) AS enquiry_id FROM contacts c WHERE (c.name ILIKE $1 OR c.email ILIKE $1) AND (${clauses[filter]}) ORDER BY CASE WHEN (${clauses.new}) THEN 0 WHEN (${clauses.attention}) THEN 1 WHEN (${clauses.upcoming}) THEN 2 WHEN (${clauses.waiting}) THEN 3 ELSE 4 END, c.updated_at DESC, c.id DESC LIMIT 21 OFFSET $2`,
     [`%${query}%`, (page - 1) * 20],
   )
+  const counts = await payload.db.pool.query<Record<string, number>>(
+    `SELECT ${Object.entries(clauses)
+      .map(([name, clause]) => `count(*) FILTER (WHERE (${clause}))::int AS "${name}"`)
+      .join(', ')} FROM contacts c WHERE c.name ILIKE $1 OR c.email ILIKE $1`,
+    [`%${query}%`],
+  )
   const rows = await Promise.all(
-    ids.rows.slice(0, 20).map(async ({ id }) => {
+    ids.rows.slice(0, 20).map(async ({ id, enquiry_id }) => {
       const contact = await payload.findByID({
         collection: 'contacts',
         id,
@@ -134,7 +140,12 @@ export async function inbox(
           collection: 'enquiries',
           user,
           overrideAccess: false,
-          where: { contact: { equals: id } },
+          where: {
+            and: [
+              { contact: { equals: id } },
+              ...(enquiry_id ? [{ id: { equals: enquiry_id } }] : []),
+            ],
+          },
           depth: 0,
           limit: 1,
           sort: '-createdAt',
@@ -166,5 +177,33 @@ export async function inbox(
       return { contact, enquiry: enquiries.docs[0], activity: events.docs[0], plan: plans.docs[0] }
     }),
   )
-  return { rows, page, hasNextPage: ids.rows.length > 20 }
+  return { rows, page, hasNextPage: ids.rows.length > 20, counts: counts.rows[0] }
+}
+
+export async function planQueue(
+  payload: Payload,
+  user: NonNullable<PayloadRequest['user']>,
+  input: { filter?: unknown; page?: unknown } = {},
+) {
+  const filter = typeof input.filter === 'string' ? input.filter : 'all'
+  const page = input.page == null ? 1 : Number(input.page)
+  const filters: Record<string, Where> = {
+    all: {},
+    attention: { state: { in: ['blocked', 'failed'] } },
+    planned: { state: { equals: 'planned' } },
+    paused: { state: { equals: 'paused' } },
+    finished: { state: { in: ['simulated', 'cancelled'] } },
+  }
+  if (!Object.hasOwn(filters, filter) || !Number.isSafeInteger(page) || page < 1 || page > 10000)
+    throw new APIError('Choose a valid queue filter and page.', 422)
+  return payload.find({
+    collection: 'follow-ups',
+    user,
+    overrideAccess: false,
+    depth: 1,
+    limit: 20,
+    page,
+    sort: ['plannedAt', 'id'],
+    where: filters[filter],
+  })
 }

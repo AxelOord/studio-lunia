@@ -104,3 +104,9 @@ manual payment/refund history. Approved email templates provide desktop/mobile p
 immutable private drafts; sandbox tests use synthetic content and the own-editor recipient.
 Customer mail and live delivery callbacks remain gated. See
 [the records and email runbook](docs/customer-records-and-email.md).
+
+The admin dashboard opens the enquiry inbox, with counted task filters and private search.
+Each customer has separate enquiry/reply, booking, follow-up and history sections; switching
+sections keeps drafts. The follow-up queue supports status filters. Simulation tools and
+customer follow-up preferences are secondary disclosures. All customer sending and real
+incoming replies remain off. See the [workspace UX audit and evidence](specs/photographer-workspace-ux/design.md).

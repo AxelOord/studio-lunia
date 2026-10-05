@@ -12,7 +12,7 @@ import {
   simulateFollowUp,
 } from '../../src/followups/operations'
 import { submitInquiry } from '../../src/inquiries/submit'
-import { inbox, workspace } from '../../src/followups/queries'
+import { inbox, workspace, planQueue } from '../../src/followups/queries'
 let fixture: Awaited<ReturnType<typeof createTestCMS>>
 let payload: Payload
 let user: Awaited<ReturnType<typeof createEditor>>
@@ -648,4 +648,100 @@ test('workspace deep links resolve only plans and enquiries belonging to the sel
   expect(
     (await workspace(payload, user, contact, { plan: 'invalid', enquiry: -1 })).selectedPlan,
   ).toBeUndefined()
+})
+
+test('inbox triage counts match private search and prioritize an older new request over a newer closed one', async () => {
+  const original = await payload.findByID({
+    collection: 'enquiries',
+    id: enquiry,
+    user,
+    overrideAccess: false,
+  })
+  await payload.update({
+    collection: 'enquiries',
+    id: enquiry,
+    user,
+    overrideAccess: false,
+    data: { followUp: 'new' },
+  })
+  const second = await submitInquiry(
+    payload,
+    {
+      service: original.serviceId,
+      name: 'Synthetic newer request',
+      email: 'newer@example.test',
+      message: 'A separate synthetic request for inbox verification.',
+      website: '',
+      submissionId: randomUUID(),
+    },
+    { analytics: false, campaigns: false, decided: false },
+  )
+  await payload.update({
+    collection: 'enquiries',
+    id: second.doc!.id,
+    user,
+    overrideAccess: false,
+    data: { contact, followUp: 'closed' },
+  })
+  const closed = await payload.create({
+    collection: 'contacts',
+    user,
+    overrideAccess: false,
+    data: { name: 'Synthetic recently updated closed contact', email: 'closed@example.test' },
+  })
+  const result = await inbox(payload, user, { query: 'Synthetic', filter: 'all' })
+  expect(result.rows[0].contact.id).toBe(contact)
+  expect(result.rows[0].enquiry?.id).toBe(enquiry)
+  expect(result.counts).toMatchObject({ all: 3, new: 1, upcoming: 1 })
+  const filtered = await inbox(payload, user, { query: 'Synthetic', filter: 'new' })
+  expect(filtered.rows.map((row) => row.contact.id)).toEqual([contact])
+  expect(filtered.rows[0].enquiry?.id).toBe(enquiry)
+  const byEmail = await inbox(payload, user, { query: closed.email, filter: 'all' })
+  expect(byEmail.counts).toMatchObject({ all: 1, new: 0 })
+  expect((await inbox(payload, user, { query: '%_', filter: 'all' })).counts.all).toBe(0)
+})
+
+test('queue filters are server-side, stable across pages, and reject invalid input', async () => {
+  const planned = await plan()
+  const paused = await plan()
+  await follow({ action: 'pauseFollowUp', plan: paused.id, revision: paused.revision })
+  const cancelled = await plan()
+  await follow({ action: 'cancelFollowUp', plan: cancelled.id, revision: cancelled.revision })
+  const blocked = await plan({
+    purpose: 'enquiry_followup',
+    booking: undefined,
+    body: 'Hello {{contact_name}}, this is a synthetic follow-up.',
+    plannedAt: new Date(Date.now() + 86400000).toISOString(),
+  })
+  expect((await planQueue(payload, user, { filter: 'planned' })).docs.map((p) => p.id)).toEqual([
+    planned.id,
+  ])
+  expect((await planQueue(payload, user, { filter: 'paused' })).docs.map((p) => p.id)).toEqual([
+    paused.id,
+  ])
+  expect((await planQueue(payload, user, { filter: 'finished' })).docs.map((p) => p.id)).toEqual([
+    cancelled.id,
+  ])
+  expect((await planQueue(payload, user, { filter: 'attention' })).docs.map((p) => p.id)).toEqual([
+    blocked.id,
+  ])
+  const lastPlanned = []
+  for (let i = 0; i < 20; i++) lastPlanned.push((await plan()).id)
+  const firstPage = await planQueue(payload, user, { filter: 'planned' })
+  const secondPage = await planQueue(payload, user, { filter: 'planned', page: 2 })
+  expect(firstPage.totalDocs).toBe(21)
+  expect(firstPage.docs).toHaveLength(20)
+  expect(secondPage.docs.map((p) => p.id)).toEqual(lastPlanned.slice(-1))
+  expect(new Set([...firstPage.docs, ...secondPage.docs].map((p) => p.id)).size).toBe(21)
+  expect((await planQueue(payload, user, { filter: 'attention' })).docs.map((p) => p.id)).toEqual([
+    blocked.id,
+  ])
+  for (const input of [
+    { filter: '__proto__' },
+    { filter: "planned' OR true" },
+    { page: 1.5 },
+    { page: 0 },
+    { page: 10001 },
+  ])
+    await expect(planQueue(payload, user, input)).rejects.toThrow('Choose a valid queue')
 })

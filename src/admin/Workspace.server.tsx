@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { DefaultTemplate } from '@payloadcms/ui/rsc'
 import type { ReactNode } from 'react'
 import type { AdminViewServerProps } from 'payload'
-import { inbox, workspace } from '../followups/queries'
+import { inbox, workspace, planQueue } from '../followups/queries'
 import { CustomerWorkspace } from './CustomerWorkspace'
 import { EnquiryInbox, FollowUpQueue } from './WorkspaceLists'
 
@@ -53,17 +53,19 @@ export async function FollowUpsView(props: AdminViewServerProps) {
     initPageResult: { req },
   } = props
   if (!req.user) return null
-  const initial = await req.payload.find({
-    collection: 'follow-ups',
-    req,
-    overrideAccess: false,
-    depth: 1,
-    limit: 20,
-    sort: 'plannedAt',
-  })
+  const filter =
+    typeof props.searchParams?.filter === 'string' &&
+    ['all', 'attention', 'planned', 'paused', 'finished'].includes(props.searchParams.filter)
+      ? props.searchParams.filter
+      : 'all'
+  const page =
+    typeof props.searchParams?.page === 'string' && /^\d{1,4}$/.test(props.searchParams.page)
+      ? Math.max(1, Number(props.searchParams.page))
+      : 1
+  const initial = await planQueue(req.payload, req.user, { filter, page })
   return (
     <WorkspaceTemplate props={props}>
-      <FollowUpQueue initial={initial} />
+      <FollowUpQueue initial={initial} initialFilter={filter} />
     </WorkspaceTemplate>
   )
 }

@@ -3,7 +3,7 @@ import config from '@payload-config'
 import { boundedJSON, sameOrigin } from '@/inquiries/http'
 import { idInput, object, recordsError } from '@/customer-records/core'
 import { followUpOperation, followUpQueue, renderPlan } from '@/followups/operations'
-import { inbox, workspace } from '@/followups/queries'
+import { inbox, workspace, planQueue } from '@/followups/queries'
 const headers = { 'Cache-Control': 'no-store' }
 export async function GET(request: Request) {
   try {
@@ -19,15 +19,9 @@ export async function GET(request: Request) {
         }),
         { headers },
       )
-    const page = Math.min(10000, Math.max(1, Number(params.get('page')) || 1))
-    const plans = await payload.find({
-      collection: 'follow-ups',
-      user,
-      overrideAccess: false,
-      depth: 1,
-      limit: 20,
-      page,
-      sort: 'plannedAt',
+    const plans = await planQueue(payload, user, {
+      page: params.get('page'),
+      filter: params.get('filter'),
     })
     return Response.json(plans, { headers })
   } catch (error) {

@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { blockLabels, purposeLabels } from '../followups/domain'
 import type { FollowUp } from '../payload-types'
@@ -25,6 +25,7 @@ export async function workspaceJSON<T>(url: string, input?: Record<string, unkno
 }
 export function WorkspaceNav() {
   const params = useSearchParams()
+  const path = usePathname()
   const filter = ['all', 'new', 'waiting', 'upcoming', 'attention'].includes(
     params.get('filter') || '',
   )
@@ -33,33 +34,58 @@ export function WorkspaceNav() {
   const page = /^\d{1,4}$/.test(params.get('page') || '') ? params.get('page') : '1'
   return (
     <nav className="workspace-nav" aria-label="Customer work">
-      <Link href={`/admin?filter=${filter}&page=${page}`}>Enquiry inbox</Link>
-      <Link href="/admin/follow-ups">Follow-ups</Link>
-      <Link href="/admin/collections/email-templates">Email templates</Link>
+      <Link
+        aria-current={
+          path === '/admin' || path.startsWith('/admin/customers/') ? 'page' : undefined
+        }
+        href={`/admin?filter=${path === '/admin/follow-ups' ? 'all' : filter}&page=${path === '/admin/follow-ups' ? '1' : page}`}
+      >
+        Enquiry inbox
+      </Link>
+      <Link
+        aria-current={path === '/admin/follow-ups' ? 'page' : undefined}
+        href="/admin/follow-ups"
+      >
+        Follow-ups
+      </Link>
+      <Link
+        aria-current={path.startsWith('/admin/collections/email-templates') ? 'page' : undefined}
+        href="/admin/collections/email-templates"
+      >
+        Email templates
+      </Link>
     </nav>
   )
 }
 export function WorkspaceShell({
   title,
   description,
+  actions,
   children,
 }: {
   title: string
   description: string
+  actions?: ReactNode
   children: ReactNode
 }) {
   return (
     <main className="workspace">
       <WorkspaceNav />
       <header className="workspace-header">
-        <p className="workspace-eyebrow">Studio Lunia · Customer care</p>
-        <h1>{title}</h1>
-        <p>{description}</p>
+        <div>
+          <p className="workspace-eyebrow">Studio Lunia · Customer care</p>
+          <h1>{title}</h1>
+          <p>{description}</p>
+        </div>
+        {actions && <div className="workspace-header-actions">{actions}</div>}
       </header>
-      <p className="workspace-notice">
-        Test workspace · Follow-ups run only when you request a simulation. No customer email is
-        sent. Real incoming replies and scheduled delivery are not connected.
-      </p>
+      <details className="workspace-notice">
+        <summary>Test workspace · No customer email is sent</summary>
+        <p>
+          Follow-ups run only when you request a simulation. Real incoming replies and scheduled
+          delivery are not connected.
+        </p>
+      </details>
       {children}
     </main>
   )
