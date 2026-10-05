@@ -21,7 +21,7 @@ Open http://localhost:3000 and /admin. The seed is idempotent and preserves exis
 editors/content. First-user web registration is blocked; bootstrap only via the local
 seed command. Never use the example database password outside local development.
 Local Payload logs email instead of delivering it. Hosted previews use the approved
-restricted mail adapter and user-controlled password recovery; see
+restricted mail adapter and a privately supplied default for new test accounts; see
 [the full CMS preview runbook](docs/full-cms-preview-runbook.md).
 
 `media/` persists between local app restarts but is untracked. PostgreSQL uses a named

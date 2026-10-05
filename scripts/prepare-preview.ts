@@ -1,19 +1,37 @@
-import { randomBytes } from 'node:crypto'
 import type { Payload } from 'payload'
 import type { Page } from '../src/payload-types'
+import { deploymentMode } from '../src/hosting/environment'
 
-// Build-only bootstrap. Not imported by HTTP routes. The editor chooses their own
-// password via normal recovery; no reusable initial password is deployed or logged.
-export async function initializePreview(payload: Payload, email: string) {
+// Build-only secret access. Do not import this module into HTTP routes or client code.
+export function previewEditorPassword(env: Record<string, string | undefined>) {
+  if (deploymentMode(env) !== 'preview')
+    throw new Error('The shared editor password is only available to approved previews.')
+  const password = env.PREVIEW_EDITOR_PASSWORD
+  if (!password || password.length < 16 || /[\r\n\0]/.test(password))
+    throw new Error(
+      'New previews require PREVIEW_EDITOR_PASSWORD (16+ characters, no line breaks).',
+    )
+  return password
+}
+
+// The supplier is deliberately lazy: an existing account never reads the default
+// secret, changes its password or needs a replacement secret to rebuild.
+export async function initializePreview(
+  payload: Payload,
+  email: string,
+  newEditorPassword: () => string,
+) {
   const editors = await payload.find({ collection: 'users', limit: 1, overrideAccess: true })
   if (!editors.totalDocs) {
     await payload.create({
       collection: 'users',
       context: { bootstrap: true },
       overrideAccess: true,
-      data: { email, password: randomBytes(48).toString('base64url') },
+      data: { email, password: newEditorPassword() },
     })
-    console.log('Preview editor initialized. Use Forgot password to choose a password.')
+    console.log(
+      'Preview editor initialized. Sign in using the privately supplied preview credential.',
+    )
   } else if (!editors.docs.some((editor) => editor.email.toLowerCase() === email.toLowerCase())) {
     const approved = await payload.find({
       collection: 'users',

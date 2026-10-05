@@ -23,6 +23,26 @@ test('anonymous preview and CMS writes are rejected', async ({ request }) => {
   const create = await request.post('/api/pages', { data: { title: 'Unauthorized' } })
   expect([401, 403]).toContain(create.status())
 })
+test('protected admin redirects to accessible login and accepts the synthetic editor credential', async ({
+  page,
+}) => {
+  await page.goto('/admin')
+  await expect(page).toHaveURL(/\/admin\/login/)
+  const email = page.getByLabel(/^email/i)
+  const password = page.getByLabel(/^password/i)
+  await expect(email).toBeVisible()
+  await expect(password).toHaveAttribute('type', 'password')
+  await page.screenshot({ path: 'test-results/preview-login-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(email).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/preview-login-mobile.png', fullPage: true })
+  await email.fill(process.env.SEED_EMAIL!)
+  await password.fill(process.env.SEED_PASSWORD!)
+  await password.press('Enter')
+  await expect(page).toHaveURL(/\/admin$/)
+  await expect(page.getByText('Pages', { exact: true }).first()).toBeVisible()
+})
 test('editor can log in, view admin and preview a private draft', async ({ page, request }) => {
   const response = await request.post('/api/users/login', {
     data: { email: process.env.SEED_EMAIL, password: process.env.SEED_PASSWORD },

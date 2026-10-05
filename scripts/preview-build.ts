@@ -2,7 +2,7 @@ import 'dotenv/config'
 import { Client } from 'pg'
 import { spawn } from 'node:child_process'
 import { deploymentMode } from '../src/hosting/environment'
-import { initializePreview } from './prepare-preview'
+import { initializePreview, previewEditorPassword } from './prepare-preview'
 
 let phase = 'configuration'
 
@@ -46,7 +46,9 @@ async function prepare() {
       if (result?.cancelled) throw new Error('Migration requires manual review.')
       console.log('Preview migrations complete.')
       phase = 'editor/content bootstrap and private storage'
-      await initializePreview(payload, process.env.PREVIEW_EDITOR_EMAIL!)
+      await initializePreview(payload, process.env.PREVIEW_EDITOR_EMAIL!, () =>
+        previewEditorPassword(process.env),
+      )
       console.log('Preview content ready; existing editor changes preserved.')
     } finally {
       process.env.DATABASE_URL = pooled
@@ -71,6 +73,8 @@ async function prepare() {
 
 try {
   await prepare()
+  // The application compiler does not need the build-only bootstrap credential.
+  delete process.env.PREVIEW_EDITOR_PASSWORD
   phase = 'application build'
   const child = spawn('node_modules/.bin/payload', ['build'], {
     stdio: 'inherit',
@@ -82,7 +86,7 @@ try {
   })
 } catch {
   console.error(
-    `Full CMS preview preparation failed (${phase}). Check preview configuration, native database target, migrations and private storage. No showcase fallback was deployed.`,
+    `Full CMS preview preparation failed (${phase}). Check preview configuration, new-editor password setting, native database target, migrations and private storage. No showcase fallback was deployed.`,
   )
   process.exitCode = 1
 }
