@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import type { Page, Media } from '@/payload-types'
 import { isInternalPagePath } from '@/lib/internal-path'
+import { ServiceInquiryLink } from './ServiceInquiryLink'
 
 function visibleMedia(
   value: number | Media | null | undefined,
@@ -45,9 +46,11 @@ function BlockImage({
 export function ContentBlocks({
   blocks,
   editorPreview = false,
+  pageId,
 }: {
   blocks: Page['layout']
   editorPreview?: boolean
+  pageId?: number
 }) {
   return (Array.isArray(blocks) ? blocks : []).filter(Boolean).map((block, index) => {
     const Heading = index === 0 ? 'h1' : 'h2'
@@ -137,6 +140,9 @@ export function ContentBlocks({
                 <li key={item.id ?? i}>
                   <CardHeading>{item.title}</CardHeading>
                   <p>{item.body}</p>
+                  {!editorPreview && pageId && item.id && process.env.LUNIA_SHOWCASE !== 'true' && (
+                    <ServiceInquiryLink service={`${pageId}:${item.id}`} />
+                  )}
                 </li>
               ))}
             </ul>

@@ -17,8 +17,9 @@ robots.txt; publication SEO/sitemap requires real domain/content approval later.
 
 Google Ads is the first complete future platform adapter. Generic tagged traffic from
 Meta/Instagram/email uses the same attribution model. No other platform feedback/spend
-integration is claimed. Current code contains only pure contracts and sanitization;
-there are no trackers, cookies, collectors, lead forms or outbound advertising calls.
+integration is claimed. The enquiry batch adds private leads, consent-first campaign cookies and an opt-in EU
+measurement collector. Advertising feedback remains absent. See
+[the batch design](../specs/008-inquiry-attribution-funnel/design.md).
 
 Future: permitted campaign/click IDs + consent snapshot → lead ID → qualified/confirmed/
 cancelled/revenue events → deduplicated delivery outbox → platform adapter. Keep contact

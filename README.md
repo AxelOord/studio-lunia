@@ -2,7 +2,7 @@
 
 A photography website foundation using Payload **4.0.0-canary.37**, Next.js **16.3.8**,
 React **19.2.6**, PostgreSQL and Node **24.19.0**. This is a prerelease foundation for
-review, not the live Lunia site. Booking, advertising integrations and tracking are not enabled.
+review, not the live Lunia site. Booking and advertising feedback are not enabled. Enquiries and optional first-party attribution are implemented; PostHog EU measurement stays off until separately approved and configured.
 
 ## Local development
 
@@ -61,9 +61,9 @@ are blocked. See docs/vercel.md for separate preview setup.
 
 ## Structure and workflow
 
-- `src/collections`: users, media and draftable pages.
+- `src/collections`: users, media, draftable pages and private enquiries.
 - `src/blocks` and `src/components`: typed reusable page blocks and rendering.
-- `src/lib/attribution.ts`: future consent/outcome contracts; no active tracking.
+- `src/lib/attribution.ts`: future outcome contracts; consent-aware campaign logic lives in src/lib/campaign.ts.
 - `specs/001-payload-foundation`: requirements, design, tasks and evidence.
 - `docs/architecture.md`: scope and follow-on specs.
 - `docs/ai-tooling.md`: version-matched official AI resources and MCP decision.
@@ -84,3 +84,16 @@ CI/hosted/production/non-Git installs skip hooks. No branch protections are chan
 See [the workflow spec](specs/commit-workflow/requirements.md) and the gated
 [release workflow](docs/release-automation.md). Hooks require Node24 and Git
 for Windows on Windows; hook entrypoints use POSIX shell and LF line endings.
+
+## Enquiries and optional measurement
+
+Published service cards link to `/inquire`; no services or availability are invented.
+The private Enquiries collection holds contact details, immutable attribution and manual
+follow-up state. Preview visitors receive an on-screen receipt only. Notifications go
+solely to the configured preview editor; failed attempts stay visible with bounded retries.
+Local notifications are explicitly disabled. See [the batch runbook](docs/inquiries-and-measurement.md).
+
+No optional tracking runs by default. Separate choices control campaign storage and
+measurement. No browser analytics SDK or replay is installed. The PostHog EU capture API
+is disabled until the exact project, access and terms are approved and provider variables
+are configured securely. Local fake-provider tests do not prove hosted measurement.
