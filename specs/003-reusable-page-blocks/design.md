@@ -18,9 +18,9 @@ service cards. CSS grid collapses to one column. Reversal uses CSS placement wit
 changing reading order. Warm paper, dark muted ink and system serif remain provisional.
 R-3: Existing field names/slugs stay stable. No changes to storage/auth or hosted setup;
 new images use the same public-or-verified-editor check. Migration is local-only here.
-R-4: Base feature/hosted-cms-preview at bef4c38 (PR #3 open, not draft at inspection).
-Its tree matches prior reviewed 4e1a6a0. New feature/reusable-page-blocks disables its own
-Git deploy. Retarget to develop only after PR #3 lands and the diff is rechecked.
+R-4: PR #3 merged into develop; deleting its branch closed stacked PR #4. A replacement
+PR targets develop without merging or recreating that branch. Spec 004 supersedes the
+initial manual-only restriction with automatic read-only synthetic previews.
 
 ## Tradeoffs and verification
 

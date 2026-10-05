@@ -37,12 +37,14 @@ baseline QA and sample-size planning; low traffic may mean inconclusive results.
    password recovery, isolated preview secrets and proven backup/restore; see its spec.
 2. `003-reusable-page-blocks`: editor-configurable editorial sections with provisional
    styling, additive migrations and local desktop/mobile CMS/browser verification.
-3. `004-publish-to-attributed-inquiry`: real portfolio/service content, request form,
+3. `004-automatic-pr-previews`: credential-free read-only sample pages for automatic
+   trusted branch reviews; hosted CMS stays isolated.
+4. `005-publish-to-attributed-inquiry`: real portfolio/service content, request form,
    permitted campaign attribution, spam controls and private admin review.
-4. `005-booking-outcomes-and-ad-feedback`: confirmed outcomes/value, Google Ads adapter,
+5. `006-booking-outcomes-and-ad-feedback`: confirmed outcomes/value, Google Ads adapter,
    deduplication, retries, cancellation adjustments and consent eligibility.
-5. `006-campaign-performance`: spend ingestion and reconciled campaign reporting.
-6. `007-controlled-experiment`: one hypothesis, stable consent-aware assignment,
+6. `007-campaign-performance`: spend ingestion and reconciled campaign reporting.
+7. `008-controlled-experiment`: one hypothesis, stable consent-aware assignment,
    exposure events and statistical stopping rules.
 
 Booking model (request versus confirmed slots), brand/assets, jurisdiction/consent,

@@ -332,3 +332,12 @@ h3,
     padding: 55px 6vw;
   }
 }
+
+.sample-notice {
+  margin: 0;
+  padding: 16px 6vw;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 14px;
+  line-height: 1.6;
+}

@@ -35,10 +35,10 @@ Check: migration on the existing local DB, fresh CI migration, integration and b
 
 ### R-4: Isolated review and honest evidence
 
-Use a separate draft PR stacked on unmerged PR #3. Do not merge or deploy. Disable Git
-preview deployment for this branch before pushing. Preserve spec 002's unresolved hosted
+PR #3 is now merged. Use a replacement draft PR to develop for closed PR #4. Automatic
+read-only synthetic previews are authorized under spec 004; no merge or CMS activation. Preserve spec 002's unresolved hosted
 checks and distinguish local validation from hosted proof. Run exact-head CI.
-Check: base/head and diff review, Vercel branch suppression, test evidence and PR status.
+Check: base/head and diff review, Vercel branch isolation, test evidence and PR status.
 
 ## Open questions
 

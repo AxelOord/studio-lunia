@@ -13,5 +13,5 @@
 - [ ] T-3: Complete isolated review and exact-head CI
       Refs: R-3, R-4
       Depends: T-1, T-2
-      Verify: Full local checks, build, existing tests, branch deploy suppression, clean diff, separate stacked draft PR and exact-head CI; retarget/review after PR #3 lands.
-      Evidence: Local lint/types, 11 JS tests, 35 Python tests, 11 integration tests, build, upload-trace probe, five browser scenarios and showcase pass. Branch auto-deploy is disabled. Exact-head CI is reported in the PR; stacked review/retarget remains open. No merge or deployment.
+      Verify: Full local checks, build, existing tests, branch deployment isolation, clean diff, replacement draft PR to develop and exact-head CI; review without merging.
+      Evidence: Local lint/types, 11 JS tests, 35 Python tests, 11 integration tests, build, upload-trace probe, five browser scenarios and showcase pass. Automatic synthetic previews are authorized by spec 004. Exact-head CI is reported in the PR; review remains open. Hosted CMS acceptance is separate.

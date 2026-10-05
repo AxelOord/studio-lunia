@@ -1,5 +1,8 @@
 # Separate Vercel preview
 
+Current automatic PR preview policy and operator steps: [automatic previews](automatic-pr-previews.md).
+The historical milestones below do not grant broader CMS credential access.
+
 The existing `vivianne-fotografie` project (`prj_Rs9CBzKKY1RZ948DuydK7s4ef5iC`)
 and lunia-photography.nl / www.lunia-photography.nl are the old site. Do not modify,
 relink, replace, promote over or transfer its domains. Team: `team_x4WNnHtFU7Uuf4bAgWyWXRLR`.
