@@ -399,3 +399,34 @@ test('invalid direct image leaves no record and removes its local temporary file
   assert.equal(objects.has(key), true)
   objects.delete(key)
 })
+
+test('a different preview namespace cannot read or delete this branch media', async () => {
+  const image = await payload.findByID({ collection: 'media', id: imageID, overrideAccess: true })
+  const foreign = factory({ collection: Media, prefix: 'preview-media/another-branch' })
+  const req = await createLocalReq({}, payload)
+  const response = await foreign.staticHandler(req, {
+    doc: image,
+    params: { collection: 'media', filename: image.filename! },
+  })
+  assert.equal(response.status, 503)
+  const keysBefore = [...objects.keys()]
+  await assert.rejects(async () =>
+    foreign.handleDelete({
+      collection: Media,
+      doc: {
+        id: image.id,
+        filename: image.filename!,
+        mimeType: image.mimeType!,
+        filesize: image.filesize!,
+        height: image.height!,
+        width: image.width!,
+        sizes: {},
+        prefix: image.prefix || 'preview-media',
+      },
+      filename: image.filename!,
+      req,
+      storageFilePath: keysBefore[0],
+    }),
+  )
+  assert.deepEqual([...objects.keys()], keysBefore)
+})

@@ -1,5 +1,8 @@
 # Automatic PR previews
 
+Superseded for ordinary previews by [full CMS previews](full-cms-preview-runbook.md).
+This document records the interim showcase implementation only.
+
 Axel authorized automatic PR/commit previews on 2026-10-05. The default is a **read-only
 synthetic frontend preview** of every reusable block, not an editable hosted CMS.
 The existing ContentBlocks renderer serves `/` and `/blocks`, using two tiny local WebP

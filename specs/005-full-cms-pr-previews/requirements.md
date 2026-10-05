@@ -4,7 +4,7 @@ Workflow: requirements-first
 Status: ready
 
 Native automatic previews are the recommended first implementation. See
-`docs/full-cms-preview-decision.md` for access tradeoffs and pending handoff.
+`docs/full-cms-preview-decision.md` for approved access tradeoffs and docs/full-cms-preview-runbook.md for configuration.
 
 ### R-1: Entire site works
 

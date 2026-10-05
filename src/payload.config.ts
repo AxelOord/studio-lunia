@@ -5,7 +5,12 @@ import { fileURLToPath } from 'node:url'
 import { buildConfig } from 'payload'
 import sharp from 'sharp'
 import { privateBlobStorage } from './hosting/private-blob'
-import { deploymentMode, approvedOrigin, MAX_UPLOAD_BYTES } from './hosting/environment'
+import {
+  deploymentMode,
+  cmsOrigin,
+  cmsAllowedOrigins,
+  MAX_UPLOAD_BYTES,
+} from './hosting/environment'
 import { previewEmail } from './hosting/email'
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
@@ -18,14 +23,14 @@ const storageEnabled = !showcase && process.env.LUNIA_STORAGE === 'private-blob'
 if (!showcase && (!process.env.PAYLOAD_SECRET || process.env.PAYLOAD_SECRET.length < 32))
   throw new Error('Set PAYLOAD_SECRET to a random value of at least 32 characters.')
 if (!showcase && !process.env.DATABASE_URL) throw new Error('Set DATABASE_URL for CMS mode.')
-const origin = process.env.CMS_ORIGIN
-  ? approvedOrigin(process.env.CMS_ORIGIN, mode === 'preview')
-  : undefined
+const origin = !showcase && (mode === 'preview' || process.env.CMS_ORIGIN) ? cmsOrigin() : undefined
 
 export default buildConfig({
-  serverURL: origin,
-  csrf: origin ? [origin] : [],
-  cors: origin ? [origin] : [],
+  // Same-origin API/media URLs work on both branch and immutable deployment URLs.
+  // Recovery mail uses the canonical branch origin explicitly in Users.
+  serverURL: mode === 'preview' ? undefined : origin,
+  csrf: origin ? cmsAllowedOrigins() : [],
+  cors: origin ? cmsAllowedOrigins() : [],
   email: mode === 'preview' ? previewEmail() : undefined,
   logger:
     mode === 'preview'

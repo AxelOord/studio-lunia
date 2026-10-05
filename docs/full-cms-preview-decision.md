@@ -1,8 +1,9 @@
-# Full CMS automatic previews — minimal decision
+# Full CMS automatic previews — approved minimal decision
 
 The requested outcome is a functioning site with editor login, uploads, drafts,
 publication and recovery on trusted PR previews. The 9914fd4 showcase is interim
-only. This document prepares a decision; it activates no provider access.
+only. Axel approved the access tradeoffs on 2026-10-05. Implementation and exact settings
+are documented in [the runbook](full-cms-preview-runbook.md).
 
 ## Recommendation: native integration first
 
@@ -101,5 +102,7 @@ but adds management keys, provisioning, cleanup and deployment coordination. Def
 unless the native setup cannot select a safe synthetic source, or Axel requires stronger
 isolation between trusted previews. The earlier controller-first proposal is superseded.
 
-No provider connection, credential scope, deployed code or live-site setting was changed
-by this document. Spec002's outstanding hosted acceptance evidence remains open.
+The native operator subsequently connected Preview-only Neon and rescoped approved
+preview services without exposing values. Its source inspection found empty neondb
+under neondb_owner. Provider activation and hosted acceptance are coordinated separately
+from this repository change. Spec002's outstanding acceptance evidence remains open.

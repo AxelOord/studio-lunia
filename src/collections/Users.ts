@@ -1,6 +1,6 @@
 import { APIError, type CollectionConfig } from 'payload'
 import { editors } from '../access'
-import { resetEmail } from '../hosting/environment'
+import { cmsOrigin, resetEmail } from '../hosting/environment'
 import { limitOperation } from '../hosting/rate-limit'
 
 export const Users: CollectionConfig = {
@@ -13,8 +13,7 @@ export const Users: CollectionConfig = {
     forgotPassword: {
       expiration: 15 * 60 * 1000,
       minRequestInterval: 60 * 1000,
-      generateEmailHTML: ({ token } = {}) =>
-        resetEmail(process.env.CMS_ORIGIN || 'http://localhost:3000', token || ''),
+      generateEmailHTML: ({ token } = {}) => resetEmail(cmsOrigin(), token || ''),
       generateEmailSubject: () => 'Reset your Studio Lunia preview password',
     },
   },
@@ -56,7 +55,7 @@ export const Users: CollectionConfig = {
       ({ req, context, operation, data }) => {
         // Payload first-register bypasses collection access; close that path too.
         if (operation === 'create' && !req.user && context.bootstrap !== true) {
-          throw new APIError('Use the local bootstrap command to create the first editor.', 403)
+          throw new APIError('Use the approved bootstrap process to create the first editor.', 403)
         }
         if (data.password && data.password.length < 16)
           throw new APIError('Use a password of at least 16 characters.', 400)
