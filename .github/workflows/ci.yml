@@ -3,12 +3,14 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
   push:
-    branches: ['feature/**', develop]
+    branches: ['feature/**', develop, master]
 permissions:
   contents: read
+  pull-requests: read
+  issues: read
 concurrency:
   group: checks-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/develop' && github.ref != 'refs/heads/master' }}
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -48,6 +50,11 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_TITLE: ${{ github.event.pull_request.title }}
+      - name: Validate explicit completion and release promotion
+        if: github.event_name == 'pull_request'
+        run: node scripts/check-release-pr.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - run: npm run generate:types && npm run generate:importmap
       - run: npm run check
       - run: npm run format:check
@@ -69,3 +76,78 @@ jobs:
             test-results/
             playwright-report/
           retention-days: 7
+
+  development-status:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && vars.LUNIA_STATUS_AUTOMATION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: project-status
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .node-version
+      - run: node scripts/release-github.mjs development
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          LUNIA_PROJECT_TOKEN: ${{ secrets.LUNIA_PROJECT_TOKEN }}
+          LUNIA_PROJECT_ID: ${{ vars.LUNIA_PROJECT_ID }}
+          LUNIA_PROJECT_URL: ${{ vars.LUNIA_PROJECT_URL }}
+          LUNIA_PROJECT_STATUS_FIELD_ID: ${{ vars.LUNIA_PROJECT_STATUS_FIELD_ID }}
+          LUNIA_PROJECT_DEVELOPMENT_DONE_ID: ${{ vars.LUNIA_PROJECT_DEVELOPMENT_DONE_ID }}
+          LUNIA_PROJECT_DONE_ID: ${{ vars.LUNIA_PROJECT_DONE_ID }}
+
+  publish-release:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master' && vars.LUNIA_RELEASE_AUTOMATION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: release-automation
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .node-version
+      - run: node scripts/release-github.mjs publish
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+  release-status:
+    needs: publish-release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master' && vars.LUNIA_RELEASE_AUTOMATION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: project-status
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .node-version
+      - run: node scripts/release-github.mjs close
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          LUNIA_PROJECT_TOKEN: ${{ secrets.LUNIA_PROJECT_TOKEN }}
+          LUNIA_PROJECT_ID: ${{ vars.LUNIA_PROJECT_ID }}
+          LUNIA_PROJECT_URL: ${{ vars.LUNIA_PROJECT_URL }}
+          LUNIA_PROJECT_STATUS_FIELD_ID: ${{ vars.LUNIA_PROJECT_STATUS_FIELD_ID }}
+          LUNIA_PROJECT_DEVELOPMENT_DONE_ID: ${{ vars.LUNIA_PROJECT_DEVELOPMENT_DONE_ID }}
+          LUNIA_PROJECT_DONE_ID: ${{ vars.LUNIA_PROJECT_DONE_ID }}

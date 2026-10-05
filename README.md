@@ -81,6 +81,6 @@ Run `npm run test:hooks` for disposable-repository hook tests. CI checks new PR 
 and titles inside the existing `verify` job; Windows hooks have a portability check.
 `.commit-policy.json` fixes the already-published history exemption; do not advance it.
 CI/hosted/production/non-Git installs skip hooks. No branch protections are changed.
-See [the workflow spec](specs/commit-workflow/requirements.md) and the **plan-only**
-[release design](specs/commit-workflow/release-plan.md). Hooks require Node24 and Git
+See [the workflow spec](specs/commit-workflow/requirements.md) and the gated
+[release workflow](docs/release-automation.md). Hooks require Node24 and Git
 for Windows on Windows; hook entrypoints use POSIX shell and LF line endings.

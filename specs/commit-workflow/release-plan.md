@@ -1,4 +1,8 @@
-# Versioning and release plan — specification only
+# Versioning and release plan — original proposal
+
+Implementation follow-up: [release-automation](../release-automation/design.md).
+The user subsequently requested enabling this plan; the follow-up contains executable
+jobs with an explicit provider activation gate. The historical PR21 scope below remains accurate.
 
 Approved addition to this spec on 2026-10-05. The implementation in this PR remains
 commit hooks and read-only checks for issue #20. No release, tag, status change,
