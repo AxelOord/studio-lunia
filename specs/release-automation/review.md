@@ -24,7 +24,9 @@ endpoints. The parent/native provider worker must inspect and configure these af
 explicit access gate in design.md; unsupported readback is not evidence of safe settings.
 The parent selected actual Project Status. It requires separately approved classic
 project-scope access for the personal Project, environment-only secret storage, verified
-Project/Status IDs and activation. No token or Project configuration has been created.
+Project/Status IDs and activation. This worker created no token or Project configuration. The native worker subsequently
+reported private Project AxelOord/1 configured; credential approval/activation is still
+pending. Runtime read-only resolution removes the need for unavailable opaque IDs.
 The previous label-only head54aa1b5 passed full PR/push CI and Windows tests, with all
 writer jobs skipped. The updated Project head requires its own exact-head checks;
 those are recorded on PR22. PR21 remains merged and untouched; the old site is unchanged.

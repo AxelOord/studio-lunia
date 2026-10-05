@@ -98,11 +98,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           LUNIA_PROJECT_TOKEN: ${{ secrets.LUNIA_PROJECT_TOKEN }}
-          LUNIA_PROJECT_ID: ${{ vars.LUNIA_PROJECT_ID }}
-          LUNIA_PROJECT_URL: ${{ vars.LUNIA_PROJECT_URL }}
-          LUNIA_PROJECT_STATUS_FIELD_ID: ${{ vars.LUNIA_PROJECT_STATUS_FIELD_ID }}
-          LUNIA_PROJECT_DEVELOPMENT_DONE_ID: ${{ vars.LUNIA_PROJECT_DEVELOPMENT_DONE_ID }}
-          LUNIA_PROJECT_DONE_ID: ${{ vars.LUNIA_PROJECT_DONE_ID }}
+          LUNIA_PROJECT_OWNER: ${{ vars.LUNIA_PROJECT_OWNER }}
+          LUNIA_PROJECT_NUMBER: ${{ vars.LUNIA_PROJECT_NUMBER }}
 
   publish-release:
     needs: verify
@@ -146,8 +143,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           LUNIA_PROJECT_TOKEN: ${{ secrets.LUNIA_PROJECT_TOKEN }}
-          LUNIA_PROJECT_ID: ${{ vars.LUNIA_PROJECT_ID }}
-          LUNIA_PROJECT_URL: ${{ vars.LUNIA_PROJECT_URL }}
-          LUNIA_PROJECT_STATUS_FIELD_ID: ${{ vars.LUNIA_PROJECT_STATUS_FIELD_ID }}
-          LUNIA_PROJECT_DEVELOPMENT_DONE_ID: ${{ vars.LUNIA_PROJECT_DEVELOPMENT_DONE_ID }}
-          LUNIA_PROJECT_DONE_ID: ${{ vars.LUNIA_PROJECT_DONE_ID }}
+          LUNIA_PROJECT_OWNER: ${{ vars.LUNIA_PROJECT_OWNER }}
+          LUNIA_PROJECT_NUMBER: ${{ vars.LUNIA_PROJECT_NUMBER }}

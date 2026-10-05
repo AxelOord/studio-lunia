@@ -360,6 +360,8 @@ test('workflow writer gates, permission separation and production deployment blo
 })
 
 const projectSettings = {
+  owner: 'AxelOord',
+  number: 999,
   projectId: 'PVT_synthetic',
   projectUrl: 'https://github.com/users/AxelOord/projects/999',
   fieldId: 'PVTSSF_status',
@@ -393,15 +395,20 @@ function projectApi() {
   ]
   let pageCount = 0
   const query = async (query, variables) => {
-    if (query.includes('query ProjectStatusConfig'))
+    if (query.includes('query ProjectStatusConfig')) {
+      assert.equal(variables.owner, 'AxelOord')
+      assert.equal(variables.number, 999)
       return {
-        node: {
-          id: projectSettings.projectId,
-          url: projectSettings.projectUrl,
-          closed: false,
-          fields: { pageInfo: { hasNextPage: false }, nodes: fields },
+        user: {
+          projectV2: {
+            id: projectSettings.projectId,
+            url: projectSettings.projectUrl,
+            closed: false,
+            fields: { pageInfo: { hasNextPage: false }, nodes: fields },
+          },
         },
       }
+    }
     if (query.includes('query ProjectStatusItems')) {
       assert.match(query, /archivedStates: \[ARCHIVED, NOT_ARCHIVED\]/)
       pageCount++
@@ -489,7 +496,7 @@ test('wrong Project/options, archived issues and foreign membership stop before 
 })
 
 test('Project credential/configuration is mandatory and denial never leaks the provider response or token', async () => {
-  assert.throws(() => projectConfig({}), /Missing Project configuration/)
+  assert.throws(() => projectConfig({}), /Project owner/)
   assert.throws(() => projectGraphql(''), /required/)
   const denied = projectGraphql('synthetic-project-token', async (url, options) => {
     assert.equal(url, 'https://api.github.com/graphql')
