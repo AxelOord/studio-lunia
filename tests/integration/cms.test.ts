@@ -14,7 +14,9 @@ before(async () => {
 after(async () => {
   for (const id of pages) await payload.delete({ collection: 'pages', id, overrideAccess: true })
   for (const id of media) await payload.delete({ collection: 'media', id, overrideAccess: true })
+  const pool = payload.db.pool
   await payload.destroy()
+  await pool?.end()
 })
 test('anonymous access cannot read users or write pages', async () => {
   await assert.rejects(payload.find({ collection: 'users', overrideAccess: false }))
@@ -201,7 +203,7 @@ test('editorial blocks retain order, draft versions and validate published conte
           layout: [{ blockType: 'callToAction', heading: 'Test', label: 'Test link', href }],
         },
       }),
-      /Page path/,
+      /Page link/,
     )
   }
   for (const items of [

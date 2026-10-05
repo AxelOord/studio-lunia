@@ -82,6 +82,11 @@ test('editor configures reusable blocks and previews a responsive synthetic page
   try {
     await page.context().addCookies((await request.storageState()).cookies)
     await page.goto(`/admin/collections/pages/${doc.id}`)
+    await page
+      .locator('#field-layout')
+      .getByRole('button', { name: 'Show All', exact: true })
+      .first()
+      .click()
     await page.getByRole('button', { name: 'Add Layout', exact: true }).click()
     await page.getByRole('button', { name: 'Call to action', exact: true }).click()
     await page.getByRole('button', { name: 'Insert', exact: true }).click()
@@ -102,6 +107,11 @@ test('editor configures reusable blocks and previews a responsive synthetic page
     await page.getByRole('button', { name: 'Save Draft', exact: true }).click()
     expect((await saved).ok()).toBe(true)
     await page.reload()
+    await page
+      .locator('#field-layout')
+      .getByRole('button', { name: 'Show All', exact: true })
+      .first()
+      .click()
     await expect(splitHeading).toHaveValue('An editable placeholder story.')
     await page.screenshot({ path: 'test-results/blocks-admin.png', fullPage: true })
     await page.goto(`/preview?slug=${slug}`)

@@ -43,13 +43,16 @@ baseline QA and sample-size planning; low traffic may mean inconclusive results.
    CMS bootstrap and shared preview services; supersedes showcase as the default.
 5. `006-upload-size-feedback`: accurate empty-upload feedback and real file-picker
    metadata regression for private storage.
-6. `007-publish-to-attributed-inquiry`: real portfolio/service content, request form,
+6. `007-page-management`: native Content/Page settings tabs, useful block/media labels,
+   authenticated unsaved split preview and explicit draft/publish controls.
+7. `008-publish-to-attributed-inquiry`: real portfolio/service content, request form,
    permitted campaign attribution, spam controls and private admin review.
-7. `008-booking-outcomes-and-ad-feedback`: confirmed outcomes/value, Google Ads adapter,
+8. `009-booking-outcomes-and-ad-feedback`: confirmed outcomes/value, Google Ads adapter,
    deduplication, retries, cancellation adjustments and consent eligibility.
-8. `009-campaign-performance`: spend ingestion and reconciled campaign reporting.
-9. `010-controlled-experiment`: one hypothesis, stable consent-aware assignment,
-   exposure events and statistical stopping rules.
+9. `010-campaign-performance`: spend ingestion and reconciled campaign reporting.
+10. `011-controlled-experiment`: one hypothesis, stable consent-aware assignment,
+    exposure events and statistical stopping rules.
 
 Booking model (request versus confirmed slots), brand/assets, jurisdiction/consent,
-notification route and durable hosted CMS services remain decisions. No CRM expansion.
+and notification route remain decisions. Preview services are configured; outstanding
+hosted acceptance is tracked in the preview runbook. No CRM expansion.

@@ -5,9 +5,23 @@ import { editors, publicMediaOrEditor } from '../access'
 
 export const Media: CollectionConfig = {
   slug: 'media',
+  admin: {
+    useAsTitle: 'filename',
+    defaultColumns: ['filename', 'alt', 'visibility', 'updatedAt'],
+    listSearchableFields: ['filename', 'alt'],
+    description:
+      'Search by filename or alt text; filter by visibility. JPEG, PNG, WebP or AVIF, up to 20 MiB. Open an image for dimensions and details.',
+  },
   access: { create: editors, read: publicMediaOrEditor, update: editors, delete: editors },
   fields: [
-    { name: 'alt', type: 'text', required: true, maxLength: 240 },
+    {
+      name: 'alt',
+      label: 'Alt text',
+      type: 'text',
+      required: true,
+      maxLength: 240,
+      admin: { description: 'Describe the image for people who cannot see it.' },
+    },
     {
       name: 'visibility',
       type: 'select',
