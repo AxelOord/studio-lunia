@@ -2,16 +2,16 @@ import assert from 'node:assert/strict'
 import { repository } from './release-core.mjs'
 
 export function projectConfig(env = process.env) {
+  const owner = env.LUNIA_PROJECT_OWNER
+  const number = Number(env.LUNIA_PROJECT_NUMBER)
+  assert.equal(owner, 'AxelOord', 'Missing or unapproved Project owner')
+  assert.ok(Number.isSafeInteger(number) && number > 0, 'Missing Project number')
   const config = {
-    projectId: env.LUNIA_PROJECT_ID,
-    projectUrl: env.LUNIA_PROJECT_URL,
-    fieldId: env.LUNIA_PROJECT_STATUS_FIELD_ID,
-    developmentId: env.LUNIA_PROJECT_DEVELOPMENT_DONE_ID,
-    doneId: env.LUNIA_PROJECT_DONE_ID,
+    owner,
+    number,
+    projectUrl: `https://github.com/users/${owner}/projects/${number}`,
   }
-  for (const [name, value] of Object.entries(config))
-    assert.ok(typeof value === 'string' && value.trim(), `Missing Project configuration: ${name}`)
-  assert.notEqual(config.developmentId, config.doneId)
+
   return config
 }
 
@@ -36,7 +36,7 @@ export function projectGraphql(token, fetcher = fetch) {
   }
 }
 
-export function projectBoard(query, config) {
+export function projectBoard(query, selection) {
   return {
     async setStatus(issues, status) {
       assert.ok(['Development done', 'Done'].includes(status))
@@ -50,28 +50,40 @@ export function projectBoard(query, config) {
             !issue.pull_request,
         ),
       )
-      const { node: project } = await query(
-        `query ProjectStatusConfig($id: ID!) {
-        node(id: $id) { ... on ProjectV2 {
+      const response = await query(
+        `query ProjectStatusConfig($owner: String!, $number: Int!) {
+        user(login: $owner) { projectV2(number: $number) {
           id url closed fields(first: 100) {
             pageInfo { hasNextPage }
             nodes { ... on ProjectV2SingleSelectField { id name options { id name } } }
           }
         } }
       }`,
-        { id: config.projectId },
+        { owner: selection.owner, number: selection.number },
       )
-      assert.equal(project?.id, config.projectId, 'Configured Project is inaccessible')
-      assert.equal(project.url, config.projectUrl, 'Project identity does not match approved URL')
+      const project = response.user?.projectV2
+      assert.ok(project?.id, 'Configured Project is inaccessible')
+      assert.equal(
+        project.url,
+        selection.projectUrl,
+        'Project identity does not match approved URL',
+      )
       assert.equal(project.closed, false, 'Project is closed')
       assert.equal(project.fields.pageInfo.hasNextPage, false, 'Incomplete Project field inventory')
-      const field = project.fields.nodes.find((value) => value.id === config.fieldId)
-      assert.equal(field?.name, 'Status', 'Configured field must be the Project Status field')
-      assert.equal(
-        field.options.find((value) => value.id === config.developmentId)?.name,
-        'Development done',
-      )
-      assert.equal(field.options.find((value) => value.id === config.doneId)?.name, 'Done')
+      const fields = project.fields.nodes.filter((value) => value.name === 'Status')
+      assert.equal(fields.length, 1, 'Exactly one Project Status field is required')
+      const field = fields[0]
+      const development = field.options.filter((value) => value.name === 'Development done')
+      const done = field.options.filter((value) => value.name === 'Done')
+      assert.equal(development.length, 1, 'Exactly one Development done option is required')
+      assert.equal(done.length, 1, 'Exactly one Done option is required')
+      const config = {
+        projectId: project.id,
+        fieldId: field.id,
+        developmentId: development[0].id,
+        doneId: done[0].id,
+      }
+      assert.notEqual(config.developmentId, config.doneId)
       const option = status === 'Development done' ? config.developmentId : config.doneId
       const items = []
       let cursor = null

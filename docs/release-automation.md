@@ -65,8 +65,10 @@ Master/develop Vercel builds remain disabled; launch is a separate approved oper
 
 ## Project access handoff
 
-Provider setup requires verified Project ID/URL, Status field ID and two option IDs;
-see the exact variable names and access gate in the spec. For this personally owned
+The approved private board is AxelOord/project1. Set LUNIA_PROJECT_OWNER=AxelOord
+and LUNIA_PROJECT_NUMBER=1; the authenticated adapter resolves Project/Status option IDs
+by those selectors and the exact confirmed names, without guessed opaque values.
+See the complete access gate in the spec. For this personally owned
 Project the proposed credential is a dedicated classic PAT with project scope only,
 30-day expiration, held in environment project-status as LUNIA_PROJECT_TOKEN. That
 scope can access more than one Project; approval must acknowledge this breadth.
