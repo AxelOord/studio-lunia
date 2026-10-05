@@ -1,5 +1,6 @@
 import { BlockRowLabel as BlockRowLabel_e606c46d8585f35c933fb31ab8c2be1c } from '../../../admin/RowLabels'
 import { ServiceRowLabel as ServiceRowLabel_e606c46d8585f35c933fb31ab8c2be1c } from '../../../admin/RowLabels'
+import { ServiceSelectField as ServiceSelectField_6a9d88e535ef75f0e0805a2faa7cc6a5 } from '../../../admin/ServiceSelect.server'
 import { PrivateJSON as PrivateJSON_4bcb3319909fb7fdc04524ac94179ab0 } from '../../../admin/PrivateJSON'
 import { RetryNotification as RetryNotification_12359722ec863cf5921f64cebba9445e } from '../../../admin/RetryNotification'
 import { EnquiryActions as EnquiryActions_41b951e79593ef167d643ad95130f23c } from '../../../admin/EnquiryActions'
@@ -24,6 +25,7 @@ import { RecentlyViewedCollectionsField as RecentlyViewedCollectionsField_3817bf
 export const importMap = {
   "./admin/RowLabels#BlockRowLabel": BlockRowLabel_e606c46d8585f35c933fb31ab8c2be1c,
   "./admin/RowLabels#ServiceRowLabel": ServiceRowLabel_e606c46d8585f35c933fb31ab8c2be1c,
+  "./admin/ServiceSelect.server#ServiceSelectField": ServiceSelectField_6a9d88e535ef75f0e0805a2faa7cc6a5,
   "./admin/PrivateJSON#PrivateJSON": PrivateJSON_4bcb3319909fb7fdc04524ac94179ab0,
   "./admin/RetryNotification#RetryNotification": RetryNotification_12359722ec863cf5921f64cebba9445e,
   "./admin/EnquiryActions#EnquiryActions": EnquiryActions_41b951e79593ef167d643ad95130f23c,

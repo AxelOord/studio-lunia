@@ -2,11 +2,19 @@
 import { useEffect, useRef } from 'react'
 import { usePrivacy } from './PrivacyControls'
 
-export function ServiceInquiryLink({ service }: { service: string }) {
+export function ServiceInquiryLink({
+  service,
+  primary = false,
+  editorPreview = false,
+}: {
+  service: string
+  primary?: boolean
+  editorPreview?: boolean
+}) {
   const link = useRef<HTMLAnchorElement>(null)
   const { track } = usePrivacy()
   useEffect(() => {
-    if (!link.current) return
+    if (!link.current || editorPreview) return
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) track('service_viewed', service)
@@ -15,15 +23,17 @@ export function ServiceInquiryLink({ service }: { service: string }) {
     )
     observer.observe(link.current)
     return () => observer.disconnect()
-  }, [service, track])
+  }, [service, track, editorPreview])
   return (
     <a
       ref={link}
-      className="service-link"
+      className={primary ? 'button-link' : 'service-link'}
       href={`/inquire?service=${encodeURIComponent(service)}`}
-      onClick={() => track('service_viewed', service)}
+      onClick={() => {
+        if (!editorPreview) track('service_viewed', service)
+      }}
     >
-      Enquire about this service <span aria-hidden="true">↗</span>
+      Enquire about this service <span aria-hidden="true">{primary ? '→' : '↗'}</span>
     </a>
   )
 }

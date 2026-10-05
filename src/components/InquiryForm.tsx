@@ -3,13 +3,16 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { validateInquiry, type InquiryErrors, type ServiceChoice } from '@/lib/inquiry'
 import { usePrivacy } from './PrivacyControls'
+import { ServiceOffer } from './ServiceOffer'
 
 export function InquiryForm({
   services,
   initialService = '',
+  unavailableService = false,
 }: {
   services: ServiceChoice[]
   initialService?: string
+  unavailableService?: boolean
 }) {
   const [service, setService] = useState(initialService)
   const [errors, setErrors] = useState<InquiryErrors>({})
@@ -21,6 +24,7 @@ export function InquiryForm({
   const submitting = useRef(false)
   const result = useRef<HTMLDivElement>(null)
   const { track, syncCampaign, settleMeasurement } = usePrivacy()
+  const selectedService = services.find((choice) => choice.id === service)
   useEffect(() => {
     submission.current = crypto.randomUUID()
   }, [])
@@ -135,6 +139,12 @@ export function InquiryForm({
           </ul>
         </div>
       )}
+      {unavailableService && !service && (
+        <p role="status">
+          The requested service is no longer available. Please choose a published service to
+          continue.
+        </p>
+      )}
       <label htmlFor="inquiry-service">Photography service</label>
       <select
         id="inquiry-service"
@@ -164,6 +174,7 @@ export function InquiryForm({
           {errors.service}
         </p>
       )}
+      {selectedService && <ServiceOffer service={selectedService} />}
       <div className="form-pair">
         {(['name', 'email'] as const).map((field) => (
           <div key={field}>

@@ -243,6 +243,7 @@ export interface Page {
    */
   slug: string;
   description: string;
+  inquiryService?: string | null;
   updatedAt: string;
   createdAt: string;
   _status?: ('draft' | 'published') | null;
@@ -319,6 +320,18 @@ export interface ServicesBlock {
   items: {
     title: string;
     body: string;
+    /**
+     * Approved service details only. Put each inclusion on a separate line.
+     */
+    inclusions?: string | null;
+    /**
+     * Use approved wording. Leave blank until pricing is agreed.
+     */
+    priceGuidance?: string | null;
+    /**
+     * Only an agreed human-response promise; leave blank if no timing is approved.
+     */
+    responseExpectation?: string | null;
     id?: string | null;
   }[];
   id?: string | null;
@@ -984,6 +997,7 @@ export interface PagesSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
   description?: T;
+  inquiryService?: T;
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
@@ -1049,6 +1063,9 @@ export interface ServicesBlockSelect<T extends boolean = true> {
     | {
         title?: T;
         body?: T;
+        inclusions?: T;
+        priceGuidance?: T;
+        responseExpectation?: T;
         id?: T;
       };
   id?: T;

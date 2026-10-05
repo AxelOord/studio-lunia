@@ -287,7 +287,7 @@ h3,
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 36px;
 }
-.service-cards li {
+.service-cards > li {
   border-top: 1px solid var(--muted);
   padding-top: 12px;
 }
@@ -530,5 +530,73 @@ select:focus-visible,
   }
   .inquiry-intro h1 {
     letter-spacing: -1.5px;
+  }
+}
+
+.landing-offer {
+  width: 100%;
+  max-width: 54ch;
+  margin-top: 18px;
+}
+.service-offer {
+  line-height: 1.65;
+  font-size: 15px;
+}
+.service-offer p {
+  margin: 10px 0;
+}
+.service-offer-title {
+  font-size: 17px;
+}
+.service-offer ul,
+.service-cards ul {
+  padding-left: 20px;
+  line-height: 1.7;
+}
+.landing-offer .button-link {
+  gap: 8px;
+  margin: 18px 0 8px;
+}
+.landing-intro {
+  padding: 32px 6vw;
+  border-bottom: 1px solid var(--line);
+}
+.inquiry-form .service-offer {
+  margin: -8px 0 26px;
+  padding: 0 0 20px;
+  border-bottom: 1px solid var(--line);
+}
+.enquiry-steps {
+  padding: 55px 6vw;
+  border-top: 1px solid var(--line);
+}
+.enquiry-steps h2 {
+  font-size: clamp(28px, 3vw, 42px);
+  margin: 16px 0 30px;
+}
+.enquiry-steps ol {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 36px;
+  padding-left: 20px;
+}
+.enquiry-steps li {
+  padding-left: 4px;
+  line-height: 1.6;
+  font-size: 15px;
+}
+.enquiry-steps li::marker {
+  font-weight: 600;
+}
+.enquiry-steps li p {
+  font-size: 14px;
+}
+@media (max-width: 760px) {
+  .enquiry-steps ol {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .landing-offer .button-link {
+    width: 100%;
   }
 }

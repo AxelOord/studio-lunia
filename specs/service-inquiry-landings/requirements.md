@@ -69,7 +69,7 @@ Check: public submission followed by authenticated customer workspace and origin
 
 Deliver a focused draft PR, issue/spec traceability, aggregate tests, inspected actual
 screenshots, independent review, exact-head CI and an automatic full-CMS preview. A stacked
-PR SHALL state its dependency and carry the accepted PR #38 review fixes. No merges or
+PR SHALL state its dependency and carry the accepted PR #38/#39 review fixes. No merges or
 production deployment. Check preview branch capacity before publishing; do not delete
 provider branches or upgrade a plan to make room.
 Check: npm run verify, exact commit/preview, user-accessible visual evidence and honest

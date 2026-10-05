@@ -41,7 +41,7 @@ The normal enquiry/contact/activity creation remains the operational handoff.
 Create an idempotent synthetic landing demonstration for local and automatic preview
 initialization, without overwriting existing content or changing home/media fixtures.
 Clearly identify test content; no invented commercial claims or real customer sends.
-Use a distinct feature branch stacked on PR #38 if that dependency remains unmerged.
+Use a distinct feature branch stacked on PR #39 (which depends on PR #38) if that dependency remains unmerged.
 Tests own their fixtures and local database, including a complete tagged/no-consent visit
 through enquiry and staff handoff. Inspect actual desktop/mobile screenshots. Report owner
 content inputs and authenticated hosted QA separately from implementation and CI.
@@ -56,3 +56,35 @@ and enquiry rather than activating ad experiments. [Google Ads Help](https://sup
 NN/g recommends removing questions that can wait, keeping labels close to controls and
 using a simple vertical form. The existing name/email/message enquiry remains short;
 preparation questions belong later. [NN/g form-design guidance](https://www.nngroup.com/articles/web-form-design/).
+
+## Implementation decisions and evidence
+
+The native Page Settings selector stores only the stable service ID. Public rendering,
+saved preview and live-preview population all resolve offer details from published
+service cards; a forged client-side offer is overwritten by server resolution. Draft
+service edits cannot replace an already published offer. Publishing rejects an unavailable
+selected service, including removing a selected service from the same page.
+
+An optional landing action follows the first hero's copy; pages without a first hero
+show the same service summary/action before their blocks. The existing six block types
+and media access remain intact. The form shows the canonical offer for the current
+selection and explicitly requires a new choice when a requested service is unavailable.
+
+The `/service-demo` initializer owns a transaction and changes nothing when that page
+already exists. It uses a generated canonical item ID, synthetic copy, abstract artwork
+and blank prices, inclusions and response promises. Injected initialization failure
+rolls back the new page; retry completes it once. Preview's existing home, media and
+editor fixtures remain unchanged.
+
+Focused checks: five service integrations, additive migration preservation, two native
+preview-bootstrap integrations and three Chromium journeys. Browser cases cover
+no-consent tagged landing → lost-response retry → one private enquiry/customer activity;
+consented minimized campaign attribution → explicit withdrawal; and native selector →
+unsaved live preview → publication → missing service. Actual desktop and 390px screenshots
+were opened and inspected. The primary CTA precedes the mobile artwork; form errors retain
+all details and focus the error summary. Optional tracking/provider settings are unchanged.
+
+Delivery depends on PR #39 and PR #38, with the corrected queue navigation included.
+Actual Neon branch capacity cannot be read using the exposed tools; the parent reported
+that PR #39 likely consumed the final slot. Keep this branch local until capacity is
+confirmed. Do not delete data, change preview settings, create credentials or upgrade plans.

@@ -100,6 +100,32 @@ export const Services: Block = {
       fields: [
         { name: 'title', type: 'text', required: true, maxLength: 100 },
         { name: 'body', type: 'textarea', required: true, maxLength: 600 },
+        {
+          name: 'inclusions',
+          label: 'What is included (optional)',
+          type: 'textarea',
+          maxLength: 1000,
+          admin: {
+            description: 'Approved service details only. Put each inclusion on a separate line.',
+          },
+        },
+        {
+          name: 'priceGuidance',
+          label: 'Price guidance (optional)',
+          type: 'text',
+          maxLength: 180,
+          admin: { description: 'Use approved wording. Leave blank until pricing is agreed.' },
+        },
+        {
+          name: 'responseExpectation',
+          label: 'Personal response expectation (optional)',
+          type: 'text',
+          maxLength: 180,
+          admin: {
+            description:
+              'Only an agreed human-response promise; leave blank if no timing is approved.',
+          },
+        },
       ],
     },
   ],
