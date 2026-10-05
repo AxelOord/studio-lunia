@@ -8,7 +8,11 @@ import { CustomerFilters as CustomerFilters_2277735b5b888f83d5ecf23c6b83125b } f
 import { BookingActions as BookingActions_82e298f241c3734ca5c7428bf86f74b9 } from '../../../admin/BookingActions'
 import { EmailTemplatePreview as EmailTemplatePreview_dde83d8c56338e578fe952263220369f } from '../../../admin/EmailTemplatePreview'
 import { EmailMessagePreview as EmailMessagePreview_eb2bf6b96e24a50e49fc617c6341dc2b } from '../../../admin/EmailMessagePreview'
+import { WorkspaceNav as WorkspaceNav_c55aab5b3482672b98684361d704e261 } from '../../../admin/workspace-ui'
 import { PrivateBlobUpload as PrivateBlobUpload_3576928557a248601e2a25bcf9a88a28 } from '../../../hosting/PrivateBlobUpload'
+import { InboxView as InboxView_b475916a8de8ba579c112e1c240f1fbd } from '../../../admin/Workspace.server'
+import { CustomerView as CustomerView_b475916a8de8ba579c112e1c240f1fbd } from '../../../admin/Workspace.server'
+import { FollowUpsView as FollowUpsView_b475916a8de8ba579c112e1c240f1fbd } from '../../../admin/Workspace.server'
 import { CollectionCards as CollectionCards_ab83ff7e88da8d3530831f296ec4756a } from '@payloadcms/ui/rsc'
 import { CollectionQueryWidget as CollectionQueryWidget_ab83ff7e88da8d3530831f296ec4756a } from '@payloadcms/ui/rsc'
 import { QueryPresetsWhereField as QueryPresetsWhereField_3817bf644402e67bfe6577f60ef982de } from '@payloadcms/ui'
@@ -28,7 +32,11 @@ export const importMap = {
   "./admin/BookingActions#BookingActions": BookingActions_82e298f241c3734ca5c7428bf86f74b9,
   "./admin/EmailTemplatePreview#EmailTemplatePreview": EmailTemplatePreview_dde83d8c56338e578fe952263220369f,
   "./admin/EmailMessagePreview#EmailMessagePreview": EmailMessagePreview_eb2bf6b96e24a50e49fc617c6341dc2b,
+  "./admin/workspace-ui#WorkspaceNav": WorkspaceNav_c55aab5b3482672b98684361d704e261,
   "./hosting/PrivateBlobUpload#PrivateBlobUpload": PrivateBlobUpload_3576928557a248601e2a25bcf9a88a28,
+  "./admin/Workspace.server#InboxView": InboxView_b475916a8de8ba579c112e1c240f1fbd,
+  "./admin/Workspace.server#CustomerView": CustomerView_b475916a8de8ba579c112e1c240f1fbd,
+  "./admin/Workspace.server#FollowUpsView": FollowUpsView_b475916a8de8ba579c112e1c240f1fbd,
   "@payloadcms/ui/rsc#CollectionCards": CollectionCards_ab83ff7e88da8d3530831f296ec4756a,
   "@payloadcms/ui/rsc#CollectionQueryWidget": CollectionQueryWidget_ab83ff7e88da8d3530831f296ec4756a,
   "@payloadcms/ui#QueryPresetsWhereField": QueryPresetsWhereField_3817bf644402e67bfe6577f60ef982de,

@@ -19,12 +19,12 @@ export type DeliveryFact = {
 
 // Resend's documented Svix protocol, raw bytes unchanged. A replay within this
 // tolerance is still deduplicated by its immutable event ID in PostgreSQL.
-export function verifyDelivery(
+export function verifyWebhookSignature(
   raw: string,
   headers: Headers,
   secret: string,
   now = Date.now(),
-): DeliveryFact | undefined {
+) {
   const id = headers.get('svix-id') || ''
   const timestamp = headers.get('svix-timestamp') || ''
   const signatures = headers.get('svix-signature') || ''
@@ -45,6 +45,16 @@ export function verifyDelivery(
     return supplied.length === expected.length && timingSafeEqual(supplied, expected)
   })
   if (!valid) throw new Error('Invalid webhook signature')
+  return id
+}
+
+export function verifyDelivery(
+  raw: string,
+  headers: Headers,
+  secret: string,
+  now = Date.now(),
+): DeliveryFact | undefined {
+  const id = verifyWebhookSignature(raw, headers, secret, now)
   const event = JSON.parse(raw) as {
     type?: unknown
     created_at?: unknown
