@@ -457,6 +457,7 @@ test('concurrent plan changes preserve edits and require explicit reapply and a 
   await form.getByRole('button', { name: 'Review exact message' }).click()
   await expect(form.getByRole('region', { name: 'Reviewed follow-up' })).toBeVisible()
   await page.setViewportSize({ width: 390, height: 844 })
+  await form.locator('iframe').scrollIntoViewIfNeeded()
   await expect(
     form
       .frameLocator('iframe')
