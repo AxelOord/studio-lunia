@@ -4,16 +4,25 @@ import { isInternalPagePath } from '../lib/internal-path'
 export const Hero: Block = {
   slug: 'hero',
   interfaceName: 'HeroBlock',
+  labels: { singular: 'Intro / hero', plural: 'Intro / hero' },
+  admin: { disableBlockName: true, components: { Label: './admin/RowLabels#BlockRowLabel' } },
   fields: [
-    { name: 'eyebrow', type: 'text', maxLength: 80 },
+    { name: 'eyebrow', label: 'Small heading (optional)', type: 'text', maxLength: 80 },
     { name: 'heading', type: 'text', required: true, maxLength: 140 },
     { name: 'body', type: 'textarea', maxLength: 600 },
-    { name: 'image', type: 'upload', relationTo: 'media' },
+    {
+      name: 'image',
+      type: 'upload',
+      relationTo: 'media',
+      admin: { description: 'Choose an image. Private images appear only in editor previews.' },
+    },
   ],
 }
 export const Text: Block = {
   slug: 'text',
   interfaceName: 'TextBlock',
+  labels: { singular: 'Text section', plural: 'Text section' },
+  admin: { disableBlockName: true, components: { Label: './admin/RowLabels#BlockRowLabel' } },
   fields: [
     { name: 'heading', type: 'text', required: true },
     { name: 'body', type: 'textarea', required: true, maxLength: 3000 },
@@ -22,6 +31,8 @@ export const Text: Block = {
 export const Gallery: Block = {
   slug: 'gallery',
   interfaceName: 'GalleryBlock',
+  labels: { singular: 'Photo gallery', plural: 'Photo gallery' },
+  admin: { disableBlockName: true, components: { Label: './admin/RowLabels#BlockRowLabel' } },
   fields: [
     { name: 'heading', type: 'text', required: true },
     {
@@ -29,7 +40,15 @@ export const Gallery: Block = {
       type: 'array',
       minRows: 1,
       maxRows: 12,
-      fields: [{ name: 'image', type: 'upload', relationTo: 'media', required: true }],
+      fields: [
+        {
+          name: 'image',
+          type: 'upload',
+          relationTo: 'media',
+          admin: { description: 'Choose an image. Private images appear only in editor previews.' },
+          required: true,
+        },
+      ],
     },
   ],
 }
@@ -38,10 +57,17 @@ export const ImageText: Block = {
   slug: 'imageText',
   interfaceName: 'ImageTextBlock',
   labels: { singular: 'Image and text', plural: 'Image and text' },
+  admin: { disableBlockName: true, components: { Label: './admin/RowLabels#BlockRowLabel' } },
   fields: [
     { name: 'heading', type: 'text', required: true, maxLength: 140 },
     { name: 'body', type: 'textarea', required: true, maxLength: 1500 },
-    { name: 'image', type: 'upload', relationTo: 'media', required: true },
+    {
+      name: 'image',
+      type: 'upload',
+      relationTo: 'media',
+      admin: { description: 'Choose an image. Private images appear only in editor previews.' },
+      required: true,
+    },
     {
       name: 'imageSide',
       type: 'select',
@@ -59,12 +85,15 @@ export const Services: Block = {
   slug: 'services',
   interfaceName: 'ServicesBlock',
   labels: { singular: 'Service cards', plural: 'Service cards' },
+  admin: { disableBlockName: true, components: { Label: './admin/RowLabels#BlockRowLabel' } },
   fields: [
     { name: 'heading', type: 'text', required: true, maxLength: 140 },
     { name: 'body', type: 'textarea', maxLength: 600 },
     {
       name: 'items',
+      label: 'Service cards',
       type: 'array',
+      admin: { components: { RowLabel: './admin/RowLabels#ServiceRowLabel' } },
       required: true,
       minRows: 1,
       maxRows: 6,
@@ -80,13 +109,14 @@ export const CallToAction: Block = {
   slug: 'callToAction',
   interfaceName: 'CallToActionBlock',
   labels: { singular: 'Call to action', plural: 'Calls to action' },
+  admin: { disableBlockName: true, components: { Label: './admin/RowLabels#BlockRowLabel' } },
   fields: [
     { name: 'heading', type: 'text', required: true, maxLength: 140 },
     { name: 'body', type: 'textarea', maxLength: 600 },
-    { name: 'label', type: 'text', required: true, maxLength: 80 },
+    { name: 'label', label: 'Button text', type: 'text', required: true, maxLength: 80 },
     {
       name: 'href',
-      label: 'Page path',
+      label: 'Page link',
       type: 'text',
       required: true,
       maxLength: 180,

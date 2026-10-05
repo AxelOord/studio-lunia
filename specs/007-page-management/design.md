@@ -9,7 +9,7 @@ array rows support admin.components.RowLabel. If heading/title-derived labels ne
 components, use one small read-only label helper per native extension point. Do not
 replace the entire Block component or store duplicate display-label fields.
 
-Pages title stays above tabs. Settings holds the actual slug/description only; there
+Page settings groups the existing title, slug and description as requested in issue #6; there
 is no new SEO model. Do not bury validation or Save/Publish controls. Media already
 has adminThumbnail='card', required alt and default private visibility; improve their
 presentation rather than replacing the asset manager. Storage metadata is already
@@ -28,7 +28,7 @@ and opens on Ctrl/Cmd-click; explain it, do not confuse it with the new split to
 The current server-rendered frontend has no listener for live messages. A collection
 setting alone cannot show unsaved changes. Prefer @payloadcms/live-preview-react
 4.0.0-canary.37 useLivePreview in a preview-only client wrapper around shared blocks.
-The exact package version exists in the registry but is not installed in the app.
+The matching pinned package is installed.
 Initial page and populated media load on an authenticated server path with
 user + overrideAccess:false. Keep relationship population depth consistent (currently
 2), verify same-origin credentialed population and signed private-image reads.
@@ -61,7 +61,12 @@ Labels, list columns and collapsed-state configuration should not alter SQL. Con
 by comparing generated schema/types and existing content; if a migration appears,
 stop and explain the cause before expanding this spec. Do not enable schema push.
 
-After approval, keep delivery small: (1) admin configuration and labels; (2) native
-split preview plus thin frontend bridge and its access/unsaved-state tests. Each is
-a separate reviewable implementation draft PR. Neither step is authorized by this
-spec-only task. No new resource, credential or hosted service is needed by the design.
+Approved implementation sequence: (1) admin configuration and labels; (2) native
+split preview plus thin frontend bridge and its access/unsaved-state tests. These related changes share a reviewable draft PR because the same native editor flow verifies them.
+Issues #6–#8 and the user instruction authorize implementation and automatic CMS previews. No new resource, credential or hosted service is needed by the design.
+
+The canary hook supports a custom population handler. Route it through an authenticated
+read-only endpoint with fixed page ID/depth and explicit same-origin checks. Native
+public page reads alone cannot detect an expired editor session on a published page.
+Accept messages only from the editor frame/opener for this page. Prefer the latest
+response when population requests overlap; failed authorization hides the preview.

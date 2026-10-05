@@ -36,6 +36,7 @@
   "dependencies": {
     "@payloadcms/db-postgres": "4.0.0-canary.37",
     "@payloadcms/email-resend": "4.0.0-canary.37",
+    "@payloadcms/live-preview-react": "4.0.0-canary.37",
     "@payloadcms/next": "4.0.0-canary.37",
     "@payloadcms/plugin-cloud-storage": "4.0.0-canary.37",
     "@payloadcms/ui": "4.0.0-canary.37",

@@ -1,14 +1,13 @@
-# Pagina’s prettig beheren — page management review
+# Page management
 
 Workflow: requirements-first
-Status: draft
+Status: ready
 
 ## Goal and scope
 
 Help the editor find, change and preview a page using the existing Payload admin.
-This is a review proposal, not authorization to implement. English repository/UI copy.
-Target the six-block model in open PR5 (0970cbd); implementation depends on that work
-being available on its eventual base. No custom page builder or admin replacement.
+Implementation approved by Axel on 2026-10-05 through issues #6, #7 and #8.
+English repository/UI copy. Based on merged PR5, develop 0a7b495. No custom page builder or admin replacement.
 
 Smallest valuable flow: open an existing page → find its hero → edit the headline →
 see the unsaved change in native split preview → switch to Mobile → Save Draft →
@@ -16,8 +15,8 @@ confirm the public page is unchanged → explicitly Publish when ready.
 
 ### R-1: Find page content and settings
 
-Show Page title above two unnamed tabs: Content (existing layout) and Page settings
-(existing slug and description). Explain that page title/description feed document
+Show two unnamed tabs: Content (existing layout) and Page settings
+(existing title, slug and description), grouped as requested in issue #6. Explain that page title/description feed document
 metadata while block headings are visible page copy. Page list shows title, slug,
 \_status and updatedAt. Do not add a duplicate status field or an empty SEO tab.
 Check: locate and edit a headline without moving through settings; edit existing
@@ -72,12 +71,12 @@ non-executable until valid; public rendering gains no live-preview subscription.
 
 Use unnamed tabs and presentation options; retain field names, block slugs, relations,
 IDs, required rules, versions and database/storage configuration. Add only the pinned
-matching live-preview package when implementation is approved. No migration is expected
+matching live-preview package at implementation. No migration is expected
 from the proposed presentation changes; verify rather than assume a zero schema diff.
 Check: generated types/schema comparison and representative existing six-block pages,
 media and drafts round-trip unchanged apart from explicit editor edits.
 
-## Review decisions and exclusions
+## Accepted decisions and exclusions
 
 Recommend client-side form-state preview inside Payload's native panel, preserving
 explicit Save Draft. Server refresh with autosave is an alternative only after an

@@ -31,7 +31,9 @@ before(async () => {
 })
 after(async () => {
   if (userID) await payload.delete({ collection: 'users', id: userID, overrideAccess: true })
+  const pool = payload.db.pool
   await payload.destroy()
+  await pool?.end()
 })
 test('recovery sends a fixed-origin link, throttles email and rejects reused/expired tokens', async () => {
   await payload.forgotPassword({ collection: 'users', data: { email } })

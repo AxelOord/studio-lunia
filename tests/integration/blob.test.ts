@@ -74,7 +74,9 @@ after(async () => {
   for (const id of extraImages)
     await payload.delete({ collection: 'media', id, overrideAccess: true })
   if (imageID) await payload.delete({ collection: 'media', id: imageID, overrideAccess: true })
+  const pool = payload.db.pool
   await payload.destroy()
+  await pool?.end()
 })
 test('private Blob integration writes derivatives without local files and serves no-store bytes', async () => {
   const bytes = await sharp({

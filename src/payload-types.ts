@@ -148,11 +148,16 @@ export interface User {
   collection: 'users';
 }
 /**
+ * Search by filename or alt text; filter by visibility. JPEG, PNG, WebP or AVIF, up to 20 MiB. Open an image for dimensions and details.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "media".
  */
 export interface Media {
   id: number;
+  /**
+   * Describe the image for people who cannot see it.
+   */
   alt: string;
   /**
    * Only explicitly public images can appear on the website.
@@ -196,10 +201,16 @@ export interface Media {
  */
 export interface Page {
   id: number;
+  /**
+   * Save a first draft to enable Live Preview. Preview changes are unsaved until Save Draft; only Publish makes them public.
+   */
+  layout: (HeroBlock | TextBlock | GalleryBlock | ImageTextBlock | ServicesBlock | CallToActionBlock)[];
   title: string;
+  /**
+   * The page address. Use home for the home page.
+   */
   slug: string;
   description: string;
-  layout: (HeroBlock | TextBlock | GalleryBlock | ImageTextBlock | ServicesBlock | CallToActionBlock)[];
   updatedAt: string;
   createdAt: string;
   _status?: ('draft' | 'published') | null;
@@ -212,6 +223,9 @@ export interface HeroBlock {
   eyebrow?: string | null;
   heading: string;
   body?: string | null;
+  /**
+   * Choose an image. Private images appear only in editor previews.
+   */
   image?: (number | null) | Media;
   id?: string | null;
   blockName?: string | null;
@@ -236,6 +250,9 @@ export interface GalleryBlock {
   heading: string;
   images?:
     | {
+        /**
+         * Choose an image. Private images appear only in editor previews.
+         */
         image: number | Media;
         id?: string | null;
       }[]
@@ -251,6 +268,9 @@ export interface GalleryBlock {
 export interface ImageTextBlock {
   heading: string;
   body: string;
+  /**
+   * Choose an image. Private images appear only in editor previews.
+   */
   image: number | Media;
   imageSide: 'left' | 'right';
   id?: string | null;
@@ -440,9 +460,6 @@ export interface MediaSelect<T extends boolean = true> {
  * via the `definition` "pages_select".
  */
 export interface PagesSelect<T extends boolean = true> {
-  title?: T;
-  slug?: T;
-  description?: T;
   layout?:
     | T
     | {
@@ -453,6 +470,9 @@ export interface PagesSelect<T extends boolean = true> {
         services?: T | ServicesBlockSelect<T>;
         callToAction?: T | CallToActionBlockSelect<T>;
       };
+  title?: T;
+  slug?: T;
+  description?: T;
   updatedAt?: T;
   createdAt?: T;
   _status?: T;

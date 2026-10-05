@@ -1,98 +1,84 @@
-# Review brief: Pagina’s prettig beheren
+# Page management — implementation evidence
 
-Proposal only, 2026-10-05. Improve the existing editor before considering another
-builder. Requirements/design/tasks are separate so approval precedes implementation.
+Axel approved issues #6, #7 and #8 and automatic full CMS previews on 2026-10-05.
+Their descriptions and all comment endpoints were read before work; all three had
+zero comments. PR5 is merged into develop at `0a7b495`. The earlier local spec commit
+was rebased onto that base on `feature/page-management`. The previous spec-only
+no-deployment restriction is superseded by the explicit implementation instruction.
 
-## Evidence and current pain points
+Issue #6 maps to R-1/R-2/R-6, #7 to R-4/R-5/R-6, and #8 to R-3/R-6. One draft PR
+keeps the connected editor/preview flow reviewable together. No issue is closed by
+this draft. Production, the old photography project, providers and credentials are
+unchanged.
 
-Repository: https://github.com/AxelOord/studio-lunia. PR5 remains open/draft, targeting
-develop; its inspected head is 0970cbd40ee244a136cd99386ea7ee2d7bceee7e (merge of
-fab4076 with develop 3f1d2ed). That merge changes none of the inspected editor files.
-This spec-only worktree starts from develop and explicitly depends on PR5's six-block
-model for later implementation. It does not include or supersede that implementation.
+## Implemented behavior
 
-Sources: src/collections/Pages.ts, Media.ts, src/blocks/index.ts, payload.config.ts,
-src/lib/pages.ts, ContentBlocks.tsx and the existing preview route, inspected in the
-PR5 checkout. Pages contains title/slug/description/layout with drafts and 20 versions;
-no tabs, list-column selection or livePreview configuration. Metadata already uses
-page title/description. Most blocks lack helpful descriptions, and no heading-derived
-label is configured. Media already has card thumbnails, alt text and private/public
-visibility; storage fields are already hidden, not a missing security feature.
+- Unnamed Content and Page settings tabs preserve existing field paths. Title,
+  slug and description are grouped as requested in #6. Native slug locking remains.
+- Native block labels use type and heading; service rows use title. Native add,
+  collapse, reorder and validation remain. There is no duplicate label data.
+- Media uses filename as its title and searches filename/alt. Existing thumbnails,
+  alt, visibility and timestamp columns are shown in native lists/selection. All
+  three image field locations retain native remove/choose/edit controls.
+- Native split preview uses the matching `@payloadcms/live-preview-react`
+  `4.0.0-canary.37`. Desktop is 1440×900; Mobile is 390×844. The persisted page ID
+  selects the frame so an unsaved slug change cannot break its URL.
+- Initial reads authenticate the editor and use `overrideAccess: false`. The hook's
+  supported custom handler calls a same-origin, authenticated, read-only population
+  endpoint with fixed collection/ID/depth. This also rejects expired editor sessions
+  for already published pages. It never saves, publishes or creates versions.
+- Messages are bounded to the editor frame/opener, origin, collection and document.
+  Older population responses cannot overwrite newer edits. Missing form values and
+  empty layouts render safely; invalid CTA destinations remain inert.
+- New pages explain the first Save Draft prerequisite. No autosave is enabled. The
+  normal public renderer gains no message listener; external draft preview remains.
 
-Visual input is **local**, not a current hosted audit: inspected the existing synthetic
-E2E screenshot test-results/blocks-admin.png, generated 2026-10-05 10:08 UTC (1280×2958).
-It shows a long expanded six-block form, repeated Heading/Body labels, several Untitled
-headers and generic service Item rows. Native Save Draft/Publish controls are already
-present; do not replace them. Current hosted audit was unavailable because the editor
-session had expired; no fresh hosted screenshots or mobile-admin findings are claimed.
-The separate prior hosted functional/persistence evidence is not a visual audit.
+## Local verification — synthetic data only
 
-## Small proposal and effort
+A separate local PostgreSQL database `lunia_admin_dev` preserves earlier work.
+No hosted credential was used. Generated types retain the same data paths and block
+slugs; changes are field order and descriptive comments. Running
+`npm run db:migrate:create -- page-management-check --skip-empty` generated neither
+UP/DOWN SQL nor migration files. The CLI reports `Cancelled` for its empty result;
+`src/migrations` remains unchanged.
 
-| Change                                                      | Native versus custom effort                                                             |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Content/Page settings tabs, clear labels/help, useful lists | Small configuration change using existing fields                                        |
-| Meaningful collapsed block/service labels                   | Native extension points; possibly tiny label components, no new data                    |
-| Thumbnails/private visibility clarity                       | Existing upload UI and thumbnail; configure columns/help                                |
-| Split preview and desktop/mobile frame                      | Native livePreview settings                                                             |
-| Unsaved text/image/block updates                            | Bounded frontend work: official pinned hook, authenticated frame route, shared renderer |
-| Robust auth/incomplete drafts/save-state QA                 | Necessary integration tests; main uncertainty, not a new product subsystem              |
+Checks completed: `npm run check` (15 JavaScript and 35 workflow tests, lint/types/spec
+checks), `npm run build`, `npm run format:check`, and all 14 integration tests. Existing
+five browser tests pass; five new browser tests cover the connected editor flow:
 
-The first valuable acceptance flow is edit hero → see unsaved result → Mobile → Save
-Draft while public content stays unchanged. Keep manual save/publish; no autosave
-surprise. New pages need one initial Save Draft before live preview. No fictional SEO
-tab: Page settings exposes only existing title/slug/description responsibilities.
-Suggested labels keep stored slugs intact: Hero → Intro / hero, Text → Text section,
-Gallery → Photo gallery, Image and text, Service cards, and Call to action. Clarify
-Eyebrow as a small optional heading, CTA label as Button text, and its destination as
-an internal Page link. Heading-derived collapsed labels should avoid a second manual
-block-name field. These are proposed English labels, not new fields or content.
+- unsaved heading updates across all six types, service text, incomplete body/CTA,
+  image replacement/removal in hero/gallery/image-text and native block reordering;
+- unchanged stored page/version count, independent public output, explicit Save Draft,
+  reload and Publish; changed slug and document navigation;
+- native viewport widths, media filename search/selection, thumbnails/alt/visibility,
+  page settings and first-save instructions;
+- anonymous and foreign-origin denial, private original-file denial, wrong message
+  origins/documents/senders, expired session and hidden failed preview;
+- delayed overlapping responses, all six incomplete blocks and an empty layout.
 
-No conditional fields are proposed merely to add complexity; current choices do not
-justify them. All UI copy stays English.
+Synthetic screenshots in ignored `test-results/`: `page-management-desktop.png`,
+`page-management-mobile.png`, `page-management-media.png`; inspect them as local
+browser evidence. Desktop uses the native expanded panel at 100% zoom; Mobile uses split preview.
+The pinned canary divides device width by zoom, so zooming out changes the CSS
+viewport width and still crops a large preset in a narrow panel. Use 100% and
+Expand for accurate desktop review; no upstream UI patch is included.
+Existing public mobile/keyboard checks remain. Test teardown now explicitly closes
+PostgreSQL pools, matching the existing preview-bootstrap cleanup.
 
-## Verified pinned capabilities
+## Hosted acceptance
 
-Read checkout .agents/skills/payload/SKILL.md and the official bundled canary skill,
-including collection/field references. Installed types, rather than generic snippets,
-confirm LivePreviewConfig.url/breakpoints/openByDefault; Block admin.Label and
-admin.disableBlockName; array RowLabel; unnamed tabs and collection list options.
-The plugin's getFields already hides prefix/\_objectKey. Current dependencies do not
-include live-preview-react; a read-only registry query confirmed 4.0.0-canary.37 exists.
-No dependency was installed or changed.
+Automatic full CMS preview and exact-head CI follow the branch push. Record their
+links in the PR; they are not yet claimed here. Authenticated hosted visual checks
+may require Axel's existing browser session / first password reset for the new branch.
+No credentials are requested or copied. Earlier hosted restore/anonymous-media/mobile
+acceptance gaps remain separate; local tests do not close them.
 
-Version-pinned official references:
+## Version-matched sources
 
-- [Native live-preview configuration](https://raw.githubusercontent.com/payloadcms/payload/v4.0.0-canary.37/docs/live-preview/overview.mdx): iframe, relative URLs and breakpoint controls.
-- [Client preview](https://raw.githubusercontent.com/payloadcms/payload/v4.0.0-canary.37/docs/live-preview/client.mdx) and [hook source](https://raw.githubusercontent.com/payloadcms/payload/v4.0.0-canary.37/packages/live-preview-react/src/useLivePreview.ts): form-state updates and relationship depth; frontend integration is required.
-- [Server preview](https://raw.githubusercontent.com/payloadcms/payload/v4.0.0-canary.37/docs/live-preview/server.mdx): refreshes on save; autosave is a separate behavior choice.
-- Installed node_modules/payload/dist/config/types.d.ts, fields/config/types.d.ts,
-  collections/config/types.d.ts and versions/types.d.ts provide the exact API checks.
+The checkout Payload skill and bundled canary skill were read. Installed config,
+field and collection types and native preview/hook source were used for the actual
+extension points, authenticated population and message behavior.
 
-## Migration and boundaries
-
-No expected SQL/data migration: keep existing field paths using unnamed tabs. Compare
-schema/types before claiming no migration. No field/block renames, new SEO fields,
-content rewrite or data cleanup. The only proposed future dependency is the matching
-live-preview package. Preview-only client rendering must not move the public site
-into a client-side builder. Auth/media checks must remain real server controls.
-
-No custom canvas, new blocks, rich text, responsive content overrides, approval roles,
-localization, autosave, booking, metrics, production changes or additional services.
-Hosted anonymous-file denial, real mobile QA and combined DB/media restore gaps from
-prior work remain open separately; this document neither closes nor enlarges them.
-
-## Review delivery / no-deployment constraint
-
-Only these Markdown spec files are prepared. Runtime, config, dependencies, provider
-settings and data are untouched. No tests/build need rerunning for prose-only work;
-run the spec structural checker, Markdown formatter and diff check.
-
-An ordinary new branch is deployment-enabled by the current vercel.json. The
-[official Git configuration](https://vercel.com/docs/project-configuration/git-configuration)
-confirms unspecified branches default to enabled. No documented commit-message bypass
-was verified. Therefore keep this spec branch local rather than accidentally deploy,
-reuse a legacy credential-scoped branch or change hosting settings without scope.
-A spec-only draft PR against develop can follow once its exact branch is explicitly
-excluded from deployment through an approved mechanism. No merge is needed to review
-these local files, and no deployment is needed for this proposal.
+- [Native configuration](https://raw.githubusercontent.com/payloadcms/payload/v4.0.0-canary.37/docs/live-preview/overview.mdx)
+- [Client preview](https://raw.githubusercontent.com/payloadcms/payload/v4.0.0-canary.37/docs/live-preview/client.mdx)
+- [Pinned hook source](https://raw.githubusercontent.com/payloadcms/payload/v4.0.0-canary.37/packages/live-preview-react/src/useLivePreview.ts)

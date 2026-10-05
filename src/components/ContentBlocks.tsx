@@ -49,7 +49,7 @@ export function ContentBlocks({
   blocks: Page['layout']
   editorPreview?: boolean
 }) {
-  return blocks.map((block, index) => {
+  return (Array.isArray(blocks) ? blocks : []).filter(Boolean).map((block, index) => {
     const Heading = index === 0 ? 'h1' : 'h2'
     const CardHeading = index === 0 ? 'h2' : 'h3'
     const key = block.id ?? index
@@ -83,10 +83,12 @@ export function ContentBlocks({
           </section>
         )
       case 'gallery': {
-        const images = (block.images ?? []).flatMap((item) => {
-          const image = visibleMedia(item.image, editorPreview)
-          return image ? [{ ...item, image }] : []
-        })
+        const images = (Array.isArray(block.images) ? block.images : [])
+          .filter(Boolean)
+          .flatMap((item) => {
+            const image = visibleMedia(item.image, editorPreview)
+            return image ? [{ ...item, image }] : []
+          })
         const pair = images.length === 2
         return (
           <section className="gallery-section" key={key}>
@@ -131,7 +133,7 @@ export function ContentBlocks({
             <Heading>{block.heading}</Heading>
             {block.body && <p className="section-intro">{block.body}</p>}
             <ul className="service-cards">
-              {block.items?.map((item, i) => (
+              {(Array.isArray(block.items) ? block.items : []).filter(Boolean).map((item, i) => (
                 <li key={item.id ?? i}>
                   <CardHeading>{item.title}</CardHeading>
                   <p>{item.body}</p>
