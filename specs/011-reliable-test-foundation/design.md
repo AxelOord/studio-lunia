@@ -48,7 +48,7 @@ public tables between cases. Each case creates its prerequisites. An uncached Pa
 instance and temporary upload directory prevent shared-instance/file collisions.
 Teardown closes Payload and its pool before dropping that database. A failed config
 setup exercises cleanup. Hosted targets and host-override query parameters fail before
-connection; test process setup removes inherited provider settings and uses synthetic
+connection; test process setup overrides inherited provider settings with inert values and uses synthetic
 credentials. Explicit provider contract tests inject their own fake boundaries.
 
 Pinned Payload's filesystem migration loader bypasses Vitest's TypeScript loader.
@@ -81,3 +81,13 @@ constructs the pinned exported BasePayload before calling init, so it can always
 its own partially initialized instance. Configuration and initialization failure cases
 both assert database removal, temporary-directory removal and environment restoration.
 The regression's own finalizer also removes its captured database if the assertion fails.
+
+Independent review identified one blocker: deleted environment keys were restored when
+fresh Payload/Playwright/Next processes loaded local environment files. Temporary files
+with synthetic sentinel values reproduced this in both dotenv and the pinned @next/env
+loader: private-blob was restored, and the unpooled database URL could also be restored.
+The test environment now keeps explicit inert provider values and pins DATABASE_URL,
+DATABASE_URL_UNPOOLED and TEST_DATABASE_URL to the owned database. Dotenv override/key
+options are inert too. Two subprocess regressions load .env/.env.local/.env.production
+and assert isolation without opening a database or contacting any provider. The original
+showcase server-rendered HTML assertion is restored alongside browser rendering checks.

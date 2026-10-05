@@ -50,9 +50,9 @@ https://vitest.dev/guide/test-context. Confirm installed pinned types during imp
 
 ## Delivered coverage map
 
-- 28 existing application unit cases now use Vitest; four new cases verify local-only
+- 28 existing application unit cases now use Vitest; six new cases verify local-only
   database targets, provider environment isolation, UI import boundaries and floating
-  promises (32 unit cases). The four Node Git-hook checks remain unchanged.
+  promises, plus provider/database isolation after both dotenv and Next load environment files in fresh subprocesses (34 unit cases). The four Node Git-hook checks remain unchanged.
 - All 29 integration cases retain their behavior assertions. Three new real-database
   cases verify concurrent ownership/drop isolation and cleanup after failed CMS
   configuration or initialization (32 cases). Customer email/booking, Blob namespace and CMS editorial cases create

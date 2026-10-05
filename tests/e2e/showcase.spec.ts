@@ -6,6 +6,7 @@ test('credential-free showcase renders responsive sample blocks while CMS and dr
 }) => {
   const home = await request.get('/')
   expect(home.ok()).toBe(true)
+  expect(await home.text()).toContain('A little space')
   expect(home.headers()['x-robots-tag']).toContain('noindex')
   for (const route of ['/admin', '/api/pages', '/api/media', '/preview?slug=home'])
     expect((await request.get(route)).status(), route).toBe(503)

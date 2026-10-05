@@ -14,7 +14,7 @@
       Refs: R-3, R-4, R-6, P-1
       Depends: T-2
       Verify: One local full command matches CI, unique Python checks retained, failure diagnostics exercised.
-      Evidence: Vitest 5.0.3 pinned; same named stages exposed through npm run verify and CI. All 35 Python, four hook and 12 release tests retained. Focused negative lint tests pass. A deliberately invalid remote browser target exits 1 before migration/seed/browser startup. Full npm run verify passed on 2026-10-05: strict lint/types/format/spec, 32 unit, 35 Python, four hooks, 12 release, 32 integration, build/generated consistency, one traced-build check and 21 Playwright cases. Independent review is tracked separately in T-5.
+      Evidence: Vitest 5.0.3 pinned; same named stages exposed through npm run verify and CI. All 35 Python, four hook and 12 release tests retained. Focused negative lint tests pass. A deliberately invalid remote browser target exits 1 before migration/seed/browser startup. Full npm run verify passed on 2026-10-05: strict lint/types/format/spec, 34 unit, 35 Python, four hooks, 12 release, 32 integration, build/generated consistency, one traced-build check and 21 Playwright cases. Independent review is tracked separately in T-5.
 - [ ] T-4: Verify full browser journeys and exact-head protected preview
       Refs: R-2, R-4, R-5, P-1, P-2
       Depends: T-3
@@ -25,4 +25,4 @@
       Refs: R-6, P-1, P-2
       Depends: T-3
       Verify: Independent review of fixture lifecycle, preserved assertions, standards scope, CI parity and provider isolation; address findings without blanket rewrites.
-      Evidence: Implementation self-review found and reproduced the partially initialized Payload pool leak; the fixture now owns its instance before init and the regression passes. Independent reviewer coverage remains pending; user owns merge.
+      Evidence: Implementation self-review found and reproduced the partially initialized Payload pool leak; the fixture now owns its instance before init and the regression passes. An independent static reviewer covered fixture ownership/prerequisites/cleanup, preserved Python/hook/release assertions, migrated checks, CI stages/artifacts/retries and coding-rule scope. The sole blocker was provider-setting rehydration in child processes; synthetic subprocesses reproduced it for dotenv and Next, then passed with explicit inert settings and owned database URLs. The reviewer also requested preservation of the original showcase raw-HTML assertion, now restored. Full npm run verify passes after these changes. Independent re-review of the fix is pending; user owns merge.
