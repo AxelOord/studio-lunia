@@ -3,33 +3,33 @@
 Workflow: requirements-first
 Status: ready
 
-The user requires working CMS functionality on every trusted PR deployment. Showcase is
-interim only and does not satisfy acceptance. Activation awaits the explicit resource,
-credential, lifecycle and budget handoff in docs/full-cms-preview-decision.md.
+Native automatic previews are the recommended first implementation. See
+`docs/full-cms-preview-decision.md` for access tradeoffs and pending handoff.
 
 ### R-1: Entire site works
 
-Each accepted preview supports approved editor login, upload, draft preview, publication,
-real allowlisted reset mail and persistent PR content across commits.
-Check: real hosted browser flow, image bytes, reset lifecycle and redeploy persistence.
+Trusted previews support editor login, uploads, draft preview, publication, approved
+reset mail and persistent branch content across commits. Showcase is not completion.
+Check: hosted browser flow, real image bytes, reset and rebuild persistence.
 
-### R-2: Isolated resources and least privilege
+### R-2: Preview-only resources
 
-Each PR has its own database and private media capability. Runtime cannot migrate schemas;
-provider-management and migration credentials stay outside deployed functions and untrusted
-PR scripts. Forks receive no privileged access. Production/old site remain untouched.
-Check: two-PR access denial, role/grant tests, runtime environment metadata and fork-negative checks.
+Use native Neon database branches from a verified synthetic parent and private preview
+media with branch namespaces. Disclose native owner-role runtime access and shared Blob
+capability; accept them only for trusted synthetic previews. Old site/production remain
+untouched. Forks receive no preview secrets.
+Check: provider scope metadata, two-branch app access tests and fork-negative checks.
 
-### R-3: Ordered automatic lifecycle
+### R-3: Ordinary automatic lifecycle
 
-A trusted workflow serializes per-PR migration/deploy, checks exact current SHA, preserves
-last working preview on failure, bootstraps once and cleans only owned closed-PR resources
-after an approved retention period. No automatic deletion of active editor work.
-Check: simultaneous updates, failed migration, stale completion, retries and cleanup dry run.
+Git previews migrate before building, serialize schema changes, initialize only once and
+fail visibly on errors. Preserve editor data and current provider retention. Review
+incompatible schema changes and confirm superseded-build behavior.
+Check: concurrent updates, failed migration, idempotent rebuild and branch reuse.
 
-### R-4: Explicit access/cost decision
+### R-4: Explicit access and existing free limits
 
-Approve resources, protected management credentials, preview runtime capabilities, editor
-bootstrap and budget before provisioning. Record real account limits; stop instead of
-upgrading or exceeding approved usage. No owner URL reuse or secret output.
-Check: reviewed handoff and bounded disposable provider capability spike before activation.
+Confirm native Preview-only connection, trusted-preview shared capabilities and private
+editor bootstrap before activation. Keep existing Free plan and retention; no invented
+PR caps, new management keys, paid upgrades or secret output.
+Check: recorded decision, safe source/role verification and actual account limits.

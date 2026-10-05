@@ -1,139 +1,105 @@
-# Full CMS automatic previews — decision for approval
+# Full CMS automatic previews — minimal decision
 
-The requested outcome is the entire functioning site, including editor login, uploads,
-drafts, publication and recovery, on every trusted PR preview. The 9914fd4 showcase is
-an interim artifact only and does not satisfy that outcome. Nothing here activates access.
+The requested outcome is a functioning site with editor login, uploads, drafts,
+publication and recovery on trusted PR previews. The 9914fd4 showcase is interim
+only. This document prepares a decision; it activates no provider access.
 
-## Current evidence
+## Recommendation: native integration first
 
-The studio-lunia Vercel Git integration works automatically. General Preview configuration
-has LUNIA_SHOWCASE=true; CMS secrets/flags still target the deleted hosted-cms-preview
-branch. The existing restricted runtime role has no schema CREATE permission. The app
-requires an exact configured branch, fixed CMS origin and approved email recipient. The
-private upload adapter requires a store read/write token to sign client upload receipts;
-its fixed preview-media prefix is not a provider-level boundary between PRs. PR5's block
-migration is local/CI verified, not hosted-applied. No old-site or production change is needed.
+Reuse the existing Vercel-managed Neon installation
+`icfg_Fm5d7qbto1ea4ozoIgeV58by` on its existing Free `free_v3` plan. Connect only
+studio-lunia Preview, with automatic database branching enabled. Keep normal Git
+preview deployments. Run committed Payload migrations before the application build,
+using the isolated preview branch connection and a database advisory lock. No new
+account, API management keys, GitHub provisioning controller or paid plan is needed.
 
-## Native discovery update
+Native inspection confirms Preview-only connection and automatic branching, but no
+parent/database/role selector. Before enabling full CMS, inspect the selected parent,
+database and injected role without displaying credentials. The source must contain
+only approved synthetic preview data, never old-site/customer data. If that cannot
+be established, stop and configure a suitable synthetic parent before proceeding.
 
-Native operator confirmed the existing Neon installation icfg_Fm5d7qbto1ea4ozoIgeV58by,
-plan free_v3, currently has no connected projects. Connect Project supports Preview-only
-connection and automatic database branching, but does not expose parent/database/role
-selection. No connection was saved. This is not evidence that injected credentials use
-lunia_runtime or the intended lunia_preview database. Do not commit the connection until
-those properties and migration/runtime separation are proven. If not supported, use the
-controlled API workflow below on the existing resource rather than a new account.
+The integration may supply an owner-capable database credential to both build and
+runtime. Accepting that on isolated synthetic previews is the smallest workable
+option: compromised preview code could alter/drop its preview database. It must not
+receive production connections or provider-management credentials. Restricted runtime
+roles plus separate migration orchestration remain an optional hardening step, not
+a requirement invented for this initial preview. Verify the actual role scope.
 
-## Recommendation
+Use one existing private preview-only Blob store and a stable namespace per Git
+branch. Enforce namespace ownership in upload signing, reads, updates and deletion,
+as well as existing editor/public visibility checks. This separates ordinary app
+access; the shared store token still permits trusted server code to access all
+preview objects. It is not a provider-enforced security boundary between hostile
+PRs. Separate stores are optional if that stronger boundary becomes necessary.
 
-Use one trusted orchestration workflow, not a new running service. Let it prepare one
-isolated preview environment per PR, then deploy the exact tested SHA to studio-lunia.
-Keep the approved editor's work across commits in that PR. Serialize updates per PR and
-use the existing advisory lock for migration. Check the current head again before deploy
-so a slower obsolete job cannot replace a newer preview. Migration failure retains the
-last working preview and reports a failed check, never a successful showcase substitute.
+## Small repository changes required
 
-1. Reuse the existing Vercel-managed Neon resource after approving project-level automation
-   access; create a synthetic preview template and an isolated database branch per PR.
-   Confirm the actual parent/database/role first; do not assume the Connect Project dialog
-   selects lunia_preview or lunia_runtime. Do not clone customer data or existing sessions.
-2. Provision one private Blob store/token per PR. Keep existing private adapter behavior;
-   no public bucket, shared store token or mere prefix masquerading as isolation.
-3. In a trusted control job, obtain an ephemeral branch-specific migration connection,
-   snapshot before changes, run committed migrations and verify restricted runtime grants.
-   Database management and migration credentials must never be injected into Vercel runtime.
-   PR code/migrations receive only their isolated DB capability in a separate process/job,
-   never project-management or deployment keys. Start with additive migrations; destructive
-   schema changes require an explicit reset/recovery decision while editing is quiesced.
-4. Seed approved synthetic content and exactly one editor idempotently. A one-time preview
-   editor credential is set by Axel through the protected setup path, never in chat/logs.
-   Preserve that editor's password/content on later commits; do not reopen first-user signup.
-   Generate a separate Payload signing secret per PR; clear inherited sessions/reset tokens.
-5. Set branch-scoped runtime DB, Blob, Payload and approved mail configuration using the
-   provider API, then deploy only after readiness. Set CMS origin to the actual trusted
-   branch alias returned by Vercel, never a guessed slug or caller-supplied Host header.
-   Ensure redirects, CSRF, draft preview and reset links all use that same origin.
-6. Keep the approved Resend sender/recipient allowlist for real reset delivery. Explicit
-   approval is needed to supply preview mail access to more trusted branches; no customer
-   recipients, invented domains or DNS changes. App-level recipient limits do not make a
-   stolen send key harmless, so only trusted code gets it; verify provider key scope.
-7. Verify login, real uploaded pixels, draft/public access, redeploy persistence and a
-   mailbox reset before calling the new mode accepted. Revoke and delete only manifest-
-   owned PR resources after the approved retention; never match resources by loose prefix.
+1. Replace the exact deleted-branch CMS gate with the verified Vercel Preview/project
+   context; retain production rejection and fork/untrusted-code protections.
+2. Add a preview build entrypoint: validate configuration, acquire a migration lock,
+   apply committed migrations, perform idempotent synthetic setup, then build. Use
+   the integration's direct connection for migrations and pooled connection at runtime
+   where available. The existing operator script is manual-only and cannot simply be
+   called unchanged: it requires explicit target/backup inputs and rejects reuse of
+   bootstrap when an editor exists.
+3. Choose a private one-time editor bootstrap or an approved synthetic template with
+   an existing preview editor. Preserve credentials/content on rebuild; do not add a
+   seed password to every deployment or reopen public first-user registration.
+4. Derive the canonical origin from trusted Vercel deployment metadata, verifying the
+   actual branch URL; use it consistently for CSRF, draft preview and reset links.
+   Replace the hard-coded legacy origin and fixed Blob prefix with branch configuration.
+5. Enable CMS and approved preview-only Payload/Blob/mail settings for trusted Preview
+   deployments, then remove showcase as the default. Keep the existing approved mail
+   recipient restriction. Sharing mail/Payload/Blob capabilities across these previews
+   is an explicit access decision, not implicit authorization to read their values.
+6. Test two branches, rebuild persistence, login, real uploads, private/public denial,
+   draft/publish and actual reset delivery. A failed migration must fail the deployment,
+   never silently substitute a showcase. Start with additive migrations: old deployment
+   URLs on one Git branch may share its database, so incompatible changes require review.
 
-A DB per PR removes cross-PR schema races. Old deployment URLs in the same PR are not
-immutable database snapshots; additive migrations preserve compatibility. If future
-requirements demand arbitrary incompatible historical versions, use per-deployment DB
-snapshots explicitly rather than pretending a lock solves schema compatibility.
+An advisory lock prevents simultaneous schema mutation; it does not solve incompatible
+old/new schemas or guarantee latest-commit promotion. Verify Vercel superseded-build
+behavior with two quick commits before claiming automatic previews accepted.
 
-## Why not simply enable the Neon integration?
+## Exact decision and access handoff
 
-The current [Vercel-managed Neon integration](https://raw.githubusercontent.com/neondatabase/website/main/content/docs/guides/vercel-managed-integration.md)
-can create preview branches and inject pooled/unpooled URLs before deployment. It recommends
-build-time migrations, but does not document the migration-versus-runtime privilege split
-required here. It cannot coexist with the Neon-managed integration in the same Vercel project.
-The [Neon-managed alternative](https://raw.githubusercontent.com/neondatabase/website/main/content/docs/guides/neon-managed-vercel-integration.md)
-allows role selection, but changing integration ownership is unnecessary scope and still
-requires migration orchestration. Do not enable either on top of the existing manually
-restricted DATABASE_URL until a bounded disposable spike proves selected roles, injected
-variables, branch reuse, ordering and cleanup. No unsupported native capability is assumed.
-[Cleanup is tied to deployment retention](https://raw.githubusercontent.com/neondatabase/website/main/content/docs/guides/vercel-branch-cleanup.md),
-not necessarily PR closure, and retention exceptions can keep branches indefinitely.
-A controller offers explicit sequencing, restricted runtime and deterministic cleanup.
+Approve the existing Neon connection to studio-lunia **Preview only**, automatic
+branch creation, and migrations with the native injected role even if it is owner-
+capable within the synthetic preview branch. Approve trusted previews sharing the
+existing private preview Blob token, Payload signing secret and restricted preview
+mail capability. This exposes those shared preview capabilities to trusted preview
+server code; it grants no production access. Forks/unreviewed external code must not
+receive them. The native operator supplies settings privately through provider UI;
+no secret values are requested in chat, exported or committed.
 
-## Exact approval and handoff bundle
+Also choose the one-time editor bootstrap/template route privately. The source branch
+and selected database must be identified before migrations, so an accidental default
+production parent cannot be treated as safe merely because Preview is selected.
 
-- **Resource authority:** reuse the existing Neon project with a synthetic preview template
-  and up to three active PR database branches; create/delete private Blob stores for those PRs. Existing Neon/Blob
-  legacy preview data are excluded from controller operations, but a Neon project-level key
-  can technically access other branches in that project; that scope must be disclosed.
-- **Control credentials:** a Neon project-scoped API key if supported by this Vercel-managed
-  account, plus the narrowest available Vercel deployment/environment/Blob management access.
-  If the available token is team-wide, disclose that scope and obtain explicit approval;
-  do not claim a project-ID check in code limits the token's actual authority.
-- **Protected automation:** store these only in a protected GitHub environment (or existing
-  approved secret store). A trusted workflow revision owns provisioning and cleanup. Forks,
-  unreviewed workflow edits and arbitrary PR input never receive management keys. Running
-  npm scripts from a PR with management keys in the environment is explicitly prohibited.
-- **Application access:** permit only the matching trusted PR deployment to receive its
-  restricted DB credential, private store token, Payload secret and approved send-only mail
-  capability. This is new branch access and needs approval; no existing secrets are read or
-  copied into chat, local .env, CI artifacts or command arguments.
-- **Bootstrap:** privately provide the approved preview-editor setup input once, or approve
-  a one-time invitation/reset bootstrap. Preserve credentials thereafter. Existing editor
-  passwords cannot be inferred or exported from another preview.
-- **Lifecycle/budget:** proposed max three active PRs, synthetic uploads <=100 MB per PR,
-  scale-to-zero, cleanup seven days after PR close, preserve open PR data. No paid upgrades,
-  trials or overage. Fail visibly at the cap instead of deleting active work or incurring spend.
-- **Deployment authority:** replace the direct full-CMS Git build trigger with the gated
-  automatic pipeline once tested, avoiding duplicate/racing deploys. Preview only, no merge,
-  old-site changes, production credentials or domain changes. CI workflow installation on
-  its trusted event/default branch still needs a reviewed merge by Axel; do not silently
-  install privileged pull_request_target execution of PR code.
+Keep current Free limits and provider retention: native inspection reports 10 database
+branches and no automatic paid overage, with default preview retention of 30 days.
+No three-active-PR cap, seven-day deletion policy or per-PR Blob store is imposed.
+Provider cleanup has retention exceptions; surface branch exhaustion and request cleanup
+of reviewed disposable previews rather than deleting active work or upgrading. Existing
+Blob, email and build usage still counts against account limits. No paid purchases,
+production deployment, old-site settings or domain changes are authorized.
 
-Provider values are handed off privately by Axel/native setup. The agent receives only
-resource IDs, scope metadata and success/failure. No old owner URL is reused.
+## Evidence and alternative
 
-## Cost envelope — primary docs checked 2026-10-05
+The [native integration documentation](https://raw.githubusercontent.com/neondatabase/website/main/content/docs/guides/vercel-managed-integration.md)
+describes automatic preview branches and pooled/direct variables supplied before builds.
+[Cleanup documentation](https://raw.githubusercontent.com/neondatabase/website/main/content/docs/guides/vercel-branch-cleanup.md)
+explains branch reuse per Git branch and deployment-retention-based cleanup, including
+exceptions; PR closure alone does not guarantee immediate deletion.
+[Neon Free limits](https://raw.githubusercontent.com/neondatabase/website/main/content/docs/introduction/plans.md)
+and [Blob usage](https://vercel.com/docs/vercel-blob/usage-and-pricing) support a bounded
+free preview setup, not an unlimited-use promise. Verify actual account consumption.
 
-[Neon plans](https://raw.githubusercontent.com/neondatabase/website/main/content/docs/introduction/plans.md)
-list Free at $0, 10 branches/project, 100 CU-hours/project/month and 1 GB DB storage/project.
-Three PRs using 0.25 CU for 20 active hours each would total 15 CU-hours, excluding template
-and other use. This is an example, not a guarantee. Launch lists $0.106/CU-hour,
-$0.35/GB-month and $1.50 per excess branch-month. Confirm actual Marketplace allowances;
-no plan change is approved and integration-level plan changes may affect other databases.
+A custom workflow would enable restricted runtime roles and stronger per-PR capabilities,
+but adds management keys, provisioning, cleanup and deployment coordination. Defer it
+unless the native setup cannot select a safe synthetic source, or Axel requires stronger
+isolation between trusted previews. The earlier controller-first proposal is superseded.
 
-[Blob pricing](https://vercel.com/docs/vercel-blob/usage-and-pricing) lists Hobby allowances
-of 1 GB storage, 10 GB transfer, 10,000 simple and 2,000 advanced operations. Store count
-itself is not the storage charge; creation counts as an operation. Private reads also use
-function/CDN delivery. [Resend Free](https://resend.com/pricing) lists 3,000 emails/month,
-100/day. Existing account usage, Vercel builds/functions and GitHub Actions must be included.
-A $0 incremental target is plausible within verified free allowances, not a promised
-unlimited full-CMS service. Stop for a separate budget decision if capacity is insufficient.
-
-## Safe preparation versus activation
-
-This decision and spec 005 are repository preparation only. No active workflow, connection,
-credential, migration, resource deletion or production change has been made. Next is the
-approval/handoff above and a disposable provider spike, followed by tested automation and
-an exact-head full-CMS acceptance run. Spec002 acceptance gaps remain independent and open.
+No provider connection, credential scope, deployed code or live-site setting was changed
+by this document. Spec002's outstanding hosted acceptance evidence remains open.
