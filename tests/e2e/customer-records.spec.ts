@@ -118,6 +118,15 @@ test('staff can propose, confirm and record money with visible dated history on 
   const link = page.getByRole('link', { name: 'Open booking proposal' })
   await expect(link).toBeVisible()
   bookingID = Number((await link.getAttribute('href'))!.split('/').at(-1))
+  const repeated = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/customer-records') && response.request().method() === 'POST',
+  )
+  await page.getByRole('button', { name: 'Create booking proposal', exact: true }).click()
+  expect((await repeated).ok()).toBe(true)
+  expect(
+    (await (await editor.get(`/api/customer-records?contact=${contactID}`)).json()).bookings,
+  ).toHaveLength(1)
   await link.click()
   await expect(page.getByRole('heading', { name: 'Booking actions', exact: true })).toBeVisible()
   await page.getByLabel('Booking status', { exact: true }).selectOption('confirmed')

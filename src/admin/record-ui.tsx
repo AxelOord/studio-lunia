@@ -24,7 +24,8 @@ export function useRecordAction() {
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Could not confirm this action.')
-      pending.current = undefined
+      // Keep the completed identity too: a second click on unchanged details
+      // must return the same result, even after the first response arrived.
       setMessage(
         data.status
           ? `Email status: ${data.status}.`

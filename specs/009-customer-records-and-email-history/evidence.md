@@ -29,12 +29,18 @@ Develop was re-fetched at 7f3f2264e927c47d64362ddfe2b2b8fb04733303.
 
 Browser QA found and corrected select names that included their option text, incorrect
 old Payload theme tokens and stale duplicate native booking status fields. Tests now assert
-explicit accessible names and actual panel border styling. Private JSON snapshots use an
+explicit accessible names and actual panel border styling. Repeating a completed proposal action with unchanged details retains its operation key.
+The browser regression verifies one booking after both responses; the final full browser
+suite passes all 18 tests in 45.2 seconds. Aggregate checks/build/format also pass. Private JSON snapshots use an
 inert local display instead of loading a remote code editor. Screenshots scroll the email
 iframe into view before capture so its rendered content is visible. A legacy block-editor
 insertion timeout occurred during concurrent test load; the final full browser rerun without
-other browser jobs passes all 18 tests in 44.8 seconds. No timeout allowance was raised.
+other browser jobs passed all 18 tests; the later duplicate-action regression run also passes. No timeout allowance was raised.
 
 Remote CI, automatic full-CMS preview, hosted staff journey and GitHub Development links
 remain pending until the draft PR is available. Live Resend callbacks remain disabled because
 a narrowly approved ingress is unavailable; customer mail activation remains separate.
+
+Repeated local browser runs exhausted the persisted local-only enquiry IP counter, correctly
+returning 429. Resetting only that local test counter allowed the final 18/18 run; production
+limits and test timeouts were not changed. CI uses its fresh database.
