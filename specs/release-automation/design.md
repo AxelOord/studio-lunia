@@ -43,8 +43,9 @@ permission, repository-wide write default, automatic merging, or production depl
 
 ## Project adapter
 
-Require explicit Project ID/URL, Status field ID and Development done/Done option IDs.
-Read back and validate their exact identities/names before any mutation. Inventory all
+Require the approved owner and project number. Resolve the private Project and its
+Status field/Development done/Done option IDs through a read-only query after credential
+approval; validate the returned URL and exact names before any mutation. Inventory all
 Project items with pagination, explicitly including archived items; fail on truncated
 inventories, foreign issue identity, ambiguous membership or archived target items.
 Only same-repository issues already selected by the lifecycle logic are updated. Add a
@@ -57,11 +58,13 @@ No issue label calls exist. Missing/expired credentials or wrong fields fail clo
 
 The native provider worker must perform and verify setup only after explicit approval:
 
-1. Identify/create the approved user-owned Project and link studio-lunia. Configure a
-   Status field with exact options Development done and Done, preserving other options.
-   Record actual IDs/URL; no guessed IDs. Confirm board-native automations do not mark
-   development merges Done or close issues before verified publication.
-2. Create/configure environment `project-status`, permitting only develop and master.
+1. Native setup has reported the private board at
+   https://github.com/users/AxelOord/projects/1/views/1 with exact Status options Backlog,
+   In progress, In review, Development done and Done. It also reports native premature
+   closing/PR-merge→Done workflows disabled and repository-scoped open-issue import.
+   Preserve those settings. After credential approval, read owner AxelOord/project1 to
+   resolve actual IDs; never guess opaque IDs or require exposing the credential to do so.
+2. Create/configure environment `project-status`, permitting only the develop and master branches (not tags).
    The selected personal owner needs a separately approved classic PAT with **project**
    scope for Project reads/writes. `read:project` alone cannot update statuses. Do not
    add repo, workflow, admin, user or other scopes for this public repository. An org
@@ -77,9 +80,10 @@ The native provider worker must perform and verify setup only after explicit app
    an application restriction, not a credential-level scope. Explicitly approve that
    residual access. Keep protected branches/trusted workflow review and environment
    branch restrictions; possession of the credential permits broader Project writes.
-5. Set non-secret repository variables from verified provider data:
-   LUNIA_PROJECT_ID, LUNIA_PROJECT_URL, LUNIA_PROJECT_STATUS_FIELD_ID,
-   LUNIA_PROJECT_DEVELOPMENT_DONE_ID, LUNIA_PROJECT_DONE_ID.
+5. Set only these non-secret repository selectors:
+   LUNIA_PROJECT_OWNER=AxelOord and LUNIA_PROJECT_NUMBER=1.
+   The adapter resolves/validates Project/field/option IDs on each run. Missing access,
+   missing/renamed status options, wrong URL, or ambiguous fields stop before writes.
 6. Configure `release-automation`: master only and required maintainer approval.
    Verify effective protections before enabling. Plan/tier limitations are a blocker,
    not permission to use an unprotected environment. Project credential stays in the
