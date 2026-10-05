@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { Client } from 'pg'
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test'
 
 let editor: APIRequestContext
@@ -47,8 +48,22 @@ test.afterAll(async () => {
     const result = await editor.get(
       `/api/enquiries?where[email][equals]=${encodeURIComponent(email)}`,
     )
-    for (const doc of (await result.json()).docs ?? [])
-      await editor.delete(`/api/enquiries/${doc.id}`)
+    const source = new URL(process.env.DATABASE_URL!)
+    expect(['localhost', '127.0.0.1']).toContain(source.hostname)
+    const db = new Client({ connectionString: source.href })
+    await db.connect()
+    try {
+      for (const doc of (await result.json()).docs ?? []) {
+        await db.query('DELETE FROM customer_activities WHERE enquiry_id = $1', [doc.id])
+        await db.query('DELETE FROM email_messages WHERE enquiry_id = $1', [doc.id])
+        const deleted = await db.query('DELETE FROM enquiries WHERE id = $1 RETURNING contact_id', [
+          doc.id,
+        ])
+        await db.query('DELETE FROM contacts WHERE id = $1', [deleted.rows[0]?.contact_id])
+      }
+    } finally {
+      await db.end()
+    }
   }
   if (pageId) await editor.delete(`/api/pages/${pageId}`)
   await editor.dispose()

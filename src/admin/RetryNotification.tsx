@@ -5,7 +5,7 @@ import { useState } from 'react'
 export function RetryNotification() {
   const { id } = useDocumentInfo()
   const [message, setMessage] = useState(
-    'Failed or interrupted notifications can be retried up to three times within 23 hours. Otherwise follow up manually. Accepted means provider acceptance, not verified delivery. Visitor email is never sent in preview.',
+    'Failed or interrupted notifications can be retried up to three times within 23 hours of the first attempt. Older notifications without a frozen snapshot require manual review. Otherwise follow up manually. Accepted means provider acceptance, not verified delivery. Visitor email is never sent in preview.',
   )
   const [busy, setBusy] = useState(false)
   return (

@@ -45,8 +45,27 @@ before(async () => {
   service = (await publishedServices(payload)).find((s) => s.id.startsWith(`${pageId}:`))!.id
 })
 after(async () => {
-  for (const id of new Set(leads))
+  for (const id of new Set(leads)) {
+    const lead = await payload.findByID({
+      collection: 'enquiries',
+      id,
+      depth: 0,
+      overrideAccess: true,
+    })
+    await payload.delete({
+      collection: 'customer-activities',
+      where: { enquiry: { equals: id } },
+      overrideAccess: true,
+    })
+    await payload.delete({
+      collection: 'email-messages',
+      where: { enquiry: { equals: id } },
+      overrideAccess: true,
+    })
     await payload.delete({ collection: 'enquiries', id, overrideAccess: true })
+    if (typeof lead.contact === 'number')
+      await payload.delete({ collection: 'contacts', id: lead.contact, overrideAccess: true })
+  }
   if (pageId) await payload.delete({ collection: 'pages', id: pageId, overrideAccess: true })
   const pool = payload.db.pool
   await payload.destroy()
@@ -155,11 +174,11 @@ test('notification failure is durable; retries use same safe payload/key and con
         sent.push(options!)
         return new Response('{}', { status: 500 })
       }),
-      'failed',
+      'uncertain',
     )
     const retry = async (_url: string | URL | Request, options?: RequestInit) => {
       sent.push(options!)
-      return new Response('{}')
+      return Response.json({ id: `synthetic-enquiry-${id}-provider-id` })
     }
     const results = await Promise.all([
       notifyPhotographer(payload, id, retry),
@@ -180,7 +199,7 @@ test('notification failure is durable; retries use same safe payload/key and con
     assert.equal(doc.notificationStatus, 'accepted')
     assert.equal(doc.notificationAttempts, 2)
     await payload.db.pool.query(
-      "UPDATE enquiries SET notification_status = 'failed', created_at = now() - interval '24 hours' WHERE id = $1",
+      "UPDATE email_messages SET status = 'uncertain', first_attempt_at = now() - interval '24 hours' WHERE enquiry_id = $1",
       [id],
     )
     await notifyPhotographer(payload, id, retry)

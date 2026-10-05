@@ -97,3 +97,11 @@ No optional tracking runs by default. Separate choices control campaign storage 
 measurement. No browser analytics SDK or replay is installed. The PostHog EU capture API
 is disabled until the exact project, access and terms are approved and provider variables
 are configured securely. Local fake-provider tests do not prove hosted measurement.
+
+## Private customer records
+
+Staff can link contacts/enquiries, record booking proposals and status changes, and maintain
+manual payment/refund history. Approved email templates provide desktop/mobile preview and
+immutable private drafts; sandbox tests use synthetic content and the own-editor recipient.
+Customer mail and live delivery callbacks remain gated. See
+[the records and email runbook](docs/customer-records-and-email.md).
