@@ -28,13 +28,32 @@ test('editor can log in, view admin and preview a private draft', async ({ page,
     data: { email: process.env.SEED_EMAIL, password: process.env.SEED_PASSWORD },
   })
   expect(response.ok()).toBe(true)
+  const upload = await request.post('/api/media', {
+    multipart: {
+      _payload: JSON.stringify({ alt: 'Private draft photograph', visibility: 'private' }),
+      file: {
+        name: `draft-${Date.now()}.png`,
+        mimeType: 'image/png',
+        buffer: await sharp({
+          create: { width: 1800, height: 1200, channels: 3, background: '#65745a' },
+        })
+          .png()
+          .toBuffer(),
+      },
+    },
+  })
+  expect(upload.ok()).toBe(true)
+  const { doc: media } = await upload.json()
   const slug = `preview-${Date.now()}`
   const created = await request.post('/api/pages', {
     data: {
       title: 'Synthetic draft',
       slug,
       description: 'Preview test',
-      layout: [{ blockType: 'hero', heading: 'Private preview heading' }],
+      layout: [
+        { blockType: 'hero', heading: 'Private preview heading', image: media.id },
+        { blockType: 'gallery', heading: 'Private gallery', images: [{ image: media.id }] },
+      ],
       _status: 'draft',
     },
   })
@@ -47,14 +66,45 @@ test('editor can log in, view admin and preview a private draft', async ({ page,
     await page.screenshot({ path: 'test-results/admin.png', fullPage: true })
     const anonymous = await page.request.get(`/${slug}`)
     expect(anonymous.status()).toBe(404)
-    await page.goto(`/preview?slug=${slug}`)
+    const preview = await page.goto(`/preview?slug=${slug}`)
+    expect(preview!.headers()['cache-control']).toContain('no-store')
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Private preview heading')
+    const photographs = page.getByRole('img', { name: 'Private draft photograph' })
+    await expect(photographs).toHaveCount(2)
+    for (const photograph of await photographs.all()) {
+      await expect(photograph).toBeVisible()
+      await expect
+        .poll(() => photograph.evaluate((img: HTMLImageElement) => img.naturalWidth))
+        .toBeGreaterThan(0)
+      const imageResponse = await page.request.get((await photograph.getAttribute('src'))!)
+      expect(imageResponse.ok()).toBe(true)
+      expect(imageResponse.headers()['cache-control']).toContain('no-store')
+    }
     await page.screenshot({ path: 'test-results/draft-preview.png', fullPage: true })
-    await page.context().clearCookies()
+    // Preserve the draft cookie but remove editor auth: draft mode alone must grant nothing.
+    await page.context().clearCookies({ name: 'payload-token' })
     await page.goto(`/${slug}`)
     await expect(page.getByRole('heading', { level: 1 })).not.toHaveText('Private preview heading')
+    await expect(photographs).toHaveCount(0)
+    for (const url of [media.url, media.sizes.card.url, media.sizes.hero.url]) {
+      const path = new URL(url, 'http://127.0.0.1:3000').pathname
+      expect([401, 403, 404]).toContain((await page.request.get(path)).status())
+      expect(
+        (await page.request.get(`/_next/image?url=${encodeURIComponent(path)}&w=640&q=75`)).ok(),
+      ).toBe(false)
+    }
+    await page.context().clearCookies()
+    // A published page does not implicitly publish its private media.
+    expect(
+      (await request.patch(`/api/pages/${doc.id}`, { data: { _status: 'published' } })).ok(),
+    ).toBe(true)
+    await page.goto(`/${slug}`)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Private preview heading')
+    await expect(photographs).toHaveCount(0)
+    expect(await page.content()).not.toContain(media.filename)
   } finally {
     await request.delete(`/api/pages/${doc.id}`)
+    await request.delete(`/api/media/${media.id}`)
   }
 })
 
@@ -89,6 +139,15 @@ test('private upload URLs are protected and public derivatives render', async ({
     )
     expect(publicFile.ok()).toBe(true)
     expect(publicFile.headers()['content-type']).toContain('image/')
+    expect(publicFile.headers()['cache-control']).toContain('no-store')
+    const path = new URL(doc.sizes.card.url, 'http://127.0.0.1:3000').pathname
+    expect(
+      (await anonymous.get(`/_next/image?url=${encodeURIComponent(path)}&w=640&q=75`)).ok(),
+    ).toBe(false)
+    expect(
+      (await request.patch(`/api/media/${doc.id}`, { data: { visibility: 'private' } })).ok(),
+    ).toBe(true)
+    expect([401, 403, 404]).toContain((await anonymous.get(path)).status())
   } finally {
     await request.delete(`/api/media/${doc.id}`)
     await anonymous.dispose()

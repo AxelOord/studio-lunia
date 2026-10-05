@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation'
 import { samplePage } from './sample'
 
 export async function getPage(slug: string) {
-  if (process.env.LUNIA_SHOWCASE === 'true') return slug === 'home' ? samplePage : notFound()
+  if (process.env.LUNIA_SHOWCASE === 'true')
+    return slug === 'home' ? { page: samplePage, editorPreview: false } : notFound()
   const [{ getPayload }, { default: config }] = await Promise.all([
     import('payload'),
     import('@payload-config'),
@@ -22,5 +23,6 @@ export async function getPage(slug: string) {
     limit: 1,
     depth: 2,
   })
-  return docs[0] ?? notFound()
+  // Only this authenticated server path can allow private media in the renderer.
+  return { page: docs[0] ?? notFound(), editorPreview: preview && Boolean(user) }
 }
