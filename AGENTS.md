@@ -28,4 +28,6 @@ Use Conventional Commits for new commits and PR titles (for example `feat: add a
 `npm ci` installs hooks; pre-commit checks staged formatting/lint only. Fix failures
 and restage intended hunks; never advance `.commit-policy.json` to bypass validation.
 Keep ticket links, verification results and the exact preview in PR descriptions.
-Versioning/status behavior in specs/commit-workflow/release-plan.md is a proposal only.
+Use Completed issues metadata only for fully completed acceptance; never use closing
+keywords in commits. Release implementation/activation is tracked in
+specs/release-automation; its draft does not authorize provider write activation.

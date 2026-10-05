@@ -21,7 +21,7 @@
     "test:integration": "tsx --test tests/integration/*.test.ts",
     "test:e2e": "playwright test",
     "spec:check": "python3 scripts/specflow.py check --ready",
-    "check": "npm run spec:check && npm run lint && npm run typecheck && npm test && npm run test:workflow",
+    "check": "npm run spec:check && npm run lint && npm run typecheck && npm test && npm run test:workflow && npm run test:release",
     "postinstall": "patch-package",
     "test:workflow": "python3 -m unittest discover -s tests -p 'test_*.py' -v",
     "test:showcase": "node scripts/check-showcase.mjs",
@@ -35,7 +35,9 @@
     "prepare": "node .husky/install.mjs",
     "staged:check": "lint-staged",
     "commit:check": "node scripts/check-commits.mjs",
-    "test:hooks": "node --import tsx --test tests/commit-workflow.test.ts"
+    "test:hooks": "node --import tsx --test tests/commit-workflow.test.ts",
+    "release:prepare": "node scripts/prepare-release.mjs",
+    "test:release": "node --test tests/release-automation.test.mjs"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "4.0.0-canary.37",
