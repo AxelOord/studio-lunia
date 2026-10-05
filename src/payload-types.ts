@@ -71,6 +71,12 @@ export interface Config {
     media: Media;
     pages: Page;
     enquiries: Enquiry;
+    contacts: Contact;
+    bookings: Booking;
+    'revenue-entries': RevenueEntry;
+    'customer-activities': CustomerActivity;
+    'email-templates': EmailTemplate;
+    'email-messages': EmailMessage;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -82,6 +88,12 @@ export interface Config {
     media: MediaSelect<false> | MediaSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
     enquiries: EnquiriesSelect<false> | EnquiriesSelect<true>;
+    contacts: ContactsSelect<false> | ContactsSelect<true>;
+    bookings: BookingsSelect<false> | BookingsSelect<true>;
+    'revenue-entries': RevenueEntriesSelect<false> | RevenueEntriesSelect<true>;
+    'customer-activities': CustomerActivitiesSelect<false> | CustomerActivitiesSelect<true>;
+    'email-templates': EmailTemplatesSelect<false> | EmailTemplatesSelect<true>;
+    'email-messages': EmailMessagesSelect<false> | EmailMessagesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -319,6 +331,10 @@ export interface CallToActionBlock {
  */
 export interface Enquiry {
   id: number;
+  /**
+   * Link to an existing contact only after checking identity. Matching email alone is not sufficient.
+   */
+  contact?: (number | null) | Contact;
   serviceId: string;
   serviceTitle: string;
   name: string;
@@ -345,6 +361,200 @@ export interface Enquiry {
   notificationStatus: 'pending' | 'sending' | 'accepted' | 'failed' | 'disabled' | 'manual';
   notificationAttempts: number;
   notificationAttemptedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Private contact records. Matching email addresses are not automatically merged.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "contacts".
+ */
+export interface Contact {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string | null;
+  /**
+   * Private operational notes. Do not record sensitive personal information.
+   */
+  notes?: string | null;
+  sourceKey?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Staff-led proposals and confirmed records. No calendar capacity or online payment is created.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "bookings".
+ */
+export interface Booking {
+  id: number;
+  title: string;
+  contact: number | Contact;
+  enquiry: number | Enquiry;
+  source: 'staff_enquiry';
+  status: 'proposed' | 'confirmed' | 'completed' | 'cancelled';
+  sessionAt?: string | null;
+  /**
+   * Expected value in minor currency units. Separate from money actually recorded.
+   */
+  expectedMinor: number;
+  currency: string;
+  attribution:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Manual records only. Corrections append a reversal and replacement; no payment provider is called.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "revenue-entries".
+ */
+export interface RevenueEntry {
+  id: number;
+  label: string;
+  booking: number | Booking;
+  contact: number | Contact;
+  kind: 'payment' | 'refund' | 'reversal';
+  amountMinor: number;
+  currency: string;
+  reverses?: (number | null) | RevenueEntry;
+  occurredAt: string;
+  reason: string;
+  actor?: (number | null) | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Dated private facts. Staff-reported replies are not an imported mailbox.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "customer-activities".
+ */
+export interface CustomerActivity {
+  id: number;
+  contact: number | Contact;
+  enquiry?: (number | null) | Enquiry;
+  booking?: (number | null) | Booking;
+  emailMessage?: (number | null) | EmailMessage;
+  actor?: (number | null) | User;
+  kind: string;
+  summary: string;
+  source: 'website' | 'staff' | 'provider' | 'migration' | 'system';
+  occurredAt: string;
+  details?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Exact frozen content. Drafts are not scheduled; accepted is not delivered, and delivered is not read.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-messages".
+ */
+export interface EmailMessage {
+  id: number;
+  contact: number | Contact;
+  enquiry?: (number | null) | Enquiry;
+  booking?: (number | null) | Booking;
+  template?: (number | null) | EmailTemplate;
+  kind: 'customer_draft' | 'sandbox_test' | 'photographer_notification';
+  status:
+    | 'draft'
+    | 'queued'
+    | 'sending'
+    | 'accepted'
+    | 'delayed'
+    | 'delivered'
+    | 'bounced'
+    | 'failed'
+    | 'uncertain'
+    | 'manual'
+    | 'disabled';
+  subject: string;
+  text: string;
+  html: string;
+  variables:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  templateSnapshot:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  recipient: string;
+  sender?: string | null;
+  providerPayload?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  idempotencyKey?: string | null;
+  notificationKey?: string | null;
+  providerId?: string | null;
+  attempts: number;
+  firstAttemptAt?: string | null;
+  lastAttemptAt?: string | null;
+  acceptedAt?: string | null;
+  deliveredAt?: string | null;
+  /**
+   * Safe category only; arbitrary provider responses are not stored.
+   */
+  failureCode?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Preview/edit never sends. Approval is for the wording; real-customer delivery remains disabled.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-templates".
+ */
+export interface EmailTemplate {
+  id: number;
+  name: string;
+  kind: 'enquiry' | 'booking' | 'follow_up';
+  subject: string;
+  /**
+   * Plain text with allowed variables. HTML and external assets are not interpreted.
+   */
+  body: string;
+  /**
+   * I have reviewed this wording. Changing approved content clears approval. Save the change, review it, then approve again.
+   */
+  approved?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -387,6 +597,30 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'enquiries';
         value: number | Enquiry;
+      } | null)
+    | ({
+        relationTo: 'contacts';
+        value: number | Contact;
+      } | null)
+    | ({
+        relationTo: 'bookings';
+        value: number | Booking;
+      } | null)
+    | ({
+        relationTo: 'revenue-entries';
+        value: number | RevenueEntry;
+      } | null)
+    | ({
+        relationTo: 'customer-activities';
+        value: number | CustomerActivity;
+      } | null)
+    | ({
+        relationTo: 'email-templates';
+        value: number | EmailTemplate;
+      } | null)
+    | ({
+        relationTo: 'email-messages';
+        value: number | EmailMessage;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -603,6 +837,7 @@ export interface CallToActionBlockSelect<T extends boolean = true> {
  * via the `definition` "enquiries_select".
  */
 export interface EnquiriesSelect<T extends boolean = true> {
+  contact?: T;
   serviceId?: T;
   serviceTitle?: T;
   name?: T;
@@ -615,6 +850,116 @@ export interface EnquiriesSelect<T extends boolean = true> {
   notificationStatus?: T;
   notificationAttempts?: T;
   notificationAttemptedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "contacts_select".
+ */
+export interface ContactsSelect<T extends boolean = true> {
+  name?: T;
+  email?: T;
+  phone?: T;
+  notes?: T;
+  sourceKey?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "bookings_select".
+ */
+export interface BookingsSelect<T extends boolean = true> {
+  title?: T;
+  contact?: T;
+  enquiry?: T;
+  source?: T;
+  status?: T;
+  sessionAt?: T;
+  expectedMinor?: T;
+  currency?: T;
+  attribution?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "revenue-entries_select".
+ */
+export interface RevenueEntriesSelect<T extends boolean = true> {
+  label?: T;
+  booking?: T;
+  contact?: T;
+  kind?: T;
+  amountMinor?: T;
+  currency?: T;
+  reverses?: T;
+  occurredAt?: T;
+  reason?: T;
+  actor?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "customer-activities_select".
+ */
+export interface CustomerActivitiesSelect<T extends boolean = true> {
+  contact?: T;
+  enquiry?: T;
+  booking?: T;
+  emailMessage?: T;
+  actor?: T;
+  kind?: T;
+  summary?: T;
+  source?: T;
+  occurredAt?: T;
+  details?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-templates_select".
+ */
+export interface EmailTemplatesSelect<T extends boolean = true> {
+  name?: T;
+  kind?: T;
+  subject?: T;
+  body?: T;
+  approved?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-messages_select".
+ */
+export interface EmailMessagesSelect<T extends boolean = true> {
+  contact?: T;
+  enquiry?: T;
+  booking?: T;
+  template?: T;
+  kind?: T;
+  status?: T;
+  subject?: T;
+  text?: T;
+  html?: T;
+  variables?: T;
+  templateSnapshot?: T;
+  recipient?: T;
+  sender?: T;
+  providerPayload?: T;
+  idempotencyKey?: T;
+  notificationKey?: T;
+  providerId?: T;
+  attempts?: T;
+  firstAttemptAt?: T;
+  lastAttemptAt?: T;
+  acceptedAt?: T;
+  deliveredAt?: T;
+  failureCode?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -675,7 +1020,17 @@ export interface CollectionsWidget {
 export interface CollectionQueryWidget {
   data?: {
     title?: string | null;
-    relatedCollection: 'users' | 'media' | 'pages' | 'enquiries';
+    relatedCollection:
+      | 'users'
+      | 'media'
+      | 'pages'
+      | 'enquiries'
+      | 'contacts'
+      | 'bookings'
+      | 'revenue-entries'
+      | 'customer-activities'
+      | 'email-templates'
+      | 'email-messages';
     where?:
       | {
           [k: string]: unknown;
@@ -697,7 +1052,20 @@ export interface CollectionQueryWidget {
  */
 export interface ActivityWidget {
   data?: {
-    excludedCollections?: ('users' | 'media' | 'pages' | 'enquiries')[] | null;
+    excludedCollections?:
+      | (
+          | 'users'
+          | 'media'
+          | 'pages'
+          | 'enquiries'
+          | 'contacts'
+          | 'bookings'
+          | 'revenue-entries'
+          | 'customer-activities'
+          | 'email-templates'
+          | 'email-messages'
+        )[]
+      | null;
   };
   width: 'x-small' | 'small' | 'medium' | 'large' | 'x-large' | 'full';
 }

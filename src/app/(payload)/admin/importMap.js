@@ -1,6 +1,13 @@
 import { BlockRowLabel as BlockRowLabel_e606c46d8585f35c933fb31ab8c2be1c } from '../../../admin/RowLabels'
 import { ServiceRowLabel as ServiceRowLabel_e606c46d8585f35c933fb31ab8c2be1c } from '../../../admin/RowLabels'
+import { PrivateJSON as PrivateJSON_4bcb3319909fb7fdc04524ac94179ab0 } from '../../../admin/PrivateJSON'
 import { RetryNotification as RetryNotification_12359722ec863cf5921f64cebba9445e } from '../../../admin/RetryNotification'
+import { EnquiryActions as EnquiryActions_41b951e79593ef167d643ad95130f23c } from '../../../admin/EnquiryActions'
+import { CustomerTimeline as CustomerTimeline_8feaf72022b7c55aeda97efd50a72eb9 } from '../../../admin/CustomerTimeline'
+import { CustomerFilters as CustomerFilters_2277735b5b888f83d5ecf23c6b83125b } from '../../../admin/CustomerFilters'
+import { BookingActions as BookingActions_82e298f241c3734ca5c7428bf86f74b9 } from '../../../admin/BookingActions'
+import { EmailTemplatePreview as EmailTemplatePreview_dde83d8c56338e578fe952263220369f } from '../../../admin/EmailTemplatePreview'
+import { EmailMessagePreview as EmailMessagePreview_eb2bf6b96e24a50e49fc617c6341dc2b } from '../../../admin/EmailMessagePreview'
 import { PrivateBlobUpload as PrivateBlobUpload_3576928557a248601e2a25bcf9a88a28 } from '../../../hosting/PrivateBlobUpload'
 import { CollectionCards as CollectionCards_ab83ff7e88da8d3530831f296ec4756a } from '@payloadcms/ui/rsc'
 import { CollectionQueryWidget as CollectionQueryWidget_ab83ff7e88da8d3530831f296ec4756a } from '@payloadcms/ui/rsc'
@@ -13,7 +20,14 @@ import { RecentlyViewedCollectionsField as RecentlyViewedCollectionsField_3817bf
 export const importMap = {
   "./admin/RowLabels#BlockRowLabel": BlockRowLabel_e606c46d8585f35c933fb31ab8c2be1c,
   "./admin/RowLabels#ServiceRowLabel": ServiceRowLabel_e606c46d8585f35c933fb31ab8c2be1c,
+  "./admin/PrivateJSON#PrivateJSON": PrivateJSON_4bcb3319909fb7fdc04524ac94179ab0,
   "./admin/RetryNotification#RetryNotification": RetryNotification_12359722ec863cf5921f64cebba9445e,
+  "./admin/EnquiryActions#EnquiryActions": EnquiryActions_41b951e79593ef167d643ad95130f23c,
+  "./admin/CustomerTimeline#CustomerTimeline": CustomerTimeline_8feaf72022b7c55aeda97efd50a72eb9,
+  "./admin/CustomerFilters#CustomerFilters": CustomerFilters_2277735b5b888f83d5ecf23c6b83125b,
+  "./admin/BookingActions#BookingActions": BookingActions_82e298f241c3734ca5c7428bf86f74b9,
+  "./admin/EmailTemplatePreview#EmailTemplatePreview": EmailTemplatePreview_dde83d8c56338e578fe952263220369f,
+  "./admin/EmailMessagePreview#EmailMessagePreview": EmailMessagePreview_eb2bf6b96e24a50e49fc617c6341dc2b,
   "./hosting/PrivateBlobUpload#PrivateBlobUpload": PrivateBlobUpload_3576928557a248601e2a25bcf9a88a28,
   "@payloadcms/ui/rsc#CollectionCards": CollectionCards_ab83ff7e88da8d3530831f296ec4756a,
   "@payloadcms/ui/rsc#CollectionQueryWidget": CollectionQueryWidget_ab83ff7e88da8d3530831f296ec4756a,
