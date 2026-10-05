@@ -4,6 +4,10 @@ Describe the concrete problem and resulting behavior. Link the small spec.
 
 ## Related tickets
 
+Completed issues: none
+
+Replace none only with fully completed issue numbers, separated by commas.
+
 - Related: #ISSUE — explain the acceptance criteria completed or still outstanding.
 - Add the intended Development link; a related mention is not an instruction to close.
   Keep development completion distinct from release completion.
