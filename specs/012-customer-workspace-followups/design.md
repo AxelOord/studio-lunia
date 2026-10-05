@@ -15,7 +15,7 @@ inbox; add /admin/customers/:id and /admin/follow-ups. Keep native records avail
 secondary details. A server wrapper uses initPageResult.req/user with explicit access;
 small client components handle typed, authenticated HTTP actions and shared rendering.
 
-The inbox shows a restrained header, filter counts, search and rows/cards containing
+The inbox shows a restrained header, filters, search and rows/cards containing
 customer, requested service, state, last activity and one useful next action. Search is
 POSTed; only safe filter/page values enter URLs. The workspace header keeps the customer
 and selected enquiry visible. The main column contains the request and dated conversation;
@@ -35,12 +35,12 @@ Add a private FollowUps collection with contact, enquiry/booking, purpose, trigg
 revision, planned UTC instant, IANA timezone, template/content snapshot, exact preview,
 state, blocking reason, job reference, attempt/result facts and actor timestamps. Pending
 edits increment revision and append activity. Never alter an existing EmailMessage body.
-At handoff, persist/reuse an immutable message/attempt identity; simulated results use
+At simulated handoff, persist/reuse an immutable plan/revision outcome identity; simulated results use
 an explicit simulation outcome, never accepted/delivered. Job inputs contain only IDs
 and revision, without recipient, body, arbitrary URLs or full inbound events.
 
-Use a small explicit transition table: draft/planned/blocked/paused/cancelled/processing/
-simulated/failed/manual-review. A terminal attempt cannot be silently changed or resent.
+Persist planned/blocked/paused/cancelled/simulated/failed states. Payload jobs own
+processing leases; unmatched incoming records have a separate review state. A terminal attempt cannot be silently changed or resent.
 Pause/cancel/reschedule invalidate the old revision and its queued job. An obsolete job
 returns without overwriting the current plan. Use existing command idempotency and a
 unique trigger key containing source event, purpose and rule revision. No default rule
@@ -114,3 +114,22 @@ explicit capability gates, race/recovery tests and an activation runbook.
 R-9, R-10: additive migrations, shared access/validation, preserved history, #37's isolated
 fixtures and full npm run verify, followed by screenshots, independent review, exact CI
 and automatic preview. Small feasibility tests precede final schema/UI implementation.
+
+## Verified implementation details
+
+Canary.37 wraps the dashboard automatically but leaves new top-level routes unwrapped.
+Customer and queue views therefore supply DefaultTemplate explicitly. The pinned UI uses
+`--color-*` tokens; screenshots exposed and corrected older `--theme-elevation-*` assumptions.
+
+Each exact preview has a hash of the rendered snapshot. A changed customer/template/session
+between review and Save returns a conflict requiring a fresh preview. Every explicit plan
+revision appends its private content/time snapshot to customer history. Jobs retain only plan
+ID and revision. No transport or automatic runner is reachable from the application task.
+
+Test rules use explicitly selected elapsed hours, not working-day assumptions. None are
+seeded or approved by default. A changed or unapproved rule blocks its existing plan at the
+shared eligibility boundary. Late automatically created session reminders require review.
+Receiving is disabled at `/api/incoming-replies/webhook`, separately from the private native
+collection. The local verified boundary requires injected authenticated content retrieval,
+an exact opaque message reference, and the expected sender; unknown matches remain private
+review records. Sender equality alone never links a customer.

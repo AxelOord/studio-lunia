@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react'
 import './customer-records.css'
 
-export function useRecordAction() {
+export function useRecordAction(endpoint = '/api/customer-records') {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const pending = useRef<{ value: string; key: string } | undefined>(undefined)
@@ -16,19 +16,23 @@ export function useRecordAction() {
     setBusy(true)
     setMessage('')
     try {
-      const response = await fetch('/api/customer-records', {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...input, key: pending.current.key }),
         signal: AbortSignal.timeout(20000),
       })
+      if (response.status === 401)
+        throw new Error('Your session expired. Sign in again, then retry this action.')
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Could not confirm this action.')
       // Keep the completed identity too: a second click on unchanged details
       // must return the same result, even after the first response arrived.
       setMessage(
         data.status
-          ? `Email status: ${data.status}.`
+          ? endpoint === '/api/customer-records'
+            ? `Email status: ${data.status}.`
+            : String(data.status)
           : 'Saved. The record and dated history are available below.',
       )
       return data as { id?: number; collection?: string; status?: string }
