@@ -10,12 +10,13 @@ import { generateClientTokenFromReadWriteToken } from '@vercel/blob/client'
 import { APIError, Forbidden, type PayloadRequest, type StorageAdapter } from 'payload'
 import { assertClientUploadAllowed } from 'payload/internal'
 import { MAX_UPLOAD_BYTES } from './environment'
+import { assertMediaNamespace, previewNamespace } from './preview-identity'
 import { limitOperation } from './rate-limit'
 import type { Media } from '../payload-types'
 import { createReadStream } from 'node:fs'
 
 type BlobIO = Pick<typeof blob, 'put' | 'get' | 'del'>
-const PREFIX = 'preview-media'
+const PREFIX = process.env.LUNIA_CMS_PREVIEW === 'true' ? previewNamespace() : 'preview-media'
 // Canary delete hooks receive a response document after hidden _objectKey is removed.
 // Retain only the authorized deletion's storage identity in server memory, never its response.
 const deletionFolders = new WeakMap<PayloadRequest, Map<string, string>>()
@@ -33,8 +34,14 @@ export function privateBlobAdapter(token: string, io: BlobIO = blob): Adapter {
       requiresUploadReceipt: true,
       generate: async ({ collectionSlug, filename, filesize, mimeType, req }) => {
         if (!req.user) throw new Forbidden(req.t)
-        if (!Number.isSafeInteger(filesize) || filesize <= 0 || filesize > MAX_UPLOAD_BYTES)
-          throw new APIError('Upload exceeds the permitted size.', 400)
+        if (!Number.isSafeInteger(filesize) || filesize < 0)
+          throw new APIError('Invalid upload size. Choose the image again.', 400)
+        if (filesize === 0)
+          throw new APIError(
+            'The selected file is empty. Choose a non-empty image and try again.',
+            400,
+          )
+        if (filesize > MAX_UPLOAD_BYTES) throw new APIError('Upload exceeds the 20 MB limit.', 400)
         assertClientUploadAllowed({ collection, filename, mimeType })
         if (process.env.LUNIA_CMS_PREVIEW === 'true')
           await limitOperation('upload', String(req.user.id), 30, 3600)
@@ -49,10 +56,10 @@ export function privateBlobAdapter(token: string, io: BlobIO = blob): Adapter {
           name: 'luniaPrivateBlob',
           type: 'dispatch',
           data: {
-            pathname: resolved.storageFilePath,
+            pathname: assertMediaNamespace(resolved.storageFilePath, prefix),
             token: await generateClientTokenFromReadWriteToken({
               token,
-              pathname: resolved.storageFilePath,
+              pathname: assertMediaNamespace(resolved.storageFilePath, prefix),
               addRandomSuffix: false,
               allowOverwrite: false,
               allowedContentTypes: [mimeType],
@@ -100,7 +107,7 @@ export function privateBlobAdapter(token: string, io: BlobIO = blob): Adapter {
       // buffer is empty. Variants are buffers. Stream the actual original bytes.
       const stream = file.tempFilePath ? createReadStream(file.tempFilePath) : undefined
       try {
-        await io.put(storageFilePath, stream ?? file.buffer, {
+        await io.put(assertMediaNamespace(storageFilePath, prefix), stream ?? file.buffer, {
           token,
           access: 'private',
           addRandomSuffix: false,
@@ -124,7 +131,7 @@ export function privateBlobAdapter(token: string, io: BlobIO = blob): Adapter {
               docPrefix: folder,
               filename,
             }).storageFilePath
-      await io.del(key, { token })
+      await io.del(assertMediaNamespace(key, prefix), { token })
     },
     staticHandler: async (req, { doc, params: { filename, uploadReference } }) => {
       try {
@@ -143,7 +150,7 @@ export function privateBlobAdapter(token: string, io: BlobIO = blob): Adapter {
           docPrefix,
           filename,
         })
-        const file = await io.get(storageFilePath, {
+        const file = await io.get(assertMediaNamespace(storageFilePath, prefix), {
           token,
           access: 'private',
           useCache: false,
@@ -191,6 +198,13 @@ export function privateBlobStorage(
                   ...collection,
                   hooks: {
                     ...collection.hooks,
+                    beforeChange: [
+                      ...(collection.hooks?.beforeChange ?? []),
+                      ({ originalDoc }) => {
+                        if (originalDoc?.prefix)
+                          assertMediaNamespace(`${originalDoc.prefix}/record`, PREFIX)
+                      },
+                    ],
                     beforeDelete: [
                       ...(collection.hooks?.beforeDelete ?? []),
                       async ({ id, req }) => {
@@ -207,12 +221,11 @@ export function privateBlobStorage(
                           folders = new Map()
                           deletionFolders.set(req, folders)
                         }
-                        folders.set(
-                          `media:${id}`,
-                          [(doc as Media).prefix || PREFIX, (doc as Media)._objectKey]
-                            .filter(Boolean)
-                            .join('/'),
-                        )
+                        const folder = [(doc as Media).prefix || PREFIX, (doc as Media)._objectKey]
+                          .filter(Boolean)
+                          .join('/')
+                        assertMediaNamespace(`${folder}/record`, PREFIX)
+                        folders.set(`media:${id}`, folder)
                       },
                     ],
                   },

@@ -199,7 +199,7 @@ export interface Page {
   title: string;
   slug: string;
   description: string;
-  layout: (HeroBlock | TextBlock | GalleryBlock)[];
+  layout: (HeroBlock | TextBlock | GalleryBlock | ImageTextBlock | ServicesBlock | CallToActionBlock)[];
   updatedAt: string;
   createdAt: string;
   _status?: ('draft' | 'published') | null;
@@ -243,6 +243,51 @@ export interface GalleryBlock {
   id?: string | null;
   blockName?: string | null;
   blockType: 'gallery';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ImageTextBlock".
+ */
+export interface ImageTextBlock {
+  heading: string;
+  body: string;
+  image: number | Media;
+  imageSide: 'left' | 'right';
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'imageText';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ServicesBlock".
+ */
+export interface ServicesBlock {
+  heading: string;
+  body?: string | null;
+  items: {
+    title: string;
+    body: string;
+    id?: string | null;
+  }[];
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'services';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CallToActionBlock".
+ */
+export interface CallToActionBlock {
+  heading: string;
+  body?: string | null;
+  label: string;
+  /**
+   * Use / or an existing page path such as /sessions. No external URLs.
+   */
+  href: string;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'callToAction';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -404,6 +449,9 @@ export interface PagesSelect<T extends boolean = true> {
         hero?: T | HeroBlockSelect<T>;
         text?: T | TextBlockSelect<T>;
         gallery?: T | GalleryBlockSelect<T>;
+        imageText?: T | ImageTextBlockSelect<T>;
+        services?: T | ServicesBlockSelect<T>;
+        callToAction?: T | CallToActionBlockSelect<T>;
       };
   updatedAt?: T;
   createdAt?: T;
@@ -443,6 +491,47 @@ export interface GalleryBlockSelect<T extends boolean = true> {
         image?: T;
         id?: T;
       };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ImageTextBlock_select".
+ */
+export interface ImageTextBlockSelect<T extends boolean = true> {
+  heading?: T;
+  body?: T;
+  image?: T;
+  imageSide?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ServicesBlock_select".
+ */
+export interface ServicesBlockSelect<T extends boolean = true> {
+  heading?: T;
+  body?: T;
+  items?:
+    | T
+    | {
+        title?: T;
+        body?: T;
+        id?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CallToActionBlock_select".
+ */
+export interface CallToActionBlockSelect<T extends boolean = true> {
+  heading?: T;
+  body?: T;
+  label?: T;
+  href?: T;
   id?: T;
   blockName?: T;
 }

@@ -20,7 +20,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </Link>
           <span className="preview-label">A new chapter, in progress</span>
         </header>
-        <main id="main">{children}</main>
+        <main id="main">
+          {process.env.LUNIA_SHOWCASE === 'true' && (
+            <p className="sample-notice">
+              Read-only synthetic preview · CMS editing and booking are unavailable.
+            </p>
+          )}
+          {children}
+        </main>
         <footer>
           <span className="wordmark">studio lunia</span>
           <p>Website preview · Booking is not available here yet.</p>

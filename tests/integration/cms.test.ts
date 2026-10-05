@@ -116,3 +116,105 @@ test('first-user path cannot bypass the bootstrap guard', async () => {
     /bootstrap/,
   )
 })
+
+test('editorial blocks retain order, draft versions and validate published content', async () => {
+  const image = (await payload.find({ collection: 'media', overrideAccess: true, limit: 1 }))
+    .docs[0]
+  assert.ok(image)
+  const created = await payload.create({
+    collection: 'pages',
+    overrideAccess: true,
+    data: {
+      title: 'Synthetic block configuration',
+      slug: `blocks-${stamp}`,
+      description: 'Synthetic test only',
+      layout: [
+        { blockType: 'hero', heading: 'Existing hero' },
+        {
+          blockType: 'imageText',
+          heading: 'Synthetic split',
+          imageSide: 'left',
+          body: 'Placeholder body',
+          image: image.id,
+        },
+        {
+          blockType: 'gallery',
+          heading: 'Synthetic pair',
+          images: [{ image: image.id }, { image: image.id }],
+        },
+        {
+          blockType: 'services',
+          heading: 'Sample services',
+          items: [{ title: 'Placeholder option', body: 'Details awaiting approval.' }],
+        },
+        { blockType: 'callToAction', heading: 'Sample next step', label: 'View home', href: '/' },
+      ],
+      _status: 'published',
+    },
+  })
+  pages.push(created.id)
+  const first = created.layout[1]
+  assert.equal(first.blockType, 'imageText')
+  if (first.blockType === 'imageText') assert.equal(first.imageSide, 'left')
+  const reversed = [...created.layout].reverse()
+  await payload.update({
+    collection: 'pages',
+    id: created.id,
+    overrideAccess: true,
+    draft: true,
+    data: { layout: reversed },
+  })
+  const draft = await payload.findByID({
+    collection: 'pages',
+    id: created.id,
+    overrideAccess: true,
+    draft: true,
+  })
+  assert.deepEqual(
+    draft.layout.map((b) => b.blockType),
+    reversed.map((b) => b.blockType),
+  )
+  const published = await payload.findByID({
+    collection: 'pages',
+    id: created.id,
+    overrideAccess: false,
+  })
+  assert.deepEqual(
+    published.layout.map((b) => b.blockType),
+    created.layout.map((b) => b.blockType),
+  )
+  for (const href of [
+    'javascript:alert(1)',
+    '//example.test',
+    '/admin/login',
+    '/%2fexample.test',
+    '/home?email=private',
+    '/home\\other',
+  ]) {
+    await assert.rejects(
+      payload.update({
+        collection: 'pages',
+        id: created.id,
+        overrideAccess: true,
+        data: {
+          _status: 'published',
+          layout: [{ blockType: 'callToAction', heading: 'Test', label: 'Test link', href }],
+        },
+      }),
+      /Page path/,
+    )
+  }
+  for (const items of [
+    [],
+    Array.from({ length: 7 }, () => ({ title: 'Synthetic', body: 'Placeholder' })),
+  ]) {
+    await assert.rejects(
+      payload.update({
+        collection: 'pages',
+        id: created.id,
+        overrideAccess: true,
+        data: { _status: 'published', layout: [{ blockType: 'services', heading: 'Test', items }] },
+      }),
+    )
+  }
+})

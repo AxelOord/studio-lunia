@@ -20,8 +20,9 @@ npm run dev
 Open http://localhost:3000 and /admin. The seed is idempotent and preserves existing
 editors/content. First-user web registration is blocked; bootstrap only via the local
 seed command. Never use the example database password outside local development.
-Email delivery is not configured; local Payload logs email instead. Password reset
-requires a reviewed email adapter before any hosted CMS launch.
+Local Payload logs email instead of delivering it. Hosted previews use the approved
+restricted mail adapter and user-controlled password recovery; see
+[the full CMS preview runbook](docs/full-cms-preview-runbook.md).
 
 `media/` persists between local app restarts but is untracked. PostgreSQL uses a named
 Docker volume. Back up both together. Do not use either as Vercel filesystem storage.
@@ -53,8 +54,9 @@ Screenshots/traces are in ignored `test-results/` and `playwright-report/`.
 | SEED_EMAIL / SEED_PASSWORD | Local bootstrap/test account; never deployed                         |
 | LUNIA_SHOWCASE             | Explicit sample-only preview mode; CMS/API/preview routes return 503 |
 
-No secrets are committed. Hosted CMS remains gated on approved private Blob, Neon, Resend, migrations and access
-controls. See docs/hosted-cms-runbook.md for the prepared integration and pending hosted evidence. Vercel production builds
+No secrets are committed. Automatic full CMS previews use native Neon branches, private preview Blob and restricted
+Resend access. See docs/full-cms-preview-runbook.md for setup and hosted acceptance.
+The earlier manual path remains documented in docs/hosted-cms-runbook.md. Vercel production builds
 are blocked. See docs/vercel.md for separate preview setup.
 
 ## Structure and workflow

@@ -1,11 +1,13 @@
 import 'server-only'
 import { draftMode, headers } from 'next/headers'
 import { notFound } from 'next/navigation'
-import { samplePage } from './sample'
+import { blockPreviewPage } from './block-preview'
 
 export async function getPage(slug: string) {
   if (process.env.LUNIA_SHOWCASE === 'true')
-    return slug === 'home' ? { page: samplePage, editorPreview: false } : notFound()
+    return slug === 'home' || slug === 'blocks'
+      ? { page: blockPreviewPage(slug), editorPreview: false }
+      : notFound()
   const [{ getPayload }, { default: config }] = await Promise.all([
     import('payload'),
     import('@payload-config'),
