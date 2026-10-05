@@ -69,3 +69,10 @@ Local aggregate `npm run verify` passed after the review fixes: 36 unit, 53 inte
 production build and generated-file consistency. New conflict desktop/mobile screenshots
 show preserved drafts, explicit reapply, disabled save before fresh review and successful
 recovery. Hosted authenticated workspace controls remain unverified without owner access.
+
+The screenshot-only follow-up CI run exposed a pre-existing notification-test timing
+assumption: two concurrently started calls may both report `accepted` if the second reaches
+the database after the first completes. The test now holds the synthetic transport behind
+an explicit barrier, asserts `sending` during real overlap, then asserts cached `accepted`
+after completion. Exact transport count, identical idempotency key/payload, PII minimization
+and retry-window checks remain. No send implementation, CI workflow or retry policy changed.
