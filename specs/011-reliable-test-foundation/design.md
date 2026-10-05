@@ -8,7 +8,7 @@ fixture also disappears when preceding tests are not selected. Create a dedicate
 synthetic image inside this test and track its returned ID for cleanup after pages.
 Do not serialize the runner, retry failures or change the schema/application.
 
-## Foundation follow-up
+## Foundation implementation
 
 R-2: Introduce a local-only database fixture lifecycle for each integration suite,
 including explicit Payload cache identity and suite-owned upload directory. Individual
@@ -38,3 +38,38 @@ sound modules and use independent review for correctness and maintainability.
 P-1, P-2: The immediate PR34 fix is test-only. A separate foundation PR carries runner
 and isolation changes so reviewers can distinguish the bug repair from infrastructure.
 No hosted database/secret is used by tests; existing accounts/passwords are preserved.
+
+## Runner and fixture details
+
+Vitest 5.0.3 has separate unit, integration and build projects. The integration
+project uses two fork workers and real PostgreSQL 17. Each suite creates a random
+local database, migrates the committed migration index, and resets only its own
+public tables between cases. Each case creates its prerequisites. A unique Payload
+cache key and temporary upload directory prevent shared-instance/file collisions.
+Teardown closes Payload and its pool before dropping that database. A failed config
+setup exercises cleanup. Hosted targets and host-override query parameters fail before
+connection; test process setup removes inherited provider settings and uses synthetic
+credentials. Explicit provider contract tests inject their own fake boundaries.
+
+Pinned Payload's filesystem migration loader bypasses Vitest's TypeScript loader.
+Integration uses the committed migration index through Vitest; the browser fixture's
+real Payload CLI migration and hosted preview still verify filesystem discovery.
+DROP DATABASE deliberately uses graceful connection closure: FORCE caused an idle
+application pool to emit an unhandled termination error in the first fixture experiment.
+
+Playwright owns a separate migrated/seeded database and starts three local servers:
+CMS, credential-free showcase and private-upload metadata. The upload test blocks
+non-local browser requests. Browser artifacts live in test-results/browser so Playwright
+cannot erase Vitest's sibling JUnit reports. All retries remain zero. A normal stage
+failure still runs database cleanup; force-killing a process or PostgreSQL is outside
+JavaScript cleanup guarantees.
+
+`npm run verify` and CI call the same named checks. Python security/tooling, Node hook
+portability and release checks stay intact. A small seed finally block also closes the
+PostgreSQL pool held by the pinned canary adapter, allowing the next stage to start.
+There are no application schema, product behavior or external activation changes.
+
+Strict TypeScript and existing lint remain. Focused rules reject unobserved promises,
+raw application console output and private database/provider imports in UI modules.
+Negative lint tests prove rejection while allowing shared types. Server-rendered view
+files remain explicit, with review and the Next build checking client boundaries.

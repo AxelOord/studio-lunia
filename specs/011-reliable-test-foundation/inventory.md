@@ -3,7 +3,7 @@
 Baseline: PR34 merge head a458215, inspected 2026-10-05. The immediate repair changes
 only the editorial test's image ownership. Broader changes remain a separate PR.
 
-| Existing checks                                    | Meaningful coverage to preserve                                                                                                                                       | Planned home                                                                                                |
+| Existing checks                                    | Meaningful coverage to preserve                                                                                                                                       | Delivered home                                                                                              |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | TypeScript unit tests (32, including 4 hook tests) | Consent/campaign minimization, bounded input, email rendering and delivery ordering, signed webhooks, preview gates, redacted errors, Git hook behavior               | Pinned Vitest unit project; retain Windows hook portability                                                 |
 | PostgreSQL integration tests (29)                  | Real migrations, access/drafts/media, concurrent enquiry/booking/email operations, immutable history, atomic money changes, recovery/throttling and preview bootstrap | Vitest integration project with isolated databases and owned fixtures                                       |
@@ -47,3 +47,26 @@ The npm registry reports Vitest 5.0.3 supporting Node24. The official current gu
 projects configuration and test-context documentation were inspected before selecting
 the integration approach: https://vitest.dev/guide/, https://vitest.dev/config/projects,
 https://vitest.dev/guide/test-context. Confirm installed pinned types during implementation.
+
+## Delivered coverage map
+
+- 28 existing application unit cases now use Vitest; four new cases verify local-only
+  database targets, provider environment isolation, UI import boundaries and floating
+  promises (32 unit cases). The four Node Git-hook checks remain unchanged.
+- All 29 integration cases retain their behavior assertions. Two new real-database
+  cases verify concurrent ownership/drop isolation and cleanup after failed CMS setup
+  (31 cases). Customer email/booking, Blob namespace and CMS editorial cases create
+  their own prerequisites rather than borrowing earlier state. Anonymous denial is
+  now unconditional instead of guarded by a prior test's contact list.
+- All 19 existing Playwright scenarios remain; showcase and upload metadata add the
+  two former standalone checks (21). Email preview now explicitly navigates back and
+  verifies the unsaved subject did not replace the saved approved template.
+- The standalone traced-upload check is a Vitest build test with the original real
+  PNG/non-image probe against only the copied traced deployment dependencies.
+- All 35 Python, four hook and 12 release assertions remain in their original runners.
+  No security/release workflows or repository permissions are changed.
+
+The lockfile adds exact Vitest 5.0.3 and its dependencies. npm also relocates existing
+esbuild/yaml versions during deduplication; Payload, Next, React and all other direct
+application pins stay unchanged. Large platform-package sections account for most of
+the lockfile diff.

@@ -33,5 +33,10 @@ try {
     })
   console.log('Local seed complete; existing editors and content were preserved.')
 } finally {
-  await payload.destroy()
+  const pool = payload.db.pool
+  try {
+    await payload.destroy()
+  } finally {
+    await pool.end()
+  }
 }

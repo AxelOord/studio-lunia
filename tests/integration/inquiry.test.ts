@@ -1,9 +1,9 @@
 import 'dotenv/config'
-import { test, before, after } from 'node:test'
+import { test, beforeAll, beforeEach, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { getPayload, type Payload } from 'payload'
-import config from '../../src/payload.config'
+import type { Payload } from 'payload'
+import { createTestCMS } from '../helpers/payload'
 import { submitInquiry } from '../../src/inquiries/submit'
 import { notifyPhotographer } from '../../src/inquiries/notification'
 import { captureMeasurement } from '../../src/inquiries/measurement'
@@ -12,7 +12,7 @@ import { campaignTouch, updateCampaign } from '../../src/lib/campaign'
 let payload: Payload
 let pageId: number
 let service: string
-const leads: number[] = []
+let fixture: Awaited<ReturnType<typeof createTestCMS>>
 const preferences = { analytics: false, campaigns: false, decided: false }
 const input = () => ({
   service,
@@ -22,8 +22,12 @@ const input = () => ({
   website: '',
   submissionId: randomUUID(),
 })
-before(async () => {
-  payload = await getPayload({ config })
+beforeAll(async () => {
+  fixture = await createTestCMS()
+  payload = fixture.payload
+})
+beforeEach(async () => {
+  await fixture.reset()
   const page = await payload.create({
     collection: 'pages',
     overrideAccess: true,
@@ -44,32 +48,8 @@ before(async () => {
   pageId = page.id
   service = (await publishedServices(payload)).find((s) => s.id.startsWith(`${pageId}:`))!.id
 })
-after(async () => {
-  for (const id of new Set(leads)) {
-    const lead = await payload.findByID({
-      collection: 'enquiries',
-      id,
-      depth: 0,
-      overrideAccess: true,
-    })
-    await payload.delete({
-      collection: 'customer-activities',
-      where: { enquiry: { equals: id } },
-      overrideAccess: true,
-    })
-    await payload.delete({
-      collection: 'email-messages',
-      where: { enquiry: { equals: id } },
-      overrideAccess: true,
-    })
-    await payload.delete({ collection: 'enquiries', id, overrideAccess: true })
-    if (typeof lead.contact === 'number')
-      await payload.delete({ collection: 'contacts', id: lead.contact, overrideAccess: true })
-  }
-  if (pageId) await payload.delete({ collection: 'pages', id: pageId, overrideAccess: true })
-  const pool = payload.db.pool
-  await payload.destroy()
-  await pool.end()
+afterAll(async () => {
+  await fixture?.close()
 })
 test('concurrent and lost-response retries create one lead; conflicting reuse rejects; visitor reads/writes denied', async () => {
   const data = input()
@@ -77,7 +57,6 @@ test('concurrent and lost-response retries create one lead; conflicting reuse re
     Array.from({ length: 4 }, () => submitInquiry(payload, data, preferences)),
   )
   const ids = results.map((r) => r.doc!.id)
-  leads.push(...ids)
   assert.equal(new Set(ids).size, 1)
   assert.equal(results.filter((r) => r.created).length, 1)
   assert.equal(new Set(results.map((r) => r.receipt)).size, 1)
@@ -150,7 +129,6 @@ test('attribution snapshot survives enquiry retries without being replaced by la
     { ...preferences, campaigns: true, decided: true },
     campaign,
   )
-  leads.push(first.doc!.id)
   const retry = await submitInquiry(payload, data, preferences)
   assert.deepEqual(retry.doc!.attribution, first.doc!.attribution)
   assert.ok(JSON.stringify(first.doc!.attribution).includes('synthetic_123'))
@@ -158,7 +136,6 @@ test('attribution snapshot survives enquiry retries without being replaced by la
 test('notification failure is durable; retries use same safe payload/key and concurrent calls send once', async () => {
   const result = await submitInquiry(payload, input(), preferences)
   const id = result.doc!.id
-  leads.push(id)
   const keys = ['LUNIA_CMS_PREVIEW', 'RESEND_API_KEY', 'PREVIEW_EDITOR_EMAIL', 'MAIL_FROM'] as const
   const old = Object.fromEntries(keys.map((key) => [key, process.env[key]]))
   Object.assign(process.env, {

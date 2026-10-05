@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { test } from 'node:test'
+import { test } from 'vitest'
 
 for (const script of ['preview-operator.ts', 'preview-inventory.ts']) {
   test(`${script} withholds connection and cleanup errors`, () => {
