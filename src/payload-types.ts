@@ -70,6 +70,7 @@ export interface Config {
     users: User;
     media: Media;
     pages: Page;
+    enquiries: Enquiry;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -80,6 +81,7 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
+    enquiries: EnquiriesSelect<false> | EnquiriesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -310,6 +312,43 @@ export interface CallToActionBlock {
   blockType: 'callToAction';
 }
 /**
+ * Private enquiry queue. Review each new enquiry and follow up manually. Preview visitor emails are never sent.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "enquiries".
+ */
+export interface Enquiry {
+  id: number;
+  serviceId: string;
+  serviceTitle: string;
+  name: string;
+  email: string;
+  message: string;
+  /**
+   * Manual follow-up only. No booking or availability is created.
+   */
+  followUp: 'new' | 'contacted' | 'closed';
+  submissionHash: string;
+  contentHash: string;
+  /**
+   * Immutable submission snapshot for future booking/revenue linkage. Optional identifiers are absent without campaign consent.
+   */
+  attribution:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  notificationStatus: 'pending' | 'sending' | 'accepted' | 'failed' | 'disabled' | 'manual';
+  notificationAttempts: number;
+  notificationAttemptedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -344,6 +383,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'pages';
         value: number | Page;
+      } | null)
+    | ({
+        relationTo: 'enquiries';
+        value: number | Enquiry;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -557,6 +600,26 @@ export interface CallToActionBlockSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "enquiries_select".
+ */
+export interface EnquiriesSelect<T extends boolean = true> {
+  serviceId?: T;
+  serviceTitle?: T;
+  name?: T;
+  email?: T;
+  message?: T;
+  followUp?: T;
+  submissionHash?: T;
+  contentHash?: T;
+  attribution?: T;
+  notificationStatus?: T;
+  notificationAttempts?: T;
+  notificationAttemptedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv_select".
  */
 export interface PayloadKvSelect<T extends boolean = true> {
@@ -612,7 +675,7 @@ export interface CollectionsWidget {
 export interface CollectionQueryWidget {
   data?: {
     title?: string | null;
-    relatedCollection: 'users' | 'media' | 'pages';
+    relatedCollection: 'users' | 'media' | 'pages' | 'enquiries';
     where?:
       | {
           [k: string]: unknown;
@@ -634,7 +697,7 @@ export interface CollectionQueryWidget {
  */
 export interface ActivityWidget {
   data?: {
-    excludedCollections?: ('users' | 'media' | 'pages')[] | null;
+    excludedCollections?: ('users' | 'media' | 'pages' | 'enquiries')[] | null;
   };
   width: 'x-small' | 'small' | 'medium' | 'large' | 'x-large' | 'full';
 }
