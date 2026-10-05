@@ -86,8 +86,10 @@ Independent review identified one blocker: deleted environment keys were restore
 fresh Payload/Playwright/Next processes loaded local environment files. Temporary files
 with synthetic sentinel values reproduced this in both dotenv and the pinned @next/env
 loader: private-blob was restored, and the unpooled database URL could also be restored.
-The test environment now keeps explicit inert provider values and pins DATABASE_URL,
-DATABASE_URL_UNPOOLED and TEST_DATABASE_URL to the owned database. Dotenv override/key
+The test environment now keeps explicit inert provider values. Browser subprocesses pin
+DATABASE_URL, DATABASE_URL_UNPOOLED and TEST_DATABASE_URL to their owned database.
+Integration fixtures pass their owned database directly to the adapter and update DATABASE_URL;
+the unused unpooled alias remains the validated local baseline. Dotenv override/key
 options are inert too. Two subprocess regressions load .env/.env.local/.env.production
 and assert isolation without opening a database or contacting any provider. The original
 showcase server-rendered HTML assertion is restored alongside browser rendering checks.

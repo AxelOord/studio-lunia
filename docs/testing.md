@@ -33,7 +33,7 @@ Integration fixtures create a random database on the local PostgreSQL server and
 private temporary media directory. Each case resets only its suite's owned tables and
 creates its prerequisites. Each fixture owns an uncached Payload instance before initialization, so even a failed initialization hook can close its pool. Cleanup
 closes its pool, drops only the created database and removes only its temporary directory.
-Failed setup is tested. Integration and browser processes override provider settings with explicit inert values and use synthetic credentials. Empty values deliberately prevent fresh dotenv/Next processes from restoring provider settings from local environment files; both pooled and unpooled database URLs point to the owned test database. The fixture refuses Vercel/production, remote hosts and connection
+Failed setup is tested. Integration and browser processes override provider settings with explicit inert values and use synthetic credentials. Empty values deliberately prevent fresh dotenv/Next processes from restoring provider settings from local environment files; browser subprocesses pin pooled and unpooled database URLs to their owned test database. Integration fixtures pass their owned connection directly to the Payload adapter; the unused unpooled alias remains the validated local baseline. The fixture refuses Vercel/production, remote hosts and connection
 parameters that could override the hostname. `TEST_DATABASE_URL` can select another
 **loopback** PostgreSQL server with permission to create/drop test databases.
 
