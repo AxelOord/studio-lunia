@@ -33,7 +33,8 @@ Check: desktop/mobile full journey, retained draft and exact deep-link regressio
 WHEN staff manage a follow-up, the system SHALL place the editor beside its task context,
 show status/reasons and provide server-paginated queue filters for attention, planned,
 paused and finished work. Conflicting edits retain wording and require explicit refresh/review.
-Check: queue filters, error recovery, revision conflict and terminal plan regression.
+Check: queue filters, reload and error recovery, delayed simulation completion during
+loaded/pending navigation, revision conflict and terminal plan regression.
 
 ### R-4: Clear boundaries and accessible actions
 

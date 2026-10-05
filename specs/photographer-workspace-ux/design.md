@@ -95,3 +95,24 @@ an uncached BasePayload instance, with type generation disabled for fixture crea
 exits cleanly and matches the integration fixture pattern. The focused queue/search
 case then passed in 9.1 seconds; its helper is bounded and accepts no stdin. The final
 aggregate run must still complete after this fixture change.
+
+## Independent review corrections
+
+The reviewer reproduced a stale closure after a manual simulation: changing queue
+filter while its response was delayed caused the completion to reload the old filter.
+A regression observed GET filters attention, all before the fix. Refresh now reads
+the latest requested filter/page from a ref, including navigation still in flight.
+Separate loaded/pending response-order cases preserve the newest view and URL.
+
+The aggregate queue reload test also reloaded before its filter request completed:
+its row assertion already matched All plans. It now waits for the selected button
+and committed URL before checking reload persistence; no app timeout or retry changed.
+
+Actual light-theme computed styles confirmed the queue customer was 11px uppercase
+rgba(0,0,0,0.5) on white (about 3.98:1), while its subject was 18px. The customer is
+now a 20px primary heading and the subject a 16px subordinate heading. Actual
+production-build computed styles confirm rgba(0,0,0,0.9) on white (about 17.49:1),
+normal case and no horizontal overflow at 390px. Both new captures were opened and
+inspected; the mobile evidence above is replaced, and the [desktop result](evidence/queue-desktop-after.png)
+also shows the customer-first hierarchy. No browser errors were reported. These
+measurements describe this rendered light theme, not a full accessibility audit.

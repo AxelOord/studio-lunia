@@ -552,6 +552,11 @@ test('inbox keeps the latest filter response and queue filters survive reload wi
   await expect(
     page.getByRole('heading', { name: 'Synthetic attention case', exact: true }),
   ).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Needs attention', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(page).toHaveURL(/follow-ups\?filter=attention&page=1$/)
   await page.reload()
   await expect(page.getByRole('button', { name: 'Needs attention', exact: true })).toHaveAttribute(
     'aria-pressed',
@@ -583,3 +588,81 @@ test('inbox keeps the latest filter response and queue filters survive reload wi
   await page.getByRole('button', { name: 'Cancel editing', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Edit or reschedule' })).toBeFocused()
 })
+
+for (const holdFilter of [false, true]) {
+  test(`a delayed simulation refresh preserves the latest ${holdFilter ? 'pending' : 'loaded'} queue filter`, async ({
+    page,
+  }) => {
+    await createTestPlan('Synthetic delayed simulation case')
+    await page.context().addCookies((await editor.storageState()).cookies)
+    await page.goto('/admin/follow-ups')
+    const filters: string[] = []
+    page.on('request', (request) => {
+      const url = new URL(request.url())
+      if (request.method() === 'GET' && url.pathname === '/api/customer-workspace')
+        filters.push(url.searchParams.get('filter') || '')
+    })
+    let ready!: () => void, release!: () => void
+    const started = new Promise<void>((resolve) => {
+      ready = resolve
+    })
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await page.route('**/api/customer-workspace', async (route) => {
+      if (route.request().postDataJSON()?.action !== 'runSimulations') return route.continue()
+      const response = await route.fetch()
+      ready()
+      await held
+      await route.fulfill({ response })
+    })
+    let filterReady!: () => void, releaseFilter!: () => void
+    const filterStarted = new Promise<void>((resolve) => {
+      filterReady = resolve
+    })
+    const filterHeld = new Promise<void>((resolve) => {
+      releaseFilter = resolve
+    })
+    let firstFilter = true
+    if (holdFilter)
+      await page.route('**/api/customer-workspace?*', async (route) => {
+        if (!firstFilter) return route.continue()
+        firstFilter = false
+        const response = await route.fetch()
+        filterReady()
+        await filterHeld
+        await route.fulfill({ response })
+      })
+    await page.getByText('Simulation tools and planning rules', { exact: true }).click()
+    await page.getByRole('button', { name: 'Run due simulations' }).click()
+    await started
+    await page.getByRole('button', { name: 'Needs attention', exact: true }).click()
+    if (holdFilter) await filterStarted
+    else {
+      await expect(
+        page.getByRole('button', { name: 'Needs attention', exact: true }),
+      ).toHaveAttribute('aria-pressed', 'true')
+      await expect(page).toHaveURL(/follow-ups\?filter=attention&page=1$/)
+    }
+    release()
+    await expect.poll(() => filters.length).toBe(2)
+    expect(filters).toEqual(['attention', 'attention'])
+    await expect(page.getByRole('button', { name: 'Refresh queue' })).toBeEnabled()
+    if (holdFilter) {
+      const lateFilter = page.waitForResponse(
+        (response) =>
+          response.request().method() === 'GET' &&
+          response.url().includes('/api/customer-workspace?'),
+      )
+      releaseFilter()
+      await (await lateFilter).finished()
+    }
+    await expect(
+      page.getByRole('button', { name: 'Needs attention', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    await expect(page).toHaveURL(/follow-ups\?filter=attention&page=1$/)
+    await expect(
+      page.getByRole('heading', { name: 'Synthetic delayed simulation case', exact: true }),
+    ).toBeVisible()
+  })
+}

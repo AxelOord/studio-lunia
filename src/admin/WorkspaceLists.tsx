@@ -169,8 +169,11 @@ export function FollowUpQueue({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const loadVersion = useRef(0)
+  const latestView = useRef({ page: initial.page || 1, filter: initialFilter })
   const { run, busy, message } = useRecordAction('/api/customer-workspace')
-  async function load(page: number, nextFilter = filter) {
+  async function load(page = latestView.current.page, nextFilter = latestView.current.filter) {
+    // Record requested navigation immediately, including while its response is pending.
+    latestView.current = { page, filter: nextFilter }
     const version = ++loadVersion.current
     setLoading(true)
     try {
@@ -232,9 +235,9 @@ export function FollowUpQueue({
       <div className="workspace-plan-grid" aria-busy={loading}>
         {data.docs.map((plan) => (
           <article className="workspace-card" key={plan.id}>
-            <p className="workspace-label">
+            <h2 className="workspace-customer-name">
               {typeof plan.contact === 'object' ? plan.contact.name : 'Customer'}
-            </p>
+            </h2>
             <PlanSummary plan={plan} />
             <Link
               className="workspace-action-link"
@@ -267,7 +270,7 @@ export function FollowUpQueue({
           <button
             disabled={busy}
             onClick={async () => {
-              if (await run({ action: 'runSimulations' })) await load(data.page || 1)
+              if (await run({ action: 'runSimulations' })) await load()
             }}
           >
             Run due simulations
