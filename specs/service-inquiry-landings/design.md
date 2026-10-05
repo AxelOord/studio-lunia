@@ -88,3 +88,31 @@ Delivery depends on PR #39 and PR #38, with the corrected queue navigation inclu
 Actual Neon branch capacity cannot be read using the exposed tools; the parent reported
 that PR #39 likely consumed the final slot. Keep this branch local until capacity is
 confirmed. Do not delete data, change preview settings, create credentials or upgrade plans.
+
+## Final local verification
+
+`npm run verify` passed on the application at a354210c2b1cefb897b064868e5b09963b53a3a8:
+static checks, generated-file consistency, 36 unit, 61 integration, 35 Python security,
+4 hook, 12 release, 1 built-dependency and all 32 browser tests, plus production build.
+Log: `/tmp/lunia-landings-verify.log`. The following evidence commit changes only
+documentation/images; no retries or application-limit changes were introduced.
+
+Actual Chromium production-build screenshots, all opened and inspected, synthetic data only:
+
+| View                                             | Evidence                                         |
+| ------------------------------------------------ | ------------------------------------------------ |
+| Desktop service landing (1280px viewport)        | [Landing](evidence/landing-desktop.png)          |
+| Mobile landing (390px viewport)                  | [Landing](evidence/landing-mobile.png)           |
+| Mobile retained form after lost response         | [Retry](evidence/landing-form-mobile-retry.png)  |
+| Mobile saved-enquiry receipt                     | [Receipt](evidence/landing-receipt-mobile.png)   |
+| Native service selector and unsaved live preview | [CMS editor](evidence/landing-native-editor.png) |
+
+Observed: one prominent enquiry action, service details retained on the form, focusable
+error summary, readable saved receipt and explicit no-booking/no-visitor-mail wording.
+Landing and form have no horizontal overflow at 390px. No browser errors were recorded
+in the complete public-to-private journey. This is focused QA, not WCAG certification.
+
+Remaining: independent review, actual Neon capacity confirmation, draft PR with Development
+link to #33, exact-head remote CI and automatic full-CMS hosted verification. The branch
+has not been pushed because pushing would attempt the new native preview allocation.
+No owner-approved genuine content or provider activation is claimed.

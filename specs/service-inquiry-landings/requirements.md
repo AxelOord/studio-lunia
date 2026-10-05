@@ -5,7 +5,7 @@ Status: ready
 
 ## Goal and scope
 
-Implement owner-authorized #33 using the existing page builder and enquiry foundation.
+Implement owner-authorized [#33](https://github.com/AxelOord/studio-lunia/issues/33) using the existing page builder and enquiry foundation.
 The current issue and its empty comments were re-fetched on 2026-10-05. The later overnight
 batch authorization supersedes the issue's earlier instruction to wait for implementation
 approval. Keep this batch separate from follow-up automation and studio-day slot booking.
