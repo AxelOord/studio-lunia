@@ -11,7 +11,7 @@ Do not serialize the runner, retry failures or change the schema/application.
 ## Foundation implementation
 
 R-2: Introduce a local-only database fixture lifecycle for each integration suite,
-including explicit Payload cache identity and suite-owned upload directory. Individual
+including an explicitly owned Payload instance and suite-owned upload directory. Individual
 tests create their required records independently; cleanup only owned records. Migrate
 real PostgreSQL rather than mocking relational guarantees. Preserve race/idempotency
 assertions that intentionally run concurrent operations within one fixture.
@@ -44,8 +44,8 @@ No hosted database/secret is used by tests; existing accounts/passwords are pres
 Vitest 5.0.3 has separate unit, integration and build projects. The integration
 project uses two fork workers and real PostgreSQL 17. Each suite creates a random
 local database, migrates the committed migration index, and resets only its own
-public tables between cases. Each case creates its prerequisites. A unique Payload
-cache key and temporary upload directory prevent shared-instance/file collisions.
+public tables between cases. Each case creates its prerequisites. An uncached Payload
+instance and temporary upload directory prevent shared-instance/file collisions.
 Teardown closes Payload and its pool before dropping that database. A failed config
 setup exercises cleanup. Hosted targets and host-override query parameters fail before
 connection; test process setup removes inherited provider settings and uses synthetic
@@ -73,3 +73,11 @@ Strict TypeScript and existing lint remain. Focused rules reject unobserved prom
 raw application console output and private database/provider imports in UI modules.
 Negative lint tests prove rejection while allowing shared types. Server-rendered view
 files remain explicit, with review and the Next build checking client boundaries.
+
+A lifecycle review found that getPayload only returns the instance after initialization.
+An onInit failure after opening the pool therefore hid that pool from fixture cleanup:
+the new regression reproduced PostgreSQL 55006 during DROP DATABASE. The fixture now
+constructs the pinned exported BasePayload before calling init, so it can always close
+its own partially initialized instance. Configuration and initialization failure cases
+both assert database removal, temporary-directory removal and environment restoration.
+The regression's own finalizer also removes its captured database if the assertion fails.

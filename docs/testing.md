@@ -31,7 +31,7 @@ turn a failing application test into a passing build.
 
 Integration fixtures create a random database on the local PostgreSQL server and a
 private temporary media directory. Each case resets only its suite's owned tables and
-creates its prerequisites. Payload uses a separate cache key for each fixture. Cleanup
+creates its prerequisites. Each fixture owns an uncached Payload instance before initialization, so even a failed initialization hook can close its pool. Cleanup
 closes its pool, drops only the created database and removes only its temporary directory.
 Failed setup is tested. Integration and browser processes remove inherited provider settings and use synthetic credentials. The fixture refuses Vercel/production, remote hosts and connection
 parameters that could override the hostname. `TEST_DATABASE_URL` can select another

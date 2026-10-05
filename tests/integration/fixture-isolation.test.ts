@@ -2,8 +2,9 @@ import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import { access } from 'node:fs/promises'
 import { Client } from 'pg'
+import type { Payload } from 'payload'
 import { createTestDatabase, localTestDatabaseURL } from '../helpers/database'
-import { createTestCMS } from '../helpers/payload'
+import { applicationConfig, createTestCMS } from '../helpers/payload'
 
 test('concurrent fixtures isolate records and removing one leaves the other usable', async () => {
   const first = await createTestDatabase()
@@ -30,30 +31,48 @@ test('concurrent fixtures isolate records and removing one leaves the other usab
   }
 })
 
-test('failed CMS setup removes its owned database and media directory and restores the connection', async () => {
-  const previous = process.env.DATABASE_URL
-  let name = ''
-  let directory = ''
-  await assert.rejects(
-    createTestCMS(async (url, mediaDirectory) => {
-      name = new URL(url).pathname.slice(1)
-      directory = mediaDirectory
-      throw new Error('Synthetic configuration failure')
-    }),
-    /Synthetic configuration failure/,
-  )
-  assert.equal(process.env.DATABASE_URL, previous)
-  await assert.rejects(access(directory), { code: 'ENOENT' })
-  const url = localTestDatabaseURL(process.env)
-  url.pathname = '/postgres'
-  const admin = new Client({ connectionString: url.href })
-  try {
+test.each(['configuration', 'initialization'])(
+  'failed CMS %s removes its owned database and media directory and restores the connection',
+  async (phase) => {
+    const previous = process.env.DATABASE_URL
+    let name = ''
+    let directory = ''
+    let initialized: Payload | undefined
+    const url = localTestDatabaseURL(process.env)
+    url.pathname = '/postgres'
+    const admin = new Client({ connectionString: url.href })
     await admin.connect()
-    assert.equal(
-      (await admin.query('SELECT datname FROM pg_database WHERE datname = $1', [name])).rowCount,
-      0,
-    )
-  } finally {
-    await admin.end()
-  }
-})
+    try {
+      await assert.rejects(
+        createTestCMS(async (databaseURL, mediaDirectory) => {
+          name = new URL(databaseURL).pathname.slice(1)
+          directory = mediaDirectory
+          if (phase === 'configuration') throw new Error('Synthetic configuration failure')
+          const config = await applicationConfig(databaseURL, mediaDirectory)
+          config.onInit = async (instance) => {
+            initialized = instance
+            // Fail after the real adapter has opened its PostgreSQL pool.
+            throw new Error('Synthetic initialization failure')
+          }
+          return config
+        }),
+        new RegExp(`Synthetic ${phase} failure`),
+      )
+      assert.equal(process.env.DATABASE_URL, previous)
+      await assert.rejects(access(directory), { code: 'ENOENT' })
+      assert.equal(
+        (await admin.query('SELECT datname FROM pg_database WHERE datname = $1', [name])).rowCount,
+        0,
+      )
+    } finally {
+      // Even a failing cleanup regression leaves only its own temporary database removed.
+      if (initialized && !initialized.db.pool.ended) await initialized.db.pool.end()
+      try {
+        if (/^lunia_test_[a-f0-9]{32}$/.test(name))
+          await admin.query(`DROP DATABASE IF EXISTS "${name}"`)
+      } finally {
+        await admin.end()
+      }
+    }
+  },
+)

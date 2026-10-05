@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { mkdtemp, rm, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { getPayload, type Payload, type SanitizedConfig } from 'payload'
+import { BasePayload, type Payload, type SanitizedConfig } from 'payload'
 import { postgresAdapter, type MigrateUpArgs, type MigrateDownArgs } from '@payloadcms/db-postgres'
 import { migrations as committedMigrations } from '../../src/migrations'
 import { createTestDatabase } from './database'
@@ -49,20 +49,23 @@ export async function createTestCMS(
     closed = true
     try {
       if (payload) {
-        const pool = payload.db.pool
+        const pool = payload.db?.pool
         try {
           await payload.destroy()
         } finally {
-          await pool.end()
+          await pool?.end()
         }
       }
     } finally {
       try {
         await database.close()
       } finally {
-        if (directory) await rm(directory, { recursive: true, force: true })
-        if (previousURL === undefined) delete process.env.DATABASE_URL
-        else process.env.DATABASE_URL = previousURL
+        try {
+          if (directory) await rm(directory, { recursive: true, force: true })
+        } finally {
+          if (previousURL === undefined) delete process.env.DATABASE_URL
+          else process.env.DATABASE_URL = previousURL
+        }
       }
     }
   }
@@ -70,7 +73,9 @@ export async function createTestCMS(
     directory = await mkdtemp(path.join(tmpdir(), 'lunia-test-media-'))
     const config = await configFactory(database.url, directory)
     config.logger = { options: { level: 'error' } }
-    payload = await getPayload({ key: database.name, config: Promise.resolve(config) })
+    // Own the uncached instance before init: a failed hook can already have opened a pool.
+    payload = new BasePayload()
+    await payload.init({ config: Promise.resolve(config) })
     if (migrate) await payload.db.migrate({ shouldPrompt: false, migrations: testMigrations })
     const ownedPayload = payload
     const mediaDirectory = directory

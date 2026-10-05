@@ -9,20 +9,20 @@
       Refs: R-2, R-3, P-1
       Depends: T-1
       Verify: Document each existing suite/check and preserve its negative cases; selected tests alone and concurrent suites pass with cleanup.
-      Evidence: All 31 integration cases pass. Two complete runs executed concurrently, one shuffled with seed 36, both passed 31/31. CMS editorial, Blob namespace and customer money/template cases also pass when selected alone. New tests verify two real databases stay isolated, failed setup removes its database/media directory, and invalid hosted/override targets fail before connection. Original coverage is mapped in inventory.md.
+      Evidence: Initial 31 integration cases passed. A subsequent lifecycle review added an initialization-failure regression: before the fix it reproduced PostgreSQL 55006 and leaked an open pool; after owning BasePayload before init, all three fixture-isolation cases pass. Two complete runs executed concurrently, one shuffled with seed 36, both passed 31/31. CMS editorial, Blob namespace and customer money/template cases also pass when selected alone. New tests verify two real databases stay isolated, failed setup removes its database/media directory, and invalid hosted/override targets fail before connection. The corrected fixture also passes all 32 cases in a clean full run and a shuffled seed-37 run. Original coverage is mapped in inventory.md.
 - [x] T-3: Align pinned runners, local verification and CI stages
       Refs: R-3, R-4, R-6, P-1
       Depends: T-2
       Verify: One local full command matches CI, unique Python checks retained, failure diagnostics exercised.
-      Evidence: Vitest 5.0.3 pinned; same named stages exposed through npm run verify and CI. All 35 Python, four hook and 12 release tests retained. Focused negative lint tests pass. A deliberately invalid remote browser target exits 1 before migration/seed/browser startup. Full npm run verify passed on 2026-10-05: strict lint/types/format/spec, 32 unit, 35 Python, four hooks, 12 release, 31 integration, build/generated consistency, one traced-build check and 21 Playwright cases. Independent review is tracked separately in T-5.
+      Evidence: Vitest 5.0.3 pinned; same named stages exposed through npm run verify and CI. All 35 Python, four hook and 12 release tests retained. Focused negative lint tests pass. A deliberately invalid remote browser target exits 1 before migration/seed/browser startup. Full npm run verify passed on 2026-10-05: strict lint/types/format/spec, 32 unit, 35 Python, four hooks, 12 release, 32 integration, build/generated consistency, one traced-build check and 21 Playwright cases. Independent review is tracked separately in T-5.
 - [ ] T-4: Verify full browser journeys and exact-head protected preview
       Refs: R-2, R-4, R-5, P-1, P-2
       Depends: T-3
       Verify: Repeated clean-database runs, Playwright flow checks/screenshots, exact-head CI and automatic CMS preview.
-      Evidence: All 21 Playwright cases pass, including the converted showcase/private-upload checks and unsaved template back navigation. One built trace test passes. Inspected mobile enquiry confirmation/showcase and desktop booking/template screenshots; horizontal overflow checks pass. Final exact-head CI/preview pending.
+      Evidence: All 21 Playwright cases pass, including the converted showcase/private-upload checks and unsaved template back navigation. One built trace test passes. Inspected mobile enquiry confirmation/showcase and desktop booking/template screenshots; horizontal overflow checks pass. Final exact-head CI/preview pending. The native cloud worker confirmed the first preview failed before build because Neon reached its database-branch limit; provider recovery is handled separately, with no test-worker resource mutations or paid upgrade.
 
 - [ ] T-5: Independently review correctness and maintainability
       Refs: R-6, P-1, P-2
       Depends: T-3
       Verify: Independent review of fixture lifecycle, preserved assertions, standards scope, CI parity and provider isolation; address findings without blanket rewrites.
-      Evidence: Implementation review pending; user owns merge.
+      Evidence: Implementation self-review found and reproduced the partially initialized Payload pool leak; the fixture now owns its instance before init and the regression passes. Independent reviewer coverage remains pending; user owns merge.

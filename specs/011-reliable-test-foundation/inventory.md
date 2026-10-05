@@ -53,9 +53,9 @@ https://vitest.dev/guide/test-context. Confirm installed pinned types during imp
 - 28 existing application unit cases now use Vitest; four new cases verify local-only
   database targets, provider environment isolation, UI import boundaries and floating
   promises (32 unit cases). The four Node Git-hook checks remain unchanged.
-- All 29 integration cases retain their behavior assertions. Two new real-database
-  cases verify concurrent ownership/drop isolation and cleanup after failed CMS setup
-  (31 cases). Customer email/booking, Blob namespace and CMS editorial cases create
+- All 29 integration cases retain their behavior assertions. Three new real-database
+  cases verify concurrent ownership/drop isolation and cleanup after failed CMS
+  configuration or initialization (32 cases). Customer email/booking, Blob namespace and CMS editorial cases create
   their own prerequisites rather than borrowing earlier state. Anonymous denial is
   now unconditional instead of guarded by a prior test's contact list.
 - All 19 existing Playwright scenarios remain; showcase and upload metadata add the
