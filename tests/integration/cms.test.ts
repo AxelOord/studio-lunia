@@ -120,9 +120,20 @@ test('first-user path cannot bypass the bootstrap guard', async () => {
 })
 
 test('editorial blocks retain order, draft versions and validate published content', async () => {
-  const image = (await payload.find({ collection: 'media', overrideAccess: true, limit: 1 }))
-    .docs[0]
-  assert.ok(image)
+  // Own this relationship fixture: other suites may delete their media concurrently,
+  // and selecting this test alone must not depend on the earlier upload test.
+  const data = await sharp({
+    create: { width: 1800, height: 1200, channels: 3, background: '#65745a' },
+  })
+    .png()
+    .toBuffer()
+  const image = await payload.create({
+    collection: 'media',
+    overrideAccess: true,
+    data: { alt: 'Synthetic editorial block fixture', visibility: 'public' },
+    file: { data, mimetype: 'image/png', name: `blocks-${stamp}.png`, size: data.length },
+  })
+  media.push(image.id)
   const created = await payload.create({
     collection: 'pages',
     overrideAccess: true,

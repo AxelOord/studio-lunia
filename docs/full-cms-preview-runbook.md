@@ -15,19 +15,20 @@ tradeoff for trusted synthetic previews, not production security hardening.
 
 Set these only for Preview (provider UI; never export values to chat or the repo):
 
-| Setting               | Value/source                                       |
-| --------------------- | -------------------------------------------------- |
-| DATABASE_URL          | Native pooled preview-branch connection            |
-| DATABASE_URL_UNPOOLED | Native direct connection to the same database/user |
-| LUNIA_SHOWCASE        | false                                              |
-| LUNIA_CMS_PREVIEW     | true                                               |
-| LUNIA_PREVIEW_REVIEW  | approved                                           |
-| LUNIA_STORAGE         | private-blob                                       |
-| PAYLOAD_SECRET        | Existing approved preview signing secret           |
-| BLOB_READ_WRITE_TOKEN | Existing private preview store token               |
-| RESEND_API_KEY        | Existing approved preview mail key                 |
-| MAIL_FROM             | onboarding@resend.dev                              |
-| PREVIEW_EDITOR_EMAIL  | Existing privately configured approved mailbox     |
+| Setting                 | Value/source                                          |
+| ----------------------- | ----------------------------------------------------- |
+| DATABASE_URL            | Native pooled preview-branch connection               |
+| DATABASE_URL_UNPOOLED   | Native direct connection to the same database/user    |
+| LUNIA_SHOWCASE          | false                                                 |
+| LUNIA_CMS_PREVIEW       | true                                                  |
+| LUNIA_PREVIEW_REVIEW    | approved                                              |
+| LUNIA_STORAGE           | private-blob                                          |
+| PAYLOAD_SECRET          | Existing approved preview signing secret              |
+| BLOB_READ_WRITE_TOKEN   | Existing private preview store token                  |
+| RESEND_API_KEY          | Existing approved preview mail key                    |
+| MAIL_FROM               | onboarding@resend.dev                                 |
+| PREVIEW_EDITOR_EMAIL    | Existing privately configured approved mailbox        |
+| PREVIEW_EDITOR_PASSWORD | Owner-entered shared preview default (16+ characters) |
 
 Expose Vercel system environment variables, including VERCEL_PROJECT_ID,
 VERCEL_GIT_REPO_OWNER, VERCEL_GIT_REPO_SLUG, VERCEL_GIT_COMMIT_REF,
@@ -51,13 +52,31 @@ manual confirmation fails closed. Errors fail the build, never publish a showcas
 Next/Payload compilation begins only after successful preparation. The canary's
 metadata-only destroy method is followed by explicit pg.Pool shutdown.
 
-An empty database gets one editor for PREVIEW_EDITOR_EMAIL, with a cryptographically
-random password that is discarded without logging. Open `/admin/login`, choose
-Forgot password, and use the emailed link to choose a password of at least 16
-characters. No password is supplied to builds, and public first-user registration
-remains blocked. Rebuilds preserve the editor's password and changes; they do not
-send reset emails or reset accounts. An existing database without the approved
-editor fails bootstrap instead of silently adding another user.
+Before the first build that creates an editor, the owner enters PREVIEW_EDITOR_PASSWORD
+in the approved **studio-lunia** project's Vercel environment settings, scoped to
+**Preview only**. Use at least 16 characters, without line breaks or NUL. The separate
+24-character database-password minimum is unchanged. Never enter the real value in
+chat, tickets, repository files, command arguments or logs. This implementation does
+not set provider variables or reset credentials; the owner's secure entry is required.
+
+An empty database gets one editor for PREVIEW_EDITOR_EMAIL using that shared default.
+A missing or invalid default fails bootstrap without creating an account or falling
+back to a random password. Sign in to Vercel Authentication first, open the protected
+preview's `/admin/login`, then use the privately supplied editor email and password.
+The owner supplies credentials only to authorized testers through their approved
+private channel. Vercel Authentication remains enabled; no public login bypass is added.
+The password is consumed only by the build bootstrap and removed from the compiler's
+child-process environment; it is never a NEXT_PUBLIC variable or application field.
+
+Rebuilds preserve all existing editor passwords and changes, even if the default is
+missing or has changed. They do not send reset emails or read the shared default when
+an editor exists. This includes older previews whose editor used password recovery:
+keep using that account's existing password. Changing the environment default affects
+only future new accounts. Resetting an existing account requires separate explicit
+owner approval; do not delete or recreate it to apply the default. An existing database
+without the approved editor fails bootstrap instead of silently adding another user.
+Public first-user registration remains blocked. Local seed credentials stay separate;
+production builds reject this path before reading the default or connecting to a database.
 
 Missing home/blocks pages receive six editable block types and two explicitly
 synthetic colour-study images. Existing pages, including drafts, remain untouched.
@@ -86,7 +105,8 @@ reviewed separately; no automatic destructive cleanup is added.
 
 ## Acceptance evidence
 
-Local/CI checks cover new-database migrations, idempotent bootstrap, preserved password
+Local/CI checks cover two isolated fresh databases using one dummy default, invalid/missing
+default rejection, idempotent bootstrap without a secret, preserved password
 and drafts, actual CMS browser login/edit/preview, image derivatives/access, recovery
 token lifecycle, namespace denial, and fail-closed build configuration. Local Blob
 integration uses an in-memory provider boundary, not a claim of hosted provider ACLs.

@@ -22,6 +22,7 @@ const env: NodeJS.ProcessEnv = {
   RESEND_API_KEY: 'synthetic',
   MAIL_FROM: 'test@example.test',
   PREVIEW_EDITOR_EMAIL: 'editor@example.test',
+  PREVIEW_EDITOR_PASSWORD: 'PRIVATE_MARKER_dummy_preview_default',
   DATABASE_URL:
     'postgresql://synthetic:PRIVATE_MARKER@db-pooler.example.test/preview?sslmode=require',
   DATABASE_URL_UNPOOLED:

@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { previewEditorPassword } from '../scripts/prepare-preview'
 import {
   approvedOrigin,
   cmsOrigin,
@@ -74,4 +75,45 @@ test('CMS allows provider branch and deployment origins without trusting arbitra
     'https://studio-lunia-hash.vercel.app',
   ])
   assert.throws(() => cmsAllowedOrigins({ ...preview, VERCEL_URL: 'malicious.example' }))
+})
+
+test('shared editor default requires an approved preview and the existing password minimum', () => {
+  const password = 'synthetic shared default'
+  assert.equal(previewEditorPassword({ ...preview, PREVIEW_EDITOR_PASSWORD: password }), password)
+  assert.equal(
+    previewEditorPassword({ ...preview, PREVIEW_EDITOR_PASSWORD: 'x'.repeat(16) }).length,
+    16,
+  )
+  for (const invalid of [
+    undefined,
+    '',
+    'x'.repeat(15),
+    `${password}\n`,
+    `${password}\r`,
+    `${password}\0`,
+  ]) {
+    assert.throws(() => previewEditorPassword({ ...preview, PREVIEW_EDITOR_PASSWORD: invalid }), {
+      message: 'New previews require PREVIEW_EDITOR_PASSWORD (16+ characters, no line breaks).',
+    })
+  }
+  for (const disallowed of [
+    {},
+    { VERCEL: '1', LUNIA_SHOWCASE: 'true' },
+    { ...preview, VERCEL_ENV: 'production' },
+    { ...preview, VERCEL_PROJECT_ID: 'other-project' },
+    { ...preview, VERCEL_GIT_REPO_OWNER: 'other-owner' },
+    { ...preview, VERCEL_GIT_COMMIT_REF: 'develop' },
+  ]) {
+    let read = false
+    assert.throws(() =>
+      previewEditorPassword({
+        ...disallowed,
+        get PREVIEW_EDITOR_PASSWORD() {
+          read = true
+          return password
+        },
+      }),
+    )
+    assert.equal(read, false, 'Disallowed deployments must never read the shared default')
+  }
 })
