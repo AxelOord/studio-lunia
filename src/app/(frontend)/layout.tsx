@@ -34,8 +34,13 @@ export default async function Layout({ children }: { children: React.ReactNode }
           </main>
           <footer>
             <span className="wordmark">studio lunia</span>
-            <p>Website preview · Booking is not available here yet.</p>
-            <Link href="/inquire">Make an enquiry</Link>
+            <p>Website prototype · Synthetic details only. No payments or visitor emails.</p>
+            <div className="form-actions">
+              <Link href="/inquire">Make an enquiry</Link>
+              {process.env.LUNIA_SHOWCASE !== 'true' && (
+                <Link href="/studio-days">Explore studio days</Link>
+              )}
+            </div>
           </footer>
         </PrivacyControls>
       </body>

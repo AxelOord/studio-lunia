@@ -1,4 +1,5 @@
 import type { CollectionConfig, Field } from 'payload'
+import { internalWrite } from '../customer-records/core'
 import { editors } from '../access'
 import { inquiryCapability } from '../inquiries/access'
 import { enquiryActivity, linkNewEnquiry } from '../customer-records/hooks'
@@ -24,7 +25,7 @@ export const Enquiries: CollectionConfig = {
   access: {
     create: ({ req }) => req.context.inquiryCapability === inquiryCapability,
     read: ({ req }) =>
-      req.user
+      req.user || internalWrite({ req })
         ? true
         : req.context.inquiryCapability === inquiryCapability
           ? { submissionHash: { equals: String(req.context.inquiryKey) } }

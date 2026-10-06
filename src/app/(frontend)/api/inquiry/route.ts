@@ -7,6 +7,7 @@ import { submitInquiry } from '@/inquiries/submit'
 import { notifyPhotographer } from '@/inquiries/notification'
 import { captureMeasurement } from '@/inquiries/measurement'
 import { limitOperation } from '@/hosting/rate-limit'
+import { object } from '@/customer-records/core'
 import { validateInquiry } from '@/lib/inquiry'
 
 export async function POST(request: Request) {
@@ -22,7 +23,14 @@ export async function POST(request: Request) {
     await limitOperation('inquiry-ip', ip, 20)
     await limitOperation('inquiry-email', data.email, 5)
     const payload = await getPayload({ config })
-    const { preferences, campaign, session } = await privacyState()
+    const privacy = await privacyState()
+    const { campaign, session } = privacy
+    const permissions = object(input)
+    const preferences = {
+      ...privacy.preferences,
+      campaigns: privacy.preferences.campaigns && permissions.campaignsAllowed !== false,
+      analytics: privacy.preferences.analytics && permissions.analyticsAllowed !== false,
+    }
     const result = await submitInquiry(payload, input, preferences, campaign)
     if (!result.doc) return Response.json({ errors: result.errors }, { status: 422 })
     const doc = result.doc

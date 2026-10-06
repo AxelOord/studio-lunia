@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { LivePagePreview } from '@/components/LivePagePreview'
+import { resolveLandingPage } from '@/inquiries/services'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,5 +23,5 @@ export default async function LivePreviewPage({ params }: { params: Promise<{ id
     disableErrors: true,
   })
   if (!page) notFound()
-  return <LivePagePreview key={page.id} page={page} />
+  return <LivePagePreview key={page.id} page={await resolveLandingPage(payload, page)} />
 }

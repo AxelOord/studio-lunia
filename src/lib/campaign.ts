@@ -80,7 +80,7 @@ export function validateCampaign(value: unknown, now = Date.now()): CampaignSnap
     const clean = campaignTouch(touch.tags, touch.kind, touch.capturedAt)
     if (JSON.stringify(clean) !== JSON.stringify(touch)) return
   }
-  return data
+  return { first: data.first, last: data.last, expiresAt: data.expiresAt }
 }
 
 export function campaignSource(touch: CampaignTouch) {

@@ -70,6 +70,8 @@ export interface Config {
     users: User;
     media: Media;
     pages: Page;
+    'studio-days': StudioDay;
+    'studio-slots': StudioSlot;
     enquiries: Enquiry;
     contacts: Contact;
     bookings: Booking;
@@ -77,7 +79,11 @@ export interface Config {
     'customer-activities': CustomerActivity;
     'email-templates': EmailTemplate;
     'email-messages': EmailMessage;
+    'follow-ups': FollowUp;
+    'follow-up-rules': FollowUpRule;
+    'incoming-replies': IncomingReply;
     'payload-kv': PayloadKv;
+    'payload-jobs': PayloadJob;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -87,6 +93,8 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
+    'studio-days': StudioDaysSelect<false> | StudioDaysSelect<true>;
+    'studio-slots': StudioSlotsSelect<false> | StudioSlotsSelect<true>;
     enquiries: EnquiriesSelect<false> | EnquiriesSelect<true>;
     contacts: ContactsSelect<false> | ContactsSelect<true>;
     bookings: BookingsSelect<false> | BookingsSelect<true>;
@@ -94,7 +102,11 @@ export interface Config {
     'customer-activities': CustomerActivitiesSelect<false> | CustomerActivitiesSelect<true>;
     'email-templates': EmailTemplatesSelect<false> | EmailTemplatesSelect<true>;
     'email-messages': EmailMessagesSelect<false> | EmailMessagesSelect<true>;
+    'follow-ups': FollowUpsSelect<false> | FollowUpsSelect<true>;
+    'follow-up-rules': FollowUpRulesSelect<false> | FollowUpRulesSelect<true>;
+    'incoming-replies': IncomingRepliesSelect<false> | IncomingRepliesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
+    'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -103,8 +115,12 @@ export interface Config {
     defaultIDType: number;
   };
   fallbackLocale: null;
-  globals: {};
-  globalsSelect: {};
+  globals: {
+    'payload-jobs-stats': PayloadJobsStat;
+  };
+  globalsSelect: {
+    'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
+  };
   locale: null;
   widgets: {
     collections: CollectionsWidget;
@@ -113,7 +129,13 @@ export interface Config {
   };
   user: User;
   jobs: {
-    tasks: unknown;
+    tasks: {
+      simulateFollowUp: TaskSimulateFollowUp;
+      inline: {
+        input: unknown;
+        output: unknown;
+      };
+    };
     workflows: unknown;
   };
 }
@@ -225,6 +247,7 @@ export interface Page {
    */
   slug: string;
   description: string;
+  inquiryService?: string | null;
   updatedAt: string;
   createdAt: string;
   _status?: ('draft' | 'published') | null;
@@ -301,6 +324,18 @@ export interface ServicesBlock {
   items: {
     title: string;
     body: string;
+    /**
+     * Approved service details only. Put each inclusion on a separate line.
+     */
+    inclusions?: string | null;
+    /**
+     * Use approved wording. Leave blank until pricing is agreed.
+     */
+    priceGuidance?: string | null;
+    /**
+     * Only an agreed human-response promise; leave blank if no timing is approved.
+     */
+    responseExpectation?: string | null;
     id?: string | null;
   }[];
   id?: string | null;
@@ -322,6 +357,90 @@ export interface CallToActionBlock {
   id?: string | null;
   blockName?: string | null;
   blockType: 'callToAction';
+}
+/**
+ * Publish a rented studio day. Existing bookings keep their agreed details. Preview bookings take no payment and create private email test drafts only.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "studio-days".
+ */
+export interface StudioDay {
+  id: number;
+  title: string;
+  slug: string;
+  location: string;
+  offerTitle: string;
+  inclusions: string;
+  priceMinor: number;
+  /**
+   * ISO currency, for example EUR. Price 10000 means EUR 100.00.
+   */
+  currency: string;
+  changePolicy: string;
+  localDate: string;
+  timeZone: string;
+  opensLocal: string;
+  /**
+   * Only needed when this local time occurs twice at a clock change. Minutes east of UTC, for example 60 or 120.
+   */
+  openOffset?: number | null;
+  closesLocal: string;
+  /**
+   * Only needed when this local time occurs twice at a clock change. Minutes east of UTC, for example 60 or 120.
+   */
+  closeOffset?: number | null;
+  durationMinutes: number;
+  bufferMinutes: number;
+  capacity: number;
+  bookingDeadlineLocal: string;
+  /**
+   * Only needed when this local time occurs twice at a clock change. Minutes east of UTC, for example 60 or 120.
+   */
+  deadlineOffset?: number | null;
+  /**
+   * Pending requests use a place until approved or cancelled. Existing bookings keep their status.
+   */
+  confirmationMode: 'immediate' | 'manual';
+  bookingsOpen?: boolean | null;
+  /**
+   * Cancelling the day stops new bookings. Review and cancel each existing commitment separately.
+   */
+  dayState: 'scheduled' | 'cancelled';
+  /**
+   * Required afresh when publishing changed settings with active bookings. Existing details are never rewritten.
+   */
+  acknowledgeBookings?: boolean | null;
+  layout?: (HeroBlock | TextBlock | GalleryBlock | ImageTextBlock | ServicesBlock | CallToActionBlock)[] | null;
+  scheduleRevision?: number | null;
+  configurationHash?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "studio-slots".
+ */
+export interface StudioSlot {
+  id: number;
+  day: number | StudioDay;
+  revision: number;
+  slotKey: string;
+  startsAt: string;
+  endsAt: string;
+  occupiedUntil: string;
+  capacity: number;
+  snapshot:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * Private enquiry queue. Review each new enquiry and follow up manually. Preview visitor emails are never sent.
@@ -380,11 +499,15 @@ export interface Contact {
    */
   notes?: string | null;
   sourceKey?: string | null;
+  /**
+   * Stops every planned follow-up for this customer, including test simulations.
+   */
+  followUpsStopped?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
 /**
- * Staff-led proposals and confirmed records. No calendar capacity or online payment is created.
+ * Private enquiry-led records and capacity-checked studio sessions. No online payment is created.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "bookings".
@@ -393,9 +516,9 @@ export interface Booking {
   id: number;
   title: string;
   contact: number | Contact;
-  enquiry: number | Enquiry;
-  source: 'staff_enquiry';
-  status: 'proposed' | 'confirmed' | 'completed' | 'cancelled';
+  enquiry?: (number | null) | Enquiry;
+  source: 'staff_enquiry' | 'studio_slot';
+  status: 'proposed' | 'pending_approval' | 'confirmed' | 'completed' | 'cancelled';
   sessionAt?: string | null;
   /**
    * Expected value in minor currency units. Separate from money actually recorded.
@@ -411,6 +534,24 @@ export interface Booking {
     | number
     | boolean
     | null;
+  studioDay?: (number | null) | StudioDay;
+  studioSlot?: (number | null) | StudioSlot;
+  studioSeat?: number | null;
+  studioRevision?: number | null;
+  studioSnapshot?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  sessionEndsAt?: string | null;
+  occupiedUntil?: string | null;
+  studioSubmissionHash?: string | null;
+  studioContentHash?: string | null;
+  studioMessageState?: ('pending' | 'ready' | 'failed') | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -559,6 +700,96 @@ export interface EmailTemplate {
   createdAt: string;
 }
 /**
+ * Private test plans. Use the guided Follow-ups view. No automatic or real-customer delivery is active.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "follow-ups".
+ */
+export interface FollowUp {
+  id: number;
+  contact: number | Contact;
+  enquiry?: (number | null) | Enquiry;
+  booking?: (number | null) | Booking;
+  template: number | EmailTemplate;
+  rule?: (number | null) | FollowUpRule;
+  purpose: 'enquiry_followup' | 'preparation' | 'session_reminder';
+  triggerKey: string;
+  triggeredAt: string;
+  revision: number;
+  plannedAt: string;
+  timeZone: string;
+  sessionSnapshot?: string | null;
+  recipient: string;
+  subject: string;
+  text: string;
+  html: string;
+  templateSnapshot:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  state: 'planned' | 'blocked' | 'paused' | 'cancelled' | 'simulated' | 'failed';
+  blockReason?: string | null;
+  jobID?: number | null;
+  attempts: number;
+  outcomeKey?: string | null;
+  simulatedAt?: string | null;
+  lastError?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Test planning only. No example is enabled by default and approval never enables live delivery.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "follow-up-rules".
+ */
+export interface FollowUpRule {
+  id: number;
+  name: string;
+  purpose: 'enquiry_followup' | 'preparation' | 'session_reminder';
+  template: number | EmailTemplate;
+  /**
+   * Elapsed hours after a proposal, or before the confirmed session. These are not business days.
+   */
+  hours: number;
+  /**
+   * Explicit IANA timezone for the planned-message display.
+   */
+  timeZone: string;
+  /**
+   * I reviewed the wording and elapsed-hour timing for test planning only.
+   */
+  approvedForTests?: boolean | null;
+  revision: number;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Simulation or explicitly verified provenance. Real receiving remains unconfigured.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "incoming-replies".
+ */
+export interface IncomingReply {
+  id: number;
+  eventKey: string;
+  summary: string;
+  contact?: (number | null) | Contact;
+  enquiry?: (number | null) | Enquiry;
+  source: 'simulation' | 'verified_provider';
+  state: 'matched' | 'review';
+  occurredAt: string;
+  text?: string | null;
+  reviewReason?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -574,6 +805,116 @@ export interface PayloadKv {
     | number
     | boolean
     | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs".
+ */
+export interface PayloadJob {
+  id: number;
+  /**
+   * Input data provided to the job
+   */
+  input?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  taskStatus?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  meta?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  completedAt?: string | null;
+  totalTried?: number | null;
+  /**
+   * If hasError is true this job will not be retried
+   */
+  hasError?: boolean | null;
+  /**
+   * If hasError is true, this is the error that caused it
+   */
+  error?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Task execution log
+   */
+  log?:
+    | {
+        executedAt: string;
+        completedAt: string;
+        taskSlug: 'inline' | 'simulateFollowUp';
+        taskID: string;
+        input:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        output?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        state: 'failed' | 'succeeded';
+        error?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        parent?: {
+          taskSlug?: ('inline' | 'simulateFollowUp') | null;
+          taskID?: string | null;
+        };
+        id?: string | null;
+      }[]
+    | null;
+  taskSlug?: ('inline' | 'simulateFollowUp') | null;
+  queue?: string | null;
+  waitUntil?: string | null;
+  processingUntil?: string | null;
+  processingToken?: string | null;
+  /**
+   * Used for concurrency control. Jobs with the same key are subject to exclusive/supersedes rules.
+   */
+  concurrencyKey?: string | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -593,6 +934,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'pages';
         value: number | Page;
+      } | null)
+    | ({
+        relationTo: 'studio-days';
+        value: number | StudioDay;
+      } | null)
+    | ({
+        relationTo: 'studio-slots';
+        value: number | StudioSlot;
       } | null)
     | ({
         relationTo: 'enquiries';
@@ -621,6 +970,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'email-messages';
         value: number | EmailMessage;
+      } | null)
+    | ({
+        relationTo: 'follow-ups';
+        value: number | FollowUp;
+      } | null)
+    | ({
+        relationTo: 'follow-up-rules';
+        value: number | FollowUpRule;
+      } | null)
+    | ({
+        relationTo: 'incoming-replies';
+        value: number | IncomingReply;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -750,6 +1111,7 @@ export interface PagesSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
   description?: T;
+  inquiryService?: T;
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
@@ -815,6 +1177,9 @@ export interface ServicesBlockSelect<T extends boolean = true> {
     | {
         title?: T;
         body?: T;
+        inclusions?: T;
+        priceGuidance?: T;
+        responseExpectation?: T;
         id?: T;
       };
   id?: T;
@@ -831,6 +1196,66 @@ export interface CallToActionBlockSelect<T extends boolean = true> {
   href?: T;
   id?: T;
   blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "studio-days_select".
+ */
+export interface StudioDaysSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  location?: T;
+  offerTitle?: T;
+  inclusions?: T;
+  priceMinor?: T;
+  currency?: T;
+  changePolicy?: T;
+  localDate?: T;
+  timeZone?: T;
+  opensLocal?: T;
+  openOffset?: T;
+  closesLocal?: T;
+  closeOffset?: T;
+  durationMinutes?: T;
+  bufferMinutes?: T;
+  capacity?: T;
+  bookingDeadlineLocal?: T;
+  deadlineOffset?: T;
+  confirmationMode?: T;
+  bookingsOpen?: T;
+  dayState?: T;
+  acknowledgeBookings?: T;
+  layout?:
+    | T
+    | {
+        hero?: T | HeroBlockSelect<T>;
+        text?: T | TextBlockSelect<T>;
+        gallery?: T | GalleryBlockSelect<T>;
+        imageText?: T | ImageTextBlockSelect<T>;
+        services?: T | ServicesBlockSelect<T>;
+        callToAction?: T | CallToActionBlockSelect<T>;
+      };
+  scheduleRevision?: T;
+  configurationHash?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "studio-slots_select".
+ */
+export interface StudioSlotsSelect<T extends boolean = true> {
+  day?: T;
+  revision?: T;
+  slotKey?: T;
+  startsAt?: T;
+  endsAt?: T;
+  occupiedUntil?: T;
+  capacity?: T;
+  snapshot?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -863,6 +1288,7 @@ export interface ContactsSelect<T extends boolean = true> {
   phone?: T;
   notes?: T;
   sourceKey?: T;
+  followUpsStopped?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -880,6 +1306,16 @@ export interface BookingsSelect<T extends boolean = true> {
   expectedMinor?: T;
   currency?: T;
   attribution?: T;
+  studioDay?: T;
+  studioSlot?: T;
+  studioSeat?: T;
+  studioRevision?: T;
+  studioSnapshot?: T;
+  sessionEndsAt?: T;
+  occupiedUntil?: T;
+  studioSubmissionHash?: T;
+  studioContentHash?: T;
+  studioMessageState?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -965,11 +1401,115 @@ export interface EmailMessagesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "follow-ups_select".
+ */
+export interface FollowUpsSelect<T extends boolean = true> {
+  contact?: T;
+  enquiry?: T;
+  booking?: T;
+  template?: T;
+  rule?: T;
+  purpose?: T;
+  triggerKey?: T;
+  triggeredAt?: T;
+  revision?: T;
+  plannedAt?: T;
+  timeZone?: T;
+  sessionSnapshot?: T;
+  recipient?: T;
+  subject?: T;
+  text?: T;
+  html?: T;
+  templateSnapshot?: T;
+  state?: T;
+  blockReason?: T;
+  jobID?: T;
+  attempts?: T;
+  outcomeKey?: T;
+  simulatedAt?: T;
+  lastError?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "follow-up-rules_select".
+ */
+export interface FollowUpRulesSelect<T extends boolean = true> {
+  name?: T;
+  purpose?: T;
+  template?: T;
+  hours?: T;
+  timeZone?: T;
+  approvedForTests?: T;
+  revision?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "incoming-replies_select".
+ */
+export interface IncomingRepliesSelect<T extends boolean = true> {
+  eventKey?: T;
+  summary?: T;
+  contact?: T;
+  enquiry?: T;
+  source?: T;
+  state?: T;
+  occurredAt?: T;
+  text?: T;
+  reviewReason?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv_select".
  */
 export interface PayloadKvSelect<T extends boolean = true> {
   key?: T;
   data?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs_select".
+ */
+export interface PayloadJobsSelect<T extends boolean = true> {
+  input?: T;
+  taskStatus?: T;
+  meta?: T;
+  completedAt?: T;
+  totalTried?: T;
+  hasError?: T;
+  error?: T;
+  log?:
+    | T
+    | {
+        executedAt?: T;
+        completedAt?: T;
+        taskSlug?: T;
+        taskID?: T;
+        input?: T;
+        output?: T;
+        state?: T;
+        error?: T;
+        parent?:
+          | T
+          | {
+              taskSlug?: T;
+              taskID?: T;
+            };
+        id?: T;
+      };
+  taskSlug?: T;
+  queue?: T;
+  waitUntil?: T;
+  processingUntil?: T;
+  processingToken?: T;
+  concurrencyKey?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1005,6 +1545,34 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs-stats".
+ */
+export interface PayloadJobsStat {
+  id: number;
+  stats?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs-stats_select".
+ */
+export interface PayloadJobsStatsSelect<T extends boolean = true> {
+  stats?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "collections_widget".
  */
 export interface CollectionsWidget {
@@ -1024,13 +1592,17 @@ export interface CollectionQueryWidget {
       | 'users'
       | 'media'
       | 'pages'
+      | 'studio-days'
       | 'enquiries'
       | 'contacts'
       | 'bookings'
       | 'revenue-entries'
       | 'customer-activities'
       | 'email-templates'
-      | 'email-messages';
+      | 'email-messages'
+      | 'follow-ups'
+      | 'follow-up-rules'
+      | 'incoming-replies';
     where?:
       | {
           [k: string]: unknown;
@@ -1057,6 +1629,7 @@ export interface ActivityWidget {
           | 'users'
           | 'media'
           | 'pages'
+          | 'studio-days'
           | 'enquiries'
           | 'contacts'
           | 'bookings'
@@ -1064,10 +1637,26 @@ export interface ActivityWidget {
           | 'customer-activities'
           | 'email-templates'
           | 'email-messages'
+          | 'follow-ups'
+          | 'follow-up-rules'
+          | 'incoming-replies'
         )[]
       | null;
   };
   width: 'x-small' | 'small' | 'medium' | 'large' | 'x-large' | 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskSimulateFollowUp".
+ */
+export interface TaskSimulateFollowUp {
+  input: {
+    plan: number;
+    revision: number;
+  };
+  output: {
+    state: string;
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

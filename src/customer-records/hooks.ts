@@ -59,7 +59,7 @@ export const contactActivity: CollectionAfterChangeHook = async ({
   req,
 }) => {
   if (operation === 'update') {
-    const changed = ['name', 'email', 'phone', 'notes'].filter(
+    const changed = ['name', 'email', 'phone', 'notes', 'followUpsStopped'].filter(
       (key) => doc[key] !== previousDoc[key],
     )
     if (changed.length)
