@@ -116,7 +116,10 @@ incoming replies remain off. See the [workspace UX audit and evidence](specs/pho
 The private workspace reports separate bespoke/studio creation cohorts, expected booking value,
 recorded net payments, campaign groups, staff-attested first response and current published occupancy.
 Source links make totals traceable. Optional PostHog EU aggregate reads remain off pending separate
-approval and secure configuration. See [definitions and activation gates](docs/conversion-overview.md).
+approval and secure configuration. Studio visitor stages use the same disabled-by-default,
+consent-aware capture transport; their aggregate reader remains unconnected. See
+[definitions and activation gates](docs/conversion-overview.md) and
+[studio event coverage](docs/studio-visitor-measurement.md).
 
 ## Service landing pages
 

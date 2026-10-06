@@ -39,6 +39,22 @@ export async function captureMeasurement(
 ) {
   if (!session || !measurementEnabled()) return 'disabled'
   const body = measurementPayload(session, service, event)
+  return deliverMeasurement(payload, body, send)
+}
+
+// Shared transport for server-built, allowlisted payloads. Never pass request JSON here.
+export async function deliverMeasurement(
+  payload: Payload,
+  body: {
+    uuid: string
+    event: string
+    distinct_id: string
+    api_key: string | undefined
+    properties: Record<string, string | number | boolean | null>
+  },
+  send: typeof fetch = fetch,
+) {
+  if (!measurementEnabled()) return 'disabled'
   // At-most-once claim. Failed/ambiguous provider requests are not replayed after withdrawal.
   // Stable UUID also supplies PostHog's ingestion deduplication identity.
   const claim = await payload.db.pool.query(

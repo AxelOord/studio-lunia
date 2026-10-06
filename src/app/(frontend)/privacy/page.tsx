@@ -21,8 +21,10 @@ export default function PrivacyPage() {
       <h2>Optional measurement</h2>
       <p>
         Only after you allow it, and when an approved PostHog EU project is connected, we measure
-        service views, enquiry starts and saved enquiries. Events contain random session and opaque
-        service identifiers, never your name, email, message, campaign tags or full URLs. We do not
+        service views, enquiry starts, saved enquiries, studio-day views, time selections and saved
+        studio reservations. Studio completion distinguishes confirmed from awaiting approval.
+        Events contain random session and opaque service or studio-day identifiers, never your name,
+        email, message, selected session time, campaign tags, click IDs or full URLs. We do not
         record sessions or create person profiles. A measurement cookie lasts for the browser
         session, up to 24 hours.
       </p>

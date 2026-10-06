@@ -525,7 +525,9 @@ export function ConversionOverview({
             </p>
             <p>
               <strong>
-                Studio visitor and booking-step counts: unavailable · not instrumented.
+                Studio visitor and booking-step counts: unavailable · studio reporting is not
+                connected. Optional measurement requires consent and approved setup. These counts
+                are not inferred from saved bookings.
               </strong>{' '}
               No visitor-to-booking rate or cross-system identity match is inferred.
             </p>

@@ -524,3 +524,210 @@ test('private draft preview and public unavailable states remain explicit in the
   await page.reload()
   await expect(page.getByText('This studio day has passed.', { exact: true })).toBeVisible()
 })
+
+async function configuredMeasurement(page: Page) {
+  // Only simulate readiness in the browser. Server capture remains disabled.
+  await page.route('**/api/privacy', async (route) => {
+    const response = await route.fetch()
+    await route.fulfill({ response, json: { ...(await response.json()), configured: true } })
+  })
+}
+
+test('studio measurement observes current consented exposure and a real time choice once; lost receipts retry safely on mobile', async ({
+  page,
+}) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  await configuredMeasurement(page)
+  const events: Record<string, unknown>[] = []
+  await page.route('**/api/measurement', async (route) => {
+    events.push(route.request().postDataJSON())
+    await route.fulfill({ status: 204 })
+  })
+  await page.goto(`/studio-days/${slug}?email=private@example.test&gclid=PrivateClick`)
+  await fill(page)
+  expect(events).toEqual([])
+  await page.getByLabel(/Measure service/).check()
+  await page.getByRole('button', { name: 'Save choices', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Your privacy choices' })).not.toBeVisible()
+  await page
+    .getByRole('heading', { name: 'Synthetic portrait studio day', exact: true })
+    .scrollIntoViewIfNeeded()
+  await expect.poll(() => events.length).toBe(1)
+  // Granting consent does not backfill the earlier slot selection.
+  expect(events).toEqual([{ event: 'studio_day_viewed', day: id }])
+  await page.screenshot({ path: 'test-results/studio-measurement-desktop.png', fullPage: true })
+  await page.getByLabel('Session time ·').selectOption({ index: 2 })
+  await page.getByLabel('Session time ·').selectOption({ index: 1 })
+  await page.getByLabel('I agree to the displayed').check()
+  await expect.poll(() => events.length).toBe(2)
+  expect(events).toEqual([
+    { event: 'studio_day_viewed', day: id },
+    { event: 'studio_slot_selected', day: id },
+  ])
+  const submissions: Record<string, unknown>[] = []
+  await page.route('**/api/studio-sessions', async (route) => {
+    submissions.push(route.request().postDataJSON())
+    if (submissions.length === 1) {
+      const response = await route.fetch()
+      expect(response.ok()).toBe(true)
+      await route.abort('failed') // Lose the response after the real database commit.
+    } else await route.continue()
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: 'Confirm this session', exact: true }).click()
+  const alert = page.getByRole('region', { name: 'Choose your session' }).getByRole('alert')
+  await expect(alert).toContainText('could not confirm')
+  await expect(alert).toBeFocused()
+  await noOverflow(page)
+  await page.screenshot({
+    path: 'test-results/studio-measurement-retry-mobile.png',
+    fullPage: true,
+  })
+  await page.getByRole('button', { name: 'Confirm this session', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Your session is reserved.' })).toBeVisible()
+  await expect(page.locator('.inquiry-success')).toBeFocused()
+  expect(submissions).toHaveLength(2)
+  expect(submissions[0].submissionId).toBe(submissions[1].submissionId)
+  expect(submissions.every((value) => value.analyticsAllowed === true)).toBe(true)
+  expect(await bookings()).toHaveLength(1)
+  expect(events).toHaveLength(2) // Browser cannot emit completion.
+  expect(JSON.stringify(events)).not.toMatch(/private|Private|email|slot:|gclid/)
+  await page.screenshot({
+    path: 'test-results/studio-measurement-receipt-mobile.png',
+    fullPage: true,
+  })
+  expect(errors).toEqual([])
+})
+
+test('withdrawal cancels a queued studio step and withholds booking measurement even when saving consent fails', async ({
+  page,
+}) => {
+  await page.request.post('/api/privacy', {
+    headers: { origin },
+    data: { analytics: true, campaigns: false },
+  })
+  await configuredMeasurement(page)
+  const events: Record<string, unknown>[] = []
+  let release!: () => void
+  const paused = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route('**/api/measurement', async (route) => {
+    events.push(route.request().postDataJSON())
+    await paused
+    await route.fulfill({ status: 204 }).catch(() => {})
+  })
+  try {
+    await page.goto(`/studio-days/${slug}`)
+    await expect.poll(() => events.length).toBe(1)
+    await fill(page)
+    await page.getByRole('button', { name: 'Privacy choices', exact: true }).click()
+    await page.route('**/api/privacy', async (route) => {
+      if (route.request().method() === 'POST') await route.fulfill({ status: 503 })
+      else await route.fallback()
+    })
+    await page.getByRole('button', { name: 'Withdraw optional consent', exact: true }).click()
+    await expect(
+      page.getByRole('region', { name: 'Privacy choices' }).getByRole('alert'),
+    ).toContainText('Collection is paused on this page')
+    release()
+    const submission = page.waitForRequest(
+      (request) => request.url().endsWith('/api/studio-sessions') && request.method() === 'POST',
+    )
+    await page.getByRole('button', { name: 'Confirm this session', exact: true }).click()
+    expect((await submission).postDataJSON().analyticsAllowed).toBe(false)
+    await expect(page.getByRole('heading', { name: 'Your session is reserved.' })).toBeVisible()
+    expect(events).toEqual([{ event: 'studio_day_viewed', day: id }])
+    await page.setViewportSize({ width: 390, height: 844 })
+    await noOverflow(page)
+    await page.screenshot({
+      path: 'test-results/studio-measurement-withdrawal-mobile.png',
+      fullPage: true,
+    })
+  } finally {
+    release()
+  }
+})
+
+test('a delayed privacy read cannot restore studio tracking after a newer decline', async ({
+  page,
+}) => {
+  await page.request.post('/api/privacy', {
+    headers: { origin },
+    data: { analytics: true, campaigns: false },
+  })
+  let release!: () => void
+  let loaded!: () => void
+  const paused = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const readLoaded = new Promise<void>((resolve) => {
+    loaded = resolve
+  })
+  await page.route('**/api/privacy', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue()
+    const response = await route.fetch()
+    const old = await response.json()
+    loaded()
+    await paused
+    await route.fulfill({ response, json: { ...old, configured: true } })
+  })
+  const events: string[] = []
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/measurement')) events.push(request.url())
+  })
+  try {
+    await page.goto(`/studio-days/${slug}`)
+    await readLoaded
+    await page.getByRole('button', { name: 'Privacy choices', exact: true }).click()
+    await page.getByRole('button', { name: 'Decline optional', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Your privacy choices' })).not.toBeVisible()
+    const completed = page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/api/privacy') && response.request().method() === 'GET',
+    )
+    release()
+    await completed
+    await page
+      .getByRole('heading', { name: 'Synthetic portrait studio day', exact: true })
+      .scrollIntoViewIfNeeded()
+    await fill(page)
+    await page.getByRole('button', { name: 'Privacy choices', exact: true }).click()
+    await expect(page.getByLabel(/Measure service/)).not.toBeChecked()
+    expect(events).toEqual([])
+    expect(
+      (await page.context().cookies()).some((cookie) => cookie.name === 'lunia_measurement'),
+    ).toBe(false)
+  } finally {
+    release()
+  }
+})
+
+test('studio collector rejects forged completions and private or unavailable selections through real HTTP', async ({
+  request,
+}) => {
+  const post = (data: Record<string, unknown>, source = origin) =>
+    request.post('/api/measurement', { headers: { origin: source }, data })
+  expect((await post({ event: 'studio_day_viewed', day: id })).status()).toBe(204)
+  await request.post('/api/privacy', {
+    headers: { origin },
+    data: { analytics: true, campaigns: false },
+  })
+  expect(
+    (await post({ event: 'studio_day_viewed', day: id }, 'https://evil.example')).status(),
+  ).toBe(403)
+  for (const data of [
+    { event: 'studio_booking_submitted', day: id, status: 'confirmed' },
+    { event: 'studio_day_viewed', day: 'private@example.test' },
+    { event: 'studio_slot_selected', day: -1 },
+  ])
+    expect((await post(data)).status()).toBe(400)
+  expect((await post({ event: 'studio_day_viewed', day: id })).status()).toBe(204)
+  expect((await post({ event: 'studio_slot_selected', day: id })).status()).toBe(204)
+  await change({ bookingsOpen: false })
+  expect((await post({ event: 'studio_day_viewed', day: id })).status()).toBe(204)
+  expect((await post({ event: 'studio_slot_selected', day: id })).status()).toBe(400)
+  await change({ _status: 'draft' })
+  expect((await post({ event: 'studio_day_viewed', day: id })).ok()).toBe(false)
+})

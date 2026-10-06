@@ -29,3 +29,18 @@ again. Best-effort events can be lost; no outbox backfills after withdrawal. Exp
 client visibility acknowledgement, so blocking and fast navigation can miss measurements.
 Intervals assume independent Bernoulli samples and are descriptive, not a valid hypothesis test;
 repeat browser identities, bias, peeking, attribution loss and sample imbalance need human review.
+
+## Authorized dependency integration
+
+PR #44 at ef8d28edb9867037697a7e7dd128d26db526fb06 is integrated into PR #45's existing
+feature branch with both commit histories preserved. No develop/main or pull-request merge
+is performed. Resolve the shared PrivacyControls file by retaining one initial-read generation
+guard, the experiment BroadcastChannel pause effect, and the studio allowlisted queue,
+trackStudio and measurementReady fields alongside experiment consent and submission permission.
+README and privacy wording retain both scopes. No schema or permission change is needed.
+
+R-6 verification uses a real local experiment simulation/assignment with two studio tabs,
+independent consent grants, cross-tab withdrawal and a delayed privacy read. Only browser
+provider readiness and collector responses are simulated; server provider capture remains off.
+Inherited PostgreSQL tests verify real studio claims/server-only completion and experiment
+assignment/conversion deduplication independently, including retries and pre-consent submissions.

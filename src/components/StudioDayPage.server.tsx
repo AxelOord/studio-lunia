@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { StudioDay } from '@/payload-types'
 import { ContentBlocks } from './ContentBlocks'
 import { StudioBookingForm, type StudioAvailability } from './StudioBookingForm'
+import { StudioDayHeading } from './StudioDayHeading'
 import { studioConfiguration, studioPrice, studioTime } from '@/studio-days/domain'
 
 export function StudioDayPage({
@@ -32,7 +33,7 @@ export function StudioDayPage({
           All studio days
         </Link>
         <p className="eyebrow">A SESSION WITH THE PHOTOGRAPHER</p>
-        <h1>{day.title}</h1>
+        {preview ? <h1>{day.title}</h1> : <StudioDayHeading day={day.id} title={day.title} />}
         {offer ? (
           <>
             <p className="studio-day-date">

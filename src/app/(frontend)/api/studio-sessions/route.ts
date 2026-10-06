@@ -12,6 +12,7 @@ import {
   reserveStudioSlot,
 } from '@/studio-days/reservations'
 import { prepareStudioMessages } from '@/studio-days/messages'
+import { submitStudioReservation } from '@/studio-days/submit'
 import {
   studioAvailability,
   studioReplacementAvailability,
@@ -95,13 +96,7 @@ export async function POST(request: Request) {
         : 'local'
     await limitOperation('studio-booking-ip', ip, 20)
     await limitOperation('studio-booking-email', data.email, 5)
-    const { preferences, campaign } = await privacyState()
-    const result = await reserveStudioSlot(
-      payload,
-      input,
-      { ...preferences, campaigns: preferences.campaigns && input.campaignsAllowed !== false },
-      campaign,
-    )
+    const result = await submitStudioReservation(payload, input, await privacyState())
     after(() => prepareStudioMessages(payload, result.booking.id))
     return Response.json(bookingReceipt(result.booking), { headers })
   } catch (error) {

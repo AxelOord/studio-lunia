@@ -46,3 +46,30 @@ at this source checkpoint.
 Neon was independently verified at 10/10 preview branches; do not retry provisioning, delete
 branches or change settings. Local/CI success is not hosted acceptance. No live launch,
 merge, credentials, provider activation, customer email, payment or old-site change is performed.
+
+## Combined PR #44 integration checkpoint
+
+The owner authorized integrating PR #44 at `ef8d28edb9867037697a7e7dd128d26db526fb06`
+into the existing PR #45 feature branch, preserving both histories. The three conflict hunks
+in PrivacyControls retain one stale-read guard, the cross-tab pause, the allowlisted studio
+queue/readiness and independent experiment consent/submission permission. No schema/access
+workaround, provider activation or develop/main/PR merge is part of this integration.
+
+The new combined browser case exercises an owned published studio day and actual experiment
+simulation in multiple tabs: no pre-consent selection replay, stable assignment/exposure,
+repeated studio selection, cross-tab withdrawal, stale initial-read rejection and analytics-only
+regrant without experiment identity. Browser readiness and collector responses are mocked;
+server capture remains disabled. Inherited integration cases continue to verify actual studio
+atomic claims/server-only completion, retries and no pre-consent backfill with fake transport.
+Combined `npm run verify` passed: static/generated checks, 50 unit tests across 15 files,
+103 PostgreSQL integration tests across 18 files, 35 Python tests, 4 hook tests, 12 release
+tests, production build, 1 built-dependency test and all 50 Chromium journeys. Browser retries
+remain zero. The four focused experiment journeys also passed before the aggregate run.
+Logs are preserved in ignored `test-results/combined-verify.log` and
+`test-results/combined-experiments-browser.log`.
+
+The parent reported independent review of original experiment head ff443ce and studio head
+ef8d28ed clear of blocking defects. Focused review of this combined commit remains a separate
+handoff. Exact-head remote CI and the normal automatic preview result will be recorded in
+PR #45's conversation without another source-only commit. Baseline/power/stopping agreement,
+retention/consent review, owner launch approval and hosted acceptance remain unresolved.

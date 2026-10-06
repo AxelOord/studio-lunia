@@ -3,6 +3,11 @@ import Link from 'next/link'
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { campaignKeys } from '@/lib/campaign'
+import type { StudioVisitorEvent } from '@/studio-days/measurement'
+
+type VisitorMeasurement =
+  | { event: 'service_viewed' | 'inquiry_started'; service: string }
+  | { event: StudioVisitorEvent; day: number }
 
 type Choice = {
   experiments: boolean
@@ -21,6 +26,8 @@ const initial: Choice = {
 const PrivacyContext = createContext<{
   experimentsAllowed: boolean
   track: (event: 'service_viewed' | 'inquiry_started', service: string) => void
+  trackStudio: (event: StudioVisitorEvent, day: number) => void
+  measurementReady: boolean
   syncCampaign: () => Promise<void>
   settleMeasurement: () => Promise<void>
   submissionPermissions: () => {
@@ -31,6 +38,8 @@ const PrivacyContext = createContext<{
 }>({
   experimentsAllowed: false,
   track: () => {},
+  trackStudio: () => {},
+  measurementReady: false,
   syncCampaign: async () => {},
   settleMeasurement: async () => {},
   submissionPermissions: () => ({
@@ -138,10 +147,10 @@ export function PrivacyControls({
       channel.close()
     }
   }, [])
-  const track = useCallback(
-    (event: 'service_viewed' | 'inquiry_started', service: string) => {
+  const queueMeasurement = useCallback(
+    (measurement: VisitorMeasurement) => {
       if (!current.current.analytics || !current.current.configured || disabledHere) return
-      const key = `${event}:${service}`
+      const key = `${measurement.event}:${'day' in measurement ? measurement.day : measurement.service}`
       if (sent.current.has(key)) return
       sent.current.add(key)
       const controller = new AbortController()
@@ -158,17 +167,26 @@ export function PrivacyControls({
           await fetch('/api/measurement', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ event, service }),
+            body: JSON.stringify(measurement),
             signal: AbortSignal.any([controller.signal, AbortSignal.timeout(4000)]),
           })
         } catch {
-          /* Missing events never block the enquiry. */
+          /* Missing events never block an enquiry or booking. */
         } finally {
           pending.current.delete(controller)
         }
       })
     },
     [disabledHere],
+  )
+  const track = useCallback(
+    (event: 'service_viewed' | 'inquiry_started', service: string) =>
+      queueMeasurement({ event, service }),
+    [queueMeasurement],
+  )
+  const trackStudio = useCallback(
+    (event: StudioVisitorEvent, day: number) => queueMeasurement({ event, day }),
+    [queueMeasurement],
   )
   const save = async (value: Choice) => {
     setBusy(true)
@@ -211,6 +229,8 @@ export function PrivacyControls({
       value={{
         experimentsAllowed: Boolean(choice.experiments) && !disabledHere,
         track,
+        trackStudio,
+        measurementReady: choice.analytics && choice.configured && !busy && !error && !disabledHere,
         syncCampaign,
         settleMeasurement: () => measurementTask.current,
         submissionPermissions: () => ({
@@ -247,8 +267,8 @@ export function PrivacyControls({
                   checked={draft.analytics}
                   onChange={(e) => setDraft({ ...draft, analytics: e.target.checked })}
                 />{' '}
-                Measure service views and enquiry steps with PostHog EU. No form details or session
-                recordings.
+                Measure service views, enquiry steps and studio booking steps with PostHog EU. No
+                form details or session recordings.
               </label>
               {!choice.configured && (
                 <p className="field-help">

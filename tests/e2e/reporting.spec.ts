@@ -301,7 +301,7 @@ test('report access, empty cohorts and recoverable read failures do not fabricat
     'Unavailable · denominator is zero',
   )
   await expect(page.getByRole('region', { name: 'Consented session funnel' })).toContainText(
-    'not instrumented',
+    'studio reporting is not connected',
   )
   await page.setViewportSize({ width: 390, height: 844 })
   await noOverflow(page)

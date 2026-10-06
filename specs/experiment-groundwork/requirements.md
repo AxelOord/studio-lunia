@@ -5,8 +5,8 @@ Status: ready
 
 ## Goal and scope
 
-Groundwork for [#14](https://github.com/AxelOord/studio-lunia/issues/14), on PR #42
-at 8aa1c1bf. Issue read 2026-10-06; no comments. Owner authorized implementation
+Groundwork for [#14](https://github.com/AxelOord/studio-lunia/issues/14), dependent on PR #44
+at ef8d28ed (including PR #42 at 8aa1c1bf). Issue read 2026-10-06; no comments. Owner authorized implementation
 without further setup questions. No live launch, provider activation, sends, payments,
 credentials or old-site changes. Issue remains open for agreed baseline/traffic and live acceptance.
 
@@ -55,6 +55,17 @@ The batch SHALL preserve existing tests, pass aggregate local verification, insp
 screenshots and publish a Conventional Commit draft PR with dependencies and honest issue status.
 Record exact-head CI and one automatic preview outcome; do not retry Neon provisioning at 10/10.
 Check: verification log, screenshots, exact SHA and remote outcome.
+
+### R-6: Combined studio and experiment privacy
+
+WHEN PR #44 is integrated on the existing experiment feature branch, the shared privacy
+context SHALL preserve independent experiment consent and studio analytics readiness,
+allowlisted event queuing, explicit submission permissions and cross-tab withdrawal.
+A delayed initial privacy response SHALL never restore either permission after a newer
+consent change. Consent grants SHALL not backfill prior studio selections or enquiries.
+Existing studio claims/server-only completion and experiment assignment/outcome deduplication
+SHALL continue to pass. Runtime/provider flags remain disabled; no schema or access workaround.
+Check: combined cross-tab browser journey plus the complete inherited unit/integration/browser suite.
 
 ## Open questions
 

@@ -25,7 +25,7 @@ export function StudioBookingForm({ initial }: { initial: StudioAvailability }) 
   const submission = useRef('')
   const submitting = useRef(false)
   const result = useRef<HTMLDivElement>(null)
-  const { syncCampaign, settleMeasurement, submissionPermissions } = usePrivacy()
+  const { trackStudio, syncCampaign, settleMeasurement, submissionPermissions } = usePrivacy()
   useEffect(() => {
     submission.current = crypto.randomUUID()
   }, [])
@@ -167,6 +167,12 @@ export function StudioBookingForm({ initial }: { initial: StudioAvailability }) 
             onChange={(event) => {
               setSlot(event.target.value)
               setAgreed(false)
+              if (
+                availability.slots.some(
+                  (item) => item.id === Number(event.target.value) && item.remaining,
+                )
+              )
+                trackStudio('studio_slot_selected', availability.id)
             }}
             disabled={busy}
           >

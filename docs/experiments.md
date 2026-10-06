@@ -87,8 +87,10 @@ no live runtime flag or provider enabled. One integration case temporarily exerc
 inside its owned local database and restores the disabled setting.
 
 Shared modules: `PrivacyControls`, the privacy route/preferences, `ServiceInquiryLink`/landing
-rendering and the successful enquiry route. No `measurementEvents`, PostHog payload, PostHog
-aggregate reader or studio-session instrumentation changes. The independent #28 funnel work can
-keep its taxonomy; page experiments use their own tables and endpoints. Review these shared
-privacy/CTA seams when combining dependent branches. Feature branch starts from PR #42 at
-`8aa1c1bf2948a023d64899576ee779072f7d2066`; the owner controls merges.
+rendering and the successful enquiry route. Studio visitor instrumentation is inherited from
+PR #44 at `ef8d28edb9867037697a7e7dd128d26db526fb06`, itself dependent on PR #42. Its allowlisted
+studio queue, `trackStudio`, readiness and server-only completion remain separate from experiment
+tables/endpoints. The experiment layer adds no provider event, aggregate query or identity join.
+One initial-read generation guard protects both contracts; cross-tab consent changes pause both
+until a refresh reads the saved choice. Experiment and analytics grants remain independent.
+Both histories are preserved on PR #45's feature branch; the owner controls all PR merges.

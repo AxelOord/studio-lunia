@@ -36,14 +36,15 @@ page; totals include all matching records. Reads use one database snapshot and n
 The existing anonymous-session events can be read as an ordered, 24-hour service-view → enquiry-start
 → enquiry-submit funnel across all services. A session may view one service and enquire about another.
 It covers only consenting, successfully measured sessions, not people, all visitors or internal
-creation cohorts. The report does not identify customers or join sessions to records. Studio visitor
-and booking steps are not instrumented; no visitor-to-booking rate is inferred. Replay remains off.
+creation cohorts. The report does not identify customers or join sessions to records. Studio capture
+is implemented separately, but its aggregate reader is not connected; no studio visitor-to-booking
+rate is inferred. Replay remains off. See [studio capture definitions](studio-visitor-measurement.md).
 
 `LUNIA_POSTHOG_REPORTING_ENABLED` defaults to false. If disabled, there is no provider request. If
 enabled but missing access, or if a query fails/is incomplete, the UI says unavailable rather than zero.
 The server requests only a fixed aggregate query and returns three counts; it does not expose provider
 responses, people/properties or credentials. Existing tracking consent and withdrawal behavior is
-unchanged. No new SDK or capture event is added.
+preserved. The reader adds no SDK or capture event; studio capture uses the existing transport.
 
 Activation is a separate owner decision: approve the exact EU project, applicable service/legal terms,
 project access and a least-privilege credential with **Query Read** restricted to that project. The

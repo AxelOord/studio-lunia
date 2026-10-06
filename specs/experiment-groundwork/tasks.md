@@ -15,8 +15,14 @@
       Depends: T-2
       Verify: exact counts, private access, responsive browser screenshots and draft preservation.
       Evidence: verification.md; targeted database and browser coverage passes, screenshots inspected.
-- [ ] T-4: Verify and publish draft checkpoint
+- [x] T-4: Verify and publish draft checkpoint
       Refs: R-1, R-2, R-3, R-4, R-5
       Depends: T-3
       Verify: npm run verify, exact-head CI, one preview outcome and PR dependencies.
-      Evidence: full local verification and five inspected screenshots are recorded in verification.md. Publication and exact-head remote results belong in the draft PR body; pending at this source checkpoint.
+      Evidence: PR #45 checkpoint https://github.com/AxelOord/studio-lunia/pull/45#issuecomment-6019848323 records local verification, exact-head CI success and the blocked automatic preview for ff443ce.
+
+- [ ] T-5: Integrate PR #44 and verify the combined consent contracts
+      Refs: R-2, R-3, R-5, R-6
+      Depends: T-4
+      Verify: combined consent/withdrawal/stale-read browser journey, full npm run verify and exact-head CI.
+      Evidence: four focused browser journeys and full combined verification passed (50 unit, 103 integration, 50 Chromium plus tooling/build); see verification.md. Exact-head CI and publication are pending at this source checkpoint and will be recorded in the PR conversation.

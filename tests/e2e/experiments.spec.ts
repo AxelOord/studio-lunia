@@ -4,6 +4,7 @@ import { test, expect, type Page } from '@playwright/test'
 
 const origin = 'http://127.0.0.1:3000'
 let pageID: number, experimentID: number, service: string, slug: string
+let studioDayID = 0
 let inquiryAttempts = 0
 const original = 'Enquire about this service',
   alternate = 'Share your session idea'
@@ -47,6 +48,7 @@ test.beforeEach(async ({ page }) => {
   pageID = 0
   experimentID = 0
   inquiryAttempts = 0
+  studioDayID = 0
   expect(
     (
       await page.request.post('/api/users/login', {
@@ -141,6 +143,11 @@ test.afterEach(async () => {
         await db.query('DELETE FROM contacts WHERE id=$1', [doc.contact_id])
       }
       await db.query('DELETE FROM pages WHERE id=$1', [pageID])
+    }
+    if (studioDayID) {
+      await db.query('DELETE FROM studio_slots WHERE day_id=$1', [studioDayID])
+      await db.query('DELETE FROM _studio_days_v WHERE parent_id=$1', [studioDayID])
+      await db.query('DELETE FROM studio_days WHERE id=$1', [studioDayID])
     }
   })
 })
@@ -263,6 +270,147 @@ test('mobile withdrawal clears persistent assignment, stops other tabs and rejec
   await expect(page.getByRole('heading', { name: 'Traffic and stopping plan' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/experiments-mobile-results.png', fullPage: true })
+})
+
+test('studio and experiment consent stay independent across tabs, withdrawal and a stale privacy read', async ({
+  page,
+  context,
+}) => {
+  const studioSlug = 'combined-privacy-' + randomUUID()
+  const created = await page.request.post('/api/studio-days', {
+    data: {
+      title: 'Synthetic combined privacy day',
+      slug: studioSlug,
+      location: 'Synthetic test location',
+      localDate: '2027-03-27',
+      timeZone: 'Europe/Amsterdam',
+      offerTitle: 'Synthetic privacy session',
+      inclusions: 'Synthetic testing only',
+      durationMinutes: 30,
+      bufferMinutes: 0,
+      capacity: 1,
+      priceMinor: 12300,
+      currency: 'EUR',
+      opensLocal: '09:00',
+      closesLocal: '12:00',
+      bookingDeadlineLocal: '2027-03-27T08:00',
+      changePolicy: 'Synthetic test conditions only',
+      confirmationMode: 'immediate',
+      bookingsOpen: true,
+      dayState: 'scheduled',
+      _status: 'published',
+    },
+  })
+  expect(created.ok(), await created.text()).toBe(true)
+  studioDayID = (await created.json()).doc.id
+  // Exercise both client contracts without activating the provider. Experiment
+  // consent, assignment, exposure and revocation still use the real local server.
+  await context.route('**/api/privacy', async (route) => {
+    const response = await route.fetch()
+    await route.fulfill({ response, json: { ...(await response.json()), configured: true } })
+  })
+  const events: Record<string, unknown>[] = []
+  await context.route('**/api/measurement', async (route) => {
+    events.push(route.request().postDataJSON())
+    await route.fulfill({ status: 204 })
+  })
+  const studioEvents = () => events.filter((event) => String(event.event).startsWith('studio_'))
+  const studio = await context.newPage()
+  const late = await context.newPage()
+  let release!: () => void
+  let loaded!: () => void
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const captured = new Promise<void>((resolve) => {
+    loaded = resolve
+  })
+  try {
+    await simulate(page)
+    await studio.goto('/studio-days/' + studioSlug)
+    await expect(studio.getByRole('heading', { name: 'Your privacy choices' })).toBeVisible()
+    await studio.getByLabel('Session time ·').selectOption({ index: 1 })
+    expect(studioEvents()).toEqual([])
+    expect(await counts()).toEqual({ assigned: 0, exposed: 0, converted: 0 })
+
+    await page.getByLabel(/Measure service/).check()
+    await consent(page)
+    await page.locator('.landing-offer a.button-link').scrollIntoViewIfNeeded()
+    await expect.poll(counts).toEqual({ assigned: 1, exposed: 1, converted: 0 })
+    // Saving in another tab pauses this tab until it refreshes the saved choice.
+    await studio.getByLabel('Session time ·').selectOption({ index: 2 })
+    expect(studioEvents()).toEqual([])
+    await studio.reload()
+    await studio
+      .getByRole('heading', { name: 'Synthetic combined privacy day' })
+      .scrollIntoViewIfNeeded()
+    await expect.poll(studioEvents).toEqual([{ event: 'studio_day_viewed', day: studioDayID }])
+    await studio.getByLabel('Session time ·').selectOption({ index: 1 })
+    await studio.getByLabel('Session time ·').selectOption({ index: 2 })
+    await expect.poll(studioEvents).toEqual([
+      { event: 'studio_day_viewed', day: studioDayID },
+      { event: 'studio_slot_selected', day: studioDayID },
+    ])
+
+    await late.route('**/api/privacy', async (route) => {
+      const response = await route.fetch()
+      const old = await response.json()
+      loaded()
+      await held
+      await route.fulfill({ response, json: { ...old, configured: true } })
+    })
+    await late.goto('/studio-days/' + studioSlug)
+    await captured
+    await studio.getByRole('button', { name: 'Privacy choices', exact: true }).click()
+    await studio.getByRole('button', { name: 'Withdraw optional consent' }).click()
+    await expect(studio.getByRole('heading', { name: 'Your privacy choices' })).not.toBeVisible()
+    await expect(page.getByText('Staff simulation · Synthetic test results only')).not.toBeVisible()
+    await expect(page.locator('.landing-offer a.button-link')).toContainText(original)
+    expect((await context.cookies()).some((cookie) => cookie.name === 'lunia_experiments')).toBe(
+      false,
+    )
+    const completed = late.waitForResponse('**/api/privacy')
+    release()
+    await completed
+    await late
+      .getByRole('heading', { name: 'Synthetic combined privacy day' })
+      .scrollIntoViewIfNeeded()
+    await late.getByLabel('Session time ·').selectOption({ index: 1 })
+    await late.getByRole('button', { name: 'Privacy choices', exact: true }).click()
+    await expect(late.getByLabel(/Measure service/)).not.toBeChecked()
+    await expect(late.getByLabel(/Take part in page improvement tests/)).not.toBeChecked()
+    expect(studioEvents()).toHaveLength(2)
+    expect(await counts()).toEqual({ assigned: 1, exposed: 1, converted: 0 })
+
+    // Analytics-only regrant cannot restore experiment identity or backfill the
+    // pre-consent slot choice. New current exposure is the only added studio step.
+    await late.unroute('**/api/privacy')
+    await late.getByLabel(/Measure service/).check()
+    await late.getByRole('button', { name: 'Save choices', exact: true }).click()
+    await expect(late.getByRole('heading', { name: 'Your privacy choices' })).not.toBeVisible()
+    await late
+      .getByRole('heading', { name: 'Synthetic combined privacy day' })
+      .scrollIntoViewIfNeeded()
+    await expect.poll(studioEvents).toEqual([
+      { event: 'studio_day_viewed', day: studioDayID },
+      { event: 'studio_slot_selected', day: studioDayID },
+      { event: 'studio_day_viewed', day: studioDayID },
+    ])
+    await page.reload()
+    await page.getByRole('button', { name: 'Privacy choices', exact: true }).click()
+    await expect(page.getByLabel(/Measure service/)).toBeChecked()
+    await expect(page.getByLabel(/Take part in page improvement tests/)).not.toBeChecked()
+    await expect(page.locator('.landing-offer a.button-link')).toContainText(original)
+    expect((await context.cookies()).some((cookie) => cookie.name === 'lunia_experiments')).toBe(
+      false,
+    )
+    expect(await counts()).toEqual({ assigned: 1, exposed: 1, converted: 0 })
+    expect(events.some((event) => event.event === 'studio_booking_submitted')).toBe(false)
+  } finally {
+    release()
+    await late.close()
+    await studio.close()
+  }
 })
 
 test('private authoring, permanent stop and retain-to-draft preserve published content and deny anonymous commands', async ({
