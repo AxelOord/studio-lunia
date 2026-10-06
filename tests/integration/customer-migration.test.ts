@@ -5,6 +5,7 @@ import { buildConfig } from 'payload'
 import { createTestCMS, testMigrations as migrations } from '../helpers/payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { Users } from '../../src/collections/Users'
+import { StudioDays, StudioSlots } from '../../src/collections/StudioDays'
 import { Pages } from '../../src/collections/Pages'
 import { Media } from '../../src/collections/Media'
 import { Enquiries } from '../../src/collections/Enquiries'
@@ -24,6 +25,8 @@ test('additive migration preserves every legacy enquiry field, backfills separat
         collections: [
           Users,
           Pages,
+          StudioDays,
+          StudioSlots,
           { ...Media, upload: { ...(Media.upload as object), staticDir: directory } },
           Enquiries,
           Contacts,
