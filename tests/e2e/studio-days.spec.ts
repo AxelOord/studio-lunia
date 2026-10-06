@@ -307,8 +307,9 @@ test('stale slot selection recovers to a private sold-out state on desktop and m
   })
   expect(saved.ok(), await saved.text()).toBe(true)
   await page.getByRole('button', { name: 'Confirm this session', exact: true }).click()
-  await expect(page.getByRole('alert')).toContainText('That session is full.')
-  await expect(page.getByRole('alert')).toBeFocused()
+  const slotError = page.getByRole('region', { name: 'Choose your session' }).getByRole('alert')
+  await expect(slotError).toContainText('That session is full.')
+  await expect(slotError).toBeFocused()
   await expect(page.getByLabel('Your name', { exact: true })).toHaveValue(
     'Synthetic Studio Visitor',
   )
@@ -331,13 +332,17 @@ test('stale slot selection recovers to a private sold-out state on desktop and m
   await page.context().addCookies((await editor.storageState()).cookies)
   await page.goto(`/admin/collections/bookings/${bookingID}`)
   await expect(page.getByRole('button', { name: 'Cancel session', exact: true })).toBeVisible()
-  await page.route(`**/api/customer-records?booking=${bookingID}`, (route) => route.abort())
+  await page.route(`**/api/customer-records?booking=${bookingID}`, (route) =>
+    route.fulfill({ status: 503, json: { error: 'Synthetic unavailable response' } }),
+  )
   await page.getByRole('button', { name: 'Cancel session', exact: true }).click()
   await page
     .getByLabel('Reason for this change')
     .fill('Synthetic cancellation after customer review.')
   await page.getByRole('button', { name: 'Save booking change', exact: true }).click()
-  await expect(page.getByRole('alert')).toContainText('Could not load this record.')
+  await expect(page.locator('.customer-records').getByRole('alert')).toContainText(
+    'Could not load this record.',
+  )
   await expect.poll(async () => (await bookings())[0].status).toBe('cancelled')
 })
 
