@@ -1,4 +1,11 @@
-export type ServiceChoice = { id: string; title: string }
+export type ServiceChoice = {
+  id: string
+  title: string
+  description?: string
+  inclusions?: string | null
+  priceGuidance?: string | null
+  responseExpectation?: string | null
+}
 export type InquiryInput = {
   service: string
   name: string

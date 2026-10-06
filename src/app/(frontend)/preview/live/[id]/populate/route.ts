@@ -1,5 +1,6 @@
 import { getPayload } from 'payload'
 import config from '@payload-config'
+import { resolveLandingPage } from '@/inquiries/services'
 
 // Native preview's population hook is read-only. Require an editor even when the
 // underlying page is published, so an expired session cannot continue previewing.
@@ -50,5 +51,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     depth: 2,
     data: { ...body.data, id: saved.id },
   })
-  return Response.json(page, { headers })
+  return Response.json(await resolveLandingPage(payload, page), { headers })
 }

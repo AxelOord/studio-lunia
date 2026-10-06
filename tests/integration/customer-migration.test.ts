@@ -5,6 +5,7 @@ import { buildConfig } from 'payload'
 import { createTestCMS, testMigrations as migrations } from '../helpers/payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { Users } from '../../src/collections/Users'
+import { StudioDays, StudioSlots } from '../../src/collections/StudioDays'
 import { Pages } from '../../src/collections/Pages'
 import { Media } from '../../src/collections/Media'
 import { Enquiries } from '../../src/collections/Enquiries'
@@ -24,6 +25,8 @@ test('additive migration preserves every legacy enquiry field, backfills separat
         collections: [
           Users,
           Pages,
+          StudioDays,
+          StudioSlots,
           { ...Media, upload: { ...(Media.upload as object), staticDir: directory } },
           Enquiries,
           Contacts,
@@ -38,7 +41,15 @@ test('additive migration preserves every legacy enquiry field, backfills separat
   )
   const payload = fixture.payload
   try {
-    await payload.db.migrate({ shouldPrompt: false, migrations: migrations.slice(0, -1) })
+    await payload.db.migrate({
+      shouldPrompt: false,
+      migrations: migrations.slice(
+        0,
+        migrations.findIndex(
+          (migration) => migration.name === '20261005_181401_customer_records_email_history',
+        ),
+      ),
+    })
     const before = await payload.db.pool
       .query(`INSERT INTO enquiries (service_id, service_title, name, email, message, follow_up, submission_hash, content_hash, attribution, notification_status, notification_attempts, notification_attempted_at, created_at, updated_at) VALUES
       ('synthetic:legacy', 'Synthetic legacy service', 'Synthetic legacy customer', 'legacy@example.test', 'Synthetic original message', 'contacted', 'synthetic-legacy-one', 'synthetic-hash-one', '{"status":"withheld","consent":"denied"}', 'accepted', 2, '2026-10-01T09:00:00Z', '2026-10-01T08:00:00Z', '2026-10-02T10:00:00Z'),

@@ -1,6 +1,7 @@
 import type { CollectionConfig, Field } from 'payload'
 import { editors } from '../access'
 import { internalWrite } from '../customer-records/core'
+import { updateFollowUps } from '../followups/hooks'
 import { contactActivity } from '../customer-records/hooks'
 
 const no = () => false
@@ -58,6 +59,14 @@ export const Contacts: CollectionConfig = {
       access: { create: internalWrite, update: no },
       admin: { hidden: true },
     },
+    {
+      name: 'followUpsStopped',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description: 'Stops every planned follow-up for this customer, including test simulations.',
+      },
+    },
     ui('activityView', './admin/CustomerTimeline#CustomerTimeline'),
   ],
 }
@@ -70,25 +79,25 @@ export const Bookings: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'contact', 'status', 'sessionAt', 'expectedMinor', 'currency'],
     description:
-      'Staff-led proposals and confirmed records. No calendar capacity or online payment is created.',
+      'Private enquiry-led records and capacity-checked studio sessions. No online payment is created.',
   },
   fields: (
     [
       { name: 'title', type: 'text', required: true, maxLength: 160 },
       relation('contact', 'contacts', true),
-      relation('enquiry', 'enquiries', true),
+      relation('enquiry', 'enquiries'),
       {
         name: 'source',
         type: 'select',
         required: true,
-        options: ['staff_enquiry'],
+        options: ['staff_enquiry', 'studio_slot'],
         defaultValue: 'staff_enquiry',
       },
       {
         name: 'status',
         type: 'select',
         required: true,
-        options: ['proposed', 'confirmed', 'completed', 'cancelled'],
+        options: ['proposed', 'pending_approval', 'confirmed', 'completed', 'cancelled'],
         defaultValue: 'proposed',
         index: true,
       },
@@ -110,6 +119,20 @@ export const Bookings: CollectionConfig = {
         required: true,
         admin: { components: { Field: './admin/PrivateJSON#PrivateJSON' } },
       },
+      { name: 'studioDay', type: 'relationship', relationTo: 'studio-days', index: true },
+      { name: 'studioSlot', type: 'relationship', relationTo: 'studio-slots', index: true },
+      { name: 'studioSeat', type: 'number' },
+      { name: 'studioRevision', type: 'number' },
+      {
+        name: 'studioSnapshot',
+        type: 'json',
+        admin: { components: { Field: './admin/PrivateJSON#PrivateJSON' } },
+      },
+      { name: 'sessionEndsAt', type: 'date' },
+      { name: 'occupiedUntil', type: 'date' },
+      { name: 'studioSubmissionHash', type: 'text', unique: true },
+      { name: 'studioContentHash', type: 'text' },
+      { name: 'studioMessageState', type: 'select', options: ['pending', 'ready', 'failed'] },
       ui('bookingActions', './admin/BookingActions#BookingActions'),
     ] as Field[]
   ).map((field) =>
@@ -145,6 +168,7 @@ export const RevenueEntries: CollectionConfig = {
 }
 export const CustomerActivities: CollectionConfig = {
   slug: 'customer-activities',
+  hooks: { afterChange: [updateFollowUps] },
   versions: false,
   access: privateRead,
   admin: {

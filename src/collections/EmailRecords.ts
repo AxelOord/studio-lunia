@@ -7,7 +7,12 @@ const no = () => false
 export const EmailTemplates: CollectionConfig = {
   slug: 'email-templates',
   versions: false,
-  access: { read: editors, create: editors, update: editors, delete: no },
+  access: {
+    read: ({ req }) => Boolean(req.user) || internalWrite({ req }),
+    create: editors,
+    update: editors,
+    delete: no,
+  },
   admin: {
     group: 'Email',
     useAsTitle: 'name',

@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { editors, publishedOrEditor } from '../access'
+import { validateLandingService } from '../inquiries/services'
 import { CallToAction, Gallery, Hero, ImageText, Services, Text } from '../blocks'
 
 export const Pages: CollectionConfig = {
@@ -68,6 +69,14 @@ export const Pages: CollectionConfig = {
                   : 'Use lowercase letters, numbers and single hyphens.',
             },
             { name: 'description', type: 'textarea', required: true, maxLength: 180 },
+            {
+              name: 'inquiryService',
+              label: 'Landing page service (optional)',
+              type: 'text',
+              maxLength: 100,
+              validate: validateLandingService,
+              admin: { components: { Field: './admin/ServiceSelect.server#ServiceSelectField' } },
+            },
           ],
         },
       ],
