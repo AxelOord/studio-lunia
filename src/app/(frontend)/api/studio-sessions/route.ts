@@ -12,7 +12,11 @@ import {
   reserveStudioSlot,
 } from '@/studio-days/reservations'
 import { prepareStudioMessages } from '@/studio-days/messages'
-import { studioAvailability, studioWorkspace } from '@/studio-days/queries'
+import {
+  studioAvailability,
+  studioReplacementAvailability,
+  studioWorkspace,
+} from '@/studio-days/queries'
 
 const headers = { 'Cache-Control': 'no-store' }
 export async function GET(request: Request) {
@@ -20,6 +24,19 @@ export async function GET(request: Request) {
   try {
     const payload = await getPayload({ config })
     const params = new URL(request.url).searchParams
+    if (params.has('replacementFor')) {
+      const { user } = await payload.auth({ headers: request.headers })
+      if (!user) return new Response(null, { status: 401, headers })
+      return Response.json(
+        await studioReplacementAvailability(
+          payload,
+          user,
+          idInput(Number(params.get('day'))),
+          idInput(Number(params.get('replacementFor'))),
+        ),
+        { headers },
+      )
+    }
     if (params.has('workspace')) {
       const { user } = await payload.auth({ headers: request.headers })
       if (!user) return new Response(null, { status: 401 })

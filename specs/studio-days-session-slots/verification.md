@@ -7,15 +7,18 @@ overnight scope supersedes their earlier wait-for-approval wording.
 
 ## Local acceptance
 
-Application and test head: `1e0ab58775f8d89c0b24ce074bc9ea12ec4c44f8`.
+Review fixes and their regression tests are committed with this evidence. The exact branch head
+and remote check results are recorded in [PR #41](https://github.com/AxelOord/studio-lunia/pull/41).
 Verification uses Node 24.19.0, the pinned dependency lockfile, PostgreSQL 17 and Chromium, with
 owned disposable local databases and synthetic fixtures. `npm run verify` runs the same named
 application/tooling stages as CI. Final aggregate result and screenshots are recorded below.
 
-`npm run verify` passed on 2026-10-06: static/generated checks, 38 unit tests, 76 integration tests,
+`npm run verify` passed on 2026-10-06 after the independent review fixes: static/generated checks,
+38 unit tests, 82 integration tests,
 35 Python checks, 4 hook tests, 12 release tests, one built-dependency test, production build and
-all 37 browser tests. The final evidence commit changes documentation/images only. The aggregate
-log is `/tmp/lunia-studio-verify-6.log` in the execution environment; no failing test is suppressed.
+all 40 browser tests. The aggregate log is `/tmp/lunia-studio-review-verify.log` in the execution
+environment; no failing test is suppressed. Earlier acceptance at `1e0ab587` passed 76 integration
+and 37 browser cases but did not detect the independent review findings below.
 
 - R-1: native draft editing and publishing, anonymous preview denial, required operational inputs,
   immutable slot revisions, explicit acknowledgement and preserved existing commitments.
@@ -32,13 +35,14 @@ log is `/tmp/lunia-studio-verify-6.log` in the execution environment; no failing
 - R-6: no-consent and tagged visits, in-flight consent withdrawal while the old signed cookie exists,
   top-level campaign minimization, private availability and no new analytics or visitor email calls.
 
-The studio additions include 14 database integration cases, one migration preservation/up-down-up
-case, two time/currency unit cases and five actual Chromium journeys. Existing security, fixture
+The studio additions include 20 database integration cases, one migration preservation/up-down-up
+case, two time/currency unit cases and eight actual Chromium journeys. Existing security, fixture
 isolation, migration, uploads, enquiry, follow-up and workspace suites run in the same aggregate.
 
 ## Visual evidence
 
-All eight actual Chromium screenshots from the passing aggregate were opened and inspected.
+The original eight actual Chromium screenshots and two additional review-regression screenshots
+were opened and inspected.
 The public offer precedes slot selection; mobile labels, conditions and receipts remain readable.
 The editor and customer workspace show confirmation mode, capacity, pending decisions and private
 test-message boundaries without horizontal overflow. The sold-out view offers another studio day.
@@ -48,6 +52,7 @@ Styling and sample content remain provisional pending the owner's genuine assets
 - [Mobile receipt](evidence/studio-receipt-mobile.png) and [sold-out recovery](evidence/studio-sold-out-mobile.png)
 - [Staff desktop](evidence/studio-admin-desktop.png) and [staff mobile](evidence/studio-admin-mobile.png)
 - [Native editor](evidence/studio-native-editor.png) and [native mobile editor](evidence/studio-native-editor-mobile.png)
+- [Sequential staff bookings](evidence/studio-staff-repeat.png) and [mobile shifted-session replacement](evidence/studio-shifted-reschedule-mobile.png)
 
 ## Defects reproduced and corrected
 
@@ -61,9 +66,30 @@ explicit buttons and a group, with no nested form. The regression checks the dur
 even when the following record refresh fails; that refresh error remains visible.
 
 Native publish and staff-selection tests use the actual responsive CMS button/accessibility names.
-No test timeout, retry count, security assertion or rate limit was weakened. The existing preview
-validation timeout was fixed by deferring the new seed import until after configuration validation.
+No test timeout, retry count, security assertion or rate limit was weakened.
 The legacy migration fixture registers the new relationships without changing preservation assertions.
+
+Independent review of `23a1d8f` identified four additional booking defects and a CI timeout.
+Regression tests against the original build reproduced the checked agreement surviving refreshed
+terms and the staff form remaining disabled with no way to start another booking. A real PostgreSQL
+test reproduced the second schedule revision becoming 11 instead of 2. Public agreement is now
+controlled and clears when terms refresh or the chosen session changes, retaining name/email.
+Staff deliberately start another booking with a reset form and a fresh submission identity.
+PostgreSQL NUMERIC revisions are converted to validated safe integers before incrementing; tests
+publish 18 times and reject fractional, negative and exhausted/unsafe revisions atomically.
+
+Replacement availability previously counted the booking being moved, preventing a capacity-one
+booking from selecting an overlapping replacement. The authenticated availability path reads the
+active booking with the actual user's access before excluding that one allocation. Tests preserve
+other allocations, original snapshot/history and transaction checks; anonymous replacement requests
+return 401, and a public exclusion parameter cannot alter capacity. A mobile browser flow moves to
+a shifted, longer session successfully.
+
+Foundation run `37395961261` failed the unchanged 20-second preview-build safety test. Its five
+subprocesses eagerly imported the entire CMS bootstrap before configuration validation; that import
+alone took 2.8 seconds locally. Loading bootstrap only after validation, connection and migrations
+removes that work from rejection paths. The same safety test passed in 0.834 seconds in the final
+full aggregate, retaining all error-redaction assertions and original timeouts.
 
 ## Review and hosted gate
 
@@ -71,9 +97,11 @@ This branch builds on PR #40 application/evidence head `ff0cc420`, which already
 The target `develop` was fetched and verified at `5f1669e8bb490b64e2bd5ee74a63878bea5f67fc`.
 Review the focused branch delta from `ff0cc420`; earlier dependent work is not reimplemented here.
 
-Independent review and hosted acceptance remain open. The parent verified Neon at 10/10 branches
-and authorized draft publication with this explicit gate. Record the single automatic deployment
-and exact-head CI in the PR. Do not retry provisioning, delete branches, upgrade or change provider
+Independent re-review and hosted acceptance remain open. The parent verified Neon at 10/10 branches
+and authorized draft publication with this explicit gate. The prior automatic deployment at
+`23a1d8f`, `dpl_HcgC7CCYDunKBpGhaCGHpEm11yJ9`, failed with "Resource provisioning failed".
+Record the normal automatic deployment for the review-fix commit and exact-head CI in the PR.
+Do not retry provisioning, delete branches, upgrade or change provider
 settings. This evidence does not claim a working hosted booking flow. The migration refuses rollback
 when studio-day data exists; existing commitments must be preserved explicitly.
 

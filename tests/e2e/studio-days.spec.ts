@@ -100,6 +100,126 @@ async function noOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 }
 
+test('refreshed terms require a fresh agreement while preserving customer details', async ({
+  page,
+}) => {
+  await page.goto(`/studio-days/${slug}`)
+  await page.getByRole('button', { name: 'Decline optional', exact: true }).click()
+  await fill(page)
+  const email = await page.getByLabel('Email address', { exact: true }).inputValue()
+  await change({ priceMinor: 23400, changePolicy: 'Synthetic revised cancellation conditions.' })
+  await page.getByRole('button', { name: 'Confirm this session', exact: true }).click()
+  await page.getByRole('button', { name: 'Refresh times and review details', exact: true }).click()
+  const agreement = page.getByLabel('I agree to the displayed')
+  await expect(agreement).not.toBeChecked()
+  await expect(page.getByLabel('Your name', { exact: true })).toHaveValue(
+    'Synthetic Studio Visitor',
+  )
+  await expect(page.getByLabel('Email address', { exact: true })).toHaveValue(email)
+  await expect(page.locator('.studio-review')).toContainText('€234.00')
+  await expect(page.locator('.studio-review')).toContainText(
+    'Synthetic revised cancellation conditions.',
+  )
+  await page.getByLabel('Session time ·').selectOption({ index: 1 })
+  const requests: string[] = []
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/studio-sessions') && request.method() === 'POST')
+      requests.push(request.url())
+  })
+  await page.getByRole('button', { name: 'Confirm this session', exact: true }).click()
+  await expect(agreement).toBeFocused()
+  expect(requests).toHaveLength(0)
+  expect(await bookings()).toHaveLength(0)
+  await agreement.check()
+  await page.getByLabel('Session time ·').selectOption({ index: 2 })
+  await expect(agreement).not.toBeChecked()
+  await agreement.check()
+  await page.getByRole('button', { name: 'Confirm this session', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Your session is reserved.' })).toBeVisible()
+  expect((await bookings())[0].studioSnapshot).toMatchObject({
+    priceMinor: 23400,
+    changePolicy: 'Synthetic revised cancellation conditions.',
+  })
+})
+
+test('staff can deliberately start another booking after saving one', async ({ page }) => {
+  await page.context().addCookies((await editor.storageState()).cookies)
+  await page.goto(`/admin/studio-days/${id}`)
+  await page.getByText('Add a session for a customer', { exact: true }).click()
+  const identities: string[] = []
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/studio-sessions') && request.method() === 'POST')
+      identities.push(request.postDataJSON().submissionId)
+  })
+  for (const number of [1, 2]) {
+    const select = page.getByRole('combobox', { name: 'Session', exact: true })
+    const name = page.getByLabel('Customer name', { exact: true })
+    const email = page.getByLabel('Customer email', { exact: true })
+    const agreement = page.getByLabel('The customer agreed to the displayed offer')
+    await expect(select).toHaveValue('')
+    await expect(name).toHaveValue('')
+    await expect(email).toHaveValue('')
+    await expect(agreement).not.toBeChecked()
+    await select.selectOption({ index: number })
+    await name.fill(`Synthetic repeat customer ${number}`)
+    await email.fill(`repeat-${randomUUID()}@example.test`)
+    await agreement.check()
+    await page.getByRole('button', { name: 'Save customer session', exact: true }).click()
+    await expect.poll(async () => (await bookings()).length).toBe(number)
+    await expect(page.getByRole('button', { name: 'Session saved', exact: true })).toBeDisabled()
+    if (number === 1)
+      await page.getByRole('button', { name: 'Book another session', exact: true }).click()
+  }
+  expect(identities).toHaveLength(2)
+  expect(new Set(identities).size).toBe(2)
+  await noOverflow(page)
+  await page.screenshot({ path: 'test-results/studio-staff-repeat.png', fullPage: true })
+})
+
+test('staff can move to a shifted overlapping slot without exposing a public capacity bypass', async ({
+  page,
+}) => {
+  await page.goto(`/studio-days/${slug}`)
+  await page.getByRole('button', { name: 'Decline optional', exact: true }).click()
+  await fill(page)
+  await page.getByRole('button', { name: 'Confirm this session', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Your session is reserved.' })).toBeVisible()
+  const booked = (await bookings())[0]
+  await change({ opensLocal: '09:15', durationMinutes: 45, acknowledgeBookings: true })
+  const publicResponse = await page.request.get(
+    `/api/studio-sessions?day=${id}&excludeBooking=${booked.id}`,
+  )
+  const available = await publicResponse.json()
+  expect(available.slots[0].remaining).toBe(0)
+  expect(JSON.stringify(available)).not.toContain('Synthetic Studio Visitor')
+  expect(
+    (await page.request.get(`/api/studio-sessions?day=${id}&replacementFor=${booked.id}`)).status(),
+  ).toBe(401)
+  await page.context().addCookies((await editor.storageState()).cookies)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`/admin/studio-days/${id}`)
+  await page.getByRole('button', { name: 'Reschedule', exact: true }).click()
+  await page.getByLabel('Replacement studio day').selectOption(String(id))
+  const target = page.getByLabel('Replacement time')
+  await expect(target.locator('option').nth(1)).toBeEnabled()
+  await target.selectOption({ index: 1 })
+  await page.getByLabel('The customer agreed to these replacement').check()
+  await page
+    .getByLabel('Reason for this change')
+    .fill('Customer agreed to the shifted, longer session.')
+  await noOverflow(page)
+  await page.screenshot({
+    path: 'test-results/studio-shifted-reschedule-mobile.png',
+    fullPage: true,
+  })
+  await page.getByRole('button', { name: 'Save booking change', exact: true }).click()
+  await expect.poll(async () => (await bookings())[0].studioRevision).toBe(2)
+  expect((await bookings())[0].studioSnapshot).toMatchObject({
+    durationMinutes: 45,
+    startsAt: '2027-03-27T08:15:00.000Z',
+  })
+})
+
 test('mobile booking saves once after a lost response without consent and reaches the private customer workspace', async ({
   page,
 }) => {

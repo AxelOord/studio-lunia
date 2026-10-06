@@ -16,10 +16,16 @@ export const prepareStudioDay: CollectionBeforeChangeHook<StudioDay> = async ({
         await db.execute(
           sql`SELECT schedule_revision, configuration_hash FROM studio_days WHERE id = ${originalDoc.id} FOR UPDATE`,
         )
-      ).rows[0] as { schedule_revision: number; configuration_hash: string | null } | undefined)
+      ).rows[0] as
+        | { schedule_revision: string | number | null; configuration_hash: string | null }
+        | undefined)
     : undefined
+  // PostgreSQL NUMERIC values arrive as strings; normalize before arithmetic.
+  const revision = Number(current?.schedule_revision ?? 0)
+  if (!Number.isSafeInteger(revision) || revision < 0)
+    throw new APIError('The studio schedule revision is invalid. Ask an editor to review it.', 422)
   const merged = { ...originalDoc, ...data }
-  data.scheduleRevision = current?.schedule_revision || 0
+  data.scheduleRevision = revision
   data.configurationHash = current?.configuration_hash || null
   const acknowledge = data.acknowledgeBookings === true
   data.acknowledgeBookings = false
@@ -38,7 +44,9 @@ export const prepareStudioDay: CollectionBeforeChangeHook<StudioDay> = async ({
           )
       }
       data.configurationHash = hash
-      data.scheduleRevision = (current?.schedule_revision || 0) + 1
+      if (!Number.isSafeInteger(revision + 1))
+        throw new Error('The studio schedule revision cannot be increased safely.')
+      data.scheduleRevision = revision + 1
     }
     return data
   } catch (error) {

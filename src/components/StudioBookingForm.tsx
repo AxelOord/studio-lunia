@@ -17,6 +17,7 @@ const stateMessages: Record<string, string> = {
 export function StudioBookingForm({ initial }: { initial: StudioAvailability }) {
   const [availability, setAvailability] = useState(initial)
   const [slot, setSlot] = useState('')
+  const [agreed, setAgreed] = useState(false)
   const [error, setError] = useState('')
   const [conflict, setConflict] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -40,6 +41,7 @@ export function StudioBookingForm({ initial }: { initial: StudioAvailability }) 
       const next: StudioAvailability = await response.json()
       setAvailability(next)
       setSlot('')
+      setAgreed(false)
       submission.current = crypto.randomUUID()
       setError('')
       setConflict(false)
@@ -162,7 +164,10 @@ export function StudioBookingForm({ initial }: { initial: StudioAvailability }) 
             id="studio-slot"
             required
             value={slot}
-            onChange={(event) => setSlot(event.target.value)}
+            onChange={(event) => {
+              setSlot(event.target.value)
+              setAgreed(false)
+            }}
             disabled={busy}
           >
             <option value="">Choose an available session</option>
@@ -215,8 +220,15 @@ export function StudioBookingForm({ initial }: { initial: StudioAvailability }) 
             </div>
           </div>
           <label className="check-choice">
-            <input type="checkbox" name="conditionsAccepted" required disabled={busy} /> I agree to
-            the displayed session details and change and cancellation conditions.
+            <input
+              type="checkbox"
+              name="conditionsAccepted"
+              required
+              disabled={busy}
+              checked={agreed}
+              onChange={(event) => setAgreed(event.target.checked)}
+            />{' '}
+            I agree to the displayed session details and change and cancellation conditions.
           </label>
           <div className="form-trap" aria-hidden="true">
             <label htmlFor="studio-website">Leave empty</label>

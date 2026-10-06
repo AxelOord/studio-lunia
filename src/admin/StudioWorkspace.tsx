@@ -40,7 +40,9 @@ export function StudioBookingCard({
     if (!value) return
     setLoading(true)
     try {
-      const result = await workspaceJSON<StudioAvailability>(`/api/studio-sessions?day=${value}`)
+      const result = await workspaceJSON<StudioAvailability>(
+        `/api/studio-sessions?day=${value}&replacementFor=${booking.id}`,
+      )
       if (version === request.current) setTarget(result)
     } catch (error) {
       if (version === request.current)
@@ -272,8 +274,9 @@ function StaffReservation({
   availability: StudioAvailability
   onDone: () => Promise<void>
 }) {
-  const { busy, run, message } = useRecordAction('/api/studio-sessions')
+  const { busy, run, message, clearMessage } = useRecordAction('/api/studio-sessions')
   const identity = useRef('')
+  const form = useRef<HTMLFormElement>(null)
   const [saved, setSaved] = useState(false)
   return (
     <details className="workspace-secondary">
@@ -283,8 +286,10 @@ function StaffReservation({
         separate customer record; matching emails are not merged.
       </p>
       <form
+        ref={form}
         onSubmit={async (event) => {
           event.preventDefault()
+          if (saved) return
           identity.current ||= crypto.randomUUID()
           const values = Object.fromEntries(new FormData(event.currentTarget))
           if (
@@ -338,6 +343,19 @@ function StaffReservation({
           {saved ? 'Session saved' : busy ? 'Saving…' : 'Save customer session'}
         </button>
         {message && <p role="status">{message}</p>}
+        {saved && (
+          <button
+            type="button"
+            onClick={() => {
+              form.current?.reset()
+              identity.current = ''
+              clearMessage()
+              setSaved(false)
+            }}
+          >
+            Book another session
+          </button>
+        )}
       </form>
     </details>
   )

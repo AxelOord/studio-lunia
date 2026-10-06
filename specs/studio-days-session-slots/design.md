@@ -64,6 +64,15 @@ record the actual result without retrying or changing provider resources.
 
 ## Implementation and review notes
 
+Review fixes preserve these contracts: changing the chosen session or refreshing its terms clears
+public agreement while keeping contact inputs; a deliberate staff "Book another session" action
+clears the saved form and uses a fresh submission identity. PostgreSQL NUMERIC schedule revisions
+are normalized and checked for safe integer arithmetic before publication. Invalid/exhausted
+revisions reject the update without replacing inventory. Authenticated replacement availability
+first reads the active booking with the real user's collection access and excludes only its own
+allocation. Public availability accepts no exclusion; reservation commands still recheck capacity
+under their existing locks. Preview configuration/error guards run before loading CMS bootstrap.
+
 The custom booking/availability endpoint is `/api/studio-sessions`, keeping Payload's native
 `/api/studio-days` content API intact. Capacity is enforced by a PostgreSQL trigger under the studio-day
 row lock plus a partial unique active-seat index. Availability counts overlapping active commitments

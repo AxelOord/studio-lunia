@@ -4,6 +4,32 @@ import { idInput, internalTransaction, object, transactionDB } from '../customer
 import type { StudioSnapshot } from './domain'
 
 export async function studioAvailability(payload: Payload, id: number) {
+  return availableSlots(payload, id)
+}
+
+export async function studioReplacementAvailability(
+  payload: Payload,
+  user: NonNullable<PayloadRequest['user']>,
+  id: number,
+  bookingID: number,
+) {
+  // Authenticate and apply collection access before excluding this one allocation.
+  const booking = await payload.findByID({
+    collection: 'bookings',
+    id: idInput(bookingID),
+    user,
+    overrideAccess: false,
+    depth: 0,
+  })
+  if (
+    booking.source !== 'studio_slot' ||
+    !['pending_approval', 'confirmed'].includes(booking.status)
+  )
+    throw new APIError('Only active studio bookings can be rescheduled.', 409)
+  return availableSlots(payload, id, booking.id)
+}
+
+async function availableSlots(payload: Payload, id: number, excludeBooking = 0) {
   return internalTransaction(payload, async (req) => {
     const day = await payload.findByID({
       collection: 'studio-days',
@@ -37,6 +63,7 @@ export async function studioAvailability(payload: Payload, id: number) {
     const counts =
       await db.execute(sql`SELECT s.id, count(b.id)::int AS occupied FROM studio_slots s
       LEFT JOIN bookings b ON b.studio_day_id = s.day_id AND b.status IN ('pending_approval','confirmed','completed')
+        AND b.id <> ${excludeBooking}
         AND b.session_at < s.occupied_until AND b.occupied_until > s.starts_at
       WHERE s.day_id = ${id} AND s.revision = ${day.scheduleRevision} GROUP BY s.id`)
     const occupied = new Map(counts.rows.map((row) => [Number(row.id), Number(row.occupied)]))

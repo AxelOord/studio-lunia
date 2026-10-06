@@ -7,7 +7,7 @@ import { prepareStudioMessages } from '../../src/studio-days/messages'
 import { recordOperation } from '../../src/customer-records/operations'
 import { internalTransaction } from '../../src/customer-records/core'
 import { campaignTouch, updateCampaign } from '../../src/lib/campaign'
-import { studioAvailability } from '../../src/studio-days/queries'
+import { studioAvailability, studioReplacementAvailability } from '../../src/studio-days/queries'
 import { seedStudioDemo } from '../../scripts/seed-studio-demo'
 
 let fixture: Awaited<ReturnType<typeof createTestCMS>>
@@ -72,6 +72,137 @@ function input(doc: { id: number; scheduleRevision?: number | null }, slot: { id
     submissionId: randomUUID(),
   }
 }
+test('repeated publications increment numeric revisions and keep the latest sessions bookable', async () => {
+  const { payload } = fixture
+  const { doc, user } = await day()
+  expect(doc.scheduleRevision).toBe(1)
+  for (let revision = 2; revision <= 18; revision++) {
+    const published = await payload.update({
+      collection: 'studio-days',
+      id: doc.id,
+      user,
+      overrideAccess: false,
+      data: { priceMinor: 12300 + revision, _status: 'published' },
+    })
+    expect(published.scheduleRevision).toBe(revision)
+  }
+  const available = await studioAvailability(payload, doc.id)
+  const saved = await reserveStudioSlot(
+    payload,
+    input({ id: doc.id, scheduleRevision: available.revision }, available.slots[0]),
+    denied,
+  )
+  expect(saved.booking.studioSnapshot).toMatchObject({ revision: 18, priceMinor: 12318 })
+})
+test.each(['1.5', '-1', '9007199254740991', '9007199254740992'])(
+  'an invalid or exhausted stored revision %s fails without changing published inventory',
+  async (revision) => {
+    const { payload } = fixture
+    const { doc, user } = await day()
+    await payload.db.pool.query('UPDATE studio_days SET schedule_revision = $1 WHERE id = $2', [
+      revision,
+      doc.id,
+    ])
+    await expect(
+      payload.update({
+        collection: 'studio-days',
+        id: doc.id,
+        user,
+        overrideAccess: false,
+        data: { priceMinor: 20000, _status: 'published' },
+      }),
+    ).rejects.toThrow(/revision/)
+    const stored = (
+      await payload.db.pool.query(
+        'SELECT schedule_revision, price_minor FROM studio_days WHERE id = $1',
+        [doc.id],
+      )
+    ).rows[0]
+    expect(stored.schedule_revision).toBe(revision)
+    expect(Number(stored.price_minor)).toBe(12300)
+    expect(
+      (await payload.count({ collection: 'studio-slots', user, overrideAccess: false })).totalDocs,
+    ).toBe(4)
+  },
+)
+test('replacement availability excludes only the authorized active booking and preserves other commitments', async () => {
+  const { payload } = fixture
+  const { doc, slots, user } = await day()
+  const first = (await reserveStudioSlot(payload, input(doc, slots[0]), denied)).booking
+  const other = (await reserveStudioSlot(payload, input(doc, slots[2]), denied)).booking
+  const published = await payload.update({
+    collection: 'studio-days',
+    id: doc.id,
+    user,
+    overrideAccess: false,
+    data: {
+      opensLocal: '09:15',
+      durationMinutes: 45,
+      acknowledgeBookings: true,
+      _status: 'published',
+    },
+  })
+  const publicSlots = await studioAvailability(payload, doc.id)
+  expect(publicSlots.slots[0].remaining).toBe(0)
+  const replacement = await studioReplacementAvailability(payload, user, doc.id, first.id)
+  expect(replacement.slots[0].remaining).toBe(1)
+  expect(replacement.slots[1].remaining).toBe(0)
+  await changeStudioBooking(payload, user, {
+    key: randomUUID(),
+    action: 'reschedule',
+    booking: first.id,
+    revision: 1,
+    day: doc.id,
+    slot: replacement.slots[0].id,
+    scheduleRevision: published.scheduleRevision,
+    conditionsAccepted: true,
+    reason: 'Customer agreed to the shifted, longer session.',
+  })
+  const moved = await payload.findByID({
+    collection: 'bookings',
+    id: first.id,
+    user,
+    overrideAccess: false,
+    depth: 0,
+  })
+  expect(moved.studioSnapshot).toMatchObject({
+    durationMinutes: 45,
+    startsAt: '2027-03-27T08:15:00.000Z',
+  })
+  expect(
+    (
+      await payload.findByID({
+        collection: 'bookings',
+        id: other.id,
+        user,
+        overrideAccess: false,
+        depth: 0,
+      })
+    ).studioSnapshot,
+  ).toEqual(other.studioSnapshot)
+  const history = await payload.find({
+    collection: 'customer-activities',
+    user,
+    overrideAccess: false,
+    where: {
+      and: [{ booking: { equals: first.id } }, { kind: { equals: 'studio_booking_changed' } }],
+    },
+  })
+  expect(history.docs[0].details).toMatchObject({
+    previousSnapshot: first.studioSnapshot,
+    snapshot: moved.studioSnapshot,
+  })
+  await changeStudioBooking(payload, user, {
+    key: randomUUID(),
+    action: 'cancel',
+    booking: first.id,
+    revision: 2,
+    reason: 'Synthetic cancelled session cannot move.',
+  })
+  await expect(studioReplacementAvailability(payload, user, doc.id, first.id)).rejects.toThrow(
+    /active studio/,
+  )
+})
 test('published inventory stays private; a saved draft does not change current slots', async () => {
   const { payload } = fixture
   const { doc, user, slots } = await day()
