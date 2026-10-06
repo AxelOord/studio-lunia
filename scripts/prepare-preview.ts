@@ -1,6 +1,7 @@
 import type { Payload } from 'payload'
 import type { Page } from '../src/payload-types'
 import { deploymentMode } from '../src/hosting/environment'
+import { seedLandingDemo } from './seed-landing-demo'
 
 // Build-only secret access. Do not import this module into HTTP routes or client code.
 export function previewEditorPassword(env: Record<string, string | undefined>) {
@@ -122,4 +123,8 @@ export async function initializePreview(
       },
     })
   }
+  await seedLandingDemo(payload)
+  // Load studio database helpers only after preview validation, migrations and bootstrap.
+  const { seedStudioDemo } = await import('./seed-studio-demo')
+  await seedStudioDemo(payload)
 }

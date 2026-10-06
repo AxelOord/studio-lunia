@@ -153,15 +153,32 @@ test('notification failure is durable; retries use same safe payload/key and con
       }),
       'uncertain',
     )
+    let entered!: () => void, release!: () => void
+    const inTransport = new Promise<void>((resolve) => {
+      entered = resolve
+    })
+    const completeTransport = new Promise<void>((resolve) => {
+      release = resolve
+    })
     const retry = async (_url: string | URL | Request, options?: RequestInit) => {
       sent.push(options!)
+      if (sent.length === 2) {
+        entered()
+        await completeTransport
+      }
       return Response.json({ id: `synthetic-enquiry-${id}-provider-id` })
     }
-    const results = await Promise.all([
-      notifyPhotographer(payload, id, retry),
-      notifyPhotographer(payload, id, retry),
-    ])
-    assert.equal(results.filter((r) => r === 'accepted').length, 1)
+    const first = notifyPhotographer(payload, id, retry)
+    await inTransport
+    try {
+      // Prove actual overlap. Promise.all alone also permits the second caller to
+      // arrive after completion, when returning cached "accepted" is correct.
+      assert.equal(await notifyPhotographer(payload, id, retry), 'sending')
+    } finally {
+      release()
+      assert.equal(await first, 'accepted')
+    }
+    assert.equal(await notifyPhotographer(payload, id, retry), 'accepted')
     assert.equal(sent.length, 2)
     assert.deepEqual(sent[0].headers, sent[1].headers)
     const message = JSON.parse(String(sent[0].body))

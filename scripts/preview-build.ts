@@ -2,7 +2,6 @@ import 'dotenv/config'
 import { Client } from 'pg'
 import { spawn } from 'node:child_process'
 import { deploymentMode } from '../src/hosting/environment'
-import { initializePreview, previewEditorPassword } from './prepare-preview'
 
 let phase = 'configuration'
 
@@ -46,6 +45,7 @@ async function prepare() {
       if (result?.cancelled) throw new Error('Migration requires manual review.')
       console.log('Preview migrations complete.')
       phase = 'editor/content bootstrap and private storage'
+      const { initializePreview, previewEditorPassword } = await import('./prepare-preview')
       await initializePreview(payload, process.env.PREVIEW_EDITOR_EMAIL!, () =>
         previewEditorPassword(process.env),
       )

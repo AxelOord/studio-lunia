@@ -2,7 +2,7 @@
 
 A photography website foundation using Payload **4.0.0-canary.37**, Next.js **16.3.8**,
 React **19.2.6**, PostgreSQL and Node **24.19.0**. This is a prerelease foundation for
-review, not the live Lunia site. Booking and advertising feedback are not enabled. Enquiries and optional first-party attribution are implemented; PostHog EU measurement stays off until separately approved and configured.
+review, not the live Lunia site. Studio-session booking is a synthetic prototype; payments, customer email delivery and advertising feedback are not enabled. Enquiries and optional first-party attribution are implemented; PostHog EU measurement stays off until separately approved and configured.
 
 ## Local development
 
@@ -104,3 +104,41 @@ manual payment/refund history. Approved email templates provide desktop/mobile p
 immutable private drafts; sandbox tests use synthetic content and the own-editor recipient.
 Customer mail and live delivery callbacks remain gated. See
 [the records and email runbook](docs/customer-records-and-email.md).
+
+The admin dashboard opens the enquiry inbox, with counted task filters and private search.
+Each customer has separate enquiry/reply, booking, follow-up and history sections; switching
+sections keeps drafts. The follow-up queue supports status filters. Simulation tools and
+customer follow-up preferences are secondary disclosures. All customer sending and real
+incoming replies remain off. See the [workspace UX audit and evidence](specs/photographer-workspace-ux/design.md).
+
+## Service landing pages
+
+Publish a service card, then choose it under a page's **Page settings → Landing page service**.
+Use an intro/hero for the campaign headline and approved media in the existing blocks.
+The service card owns the description, optional inclusions, price guidance and approved
+human-response wording; the same published details appear on the landing and enquiry form.
+Missing services disable the landing action without substituting another offer.
+
+Local and preview initialization add `/service-demo` with clearly synthetic content and
+abstract artwork, preserving existing edits. Real photos, offer wording and any response
+promise still need owner input. The receipt saves an enquiry; it does not reserve a date,
+confirm a booking or send visitor mail in preview. See [the landing spec](specs/service-inquiry-landings/requirements.md).
+
+## Studio days and sessions
+
+Use **Studio days** in the photographer workspace to create a rented studio day. Enter the actual
+location, timezone/date, offer, price/currency, duration/buffer, hours, deadline and change conditions.
+Save and privately preview a draft, then publish and explicitly open bookings. Immediate confirmation
+is the default; approval can be required per day. Pending requests use a place until approved or
+cancelled. Choosing a time alone creates no hold.
+
+Reservations and staff changes share PostgreSQL capacity checks. Existing commitments keep their
+saved details when a day changes; affected publication requires a fresh acknowledgement. Reschedule,
+approve or cancel through the studio controls. Customer email is a private test draft only, with a
+visible retry if preparation fails. Only approved rules can produce confirmed-session reminder
+simulations. No unattended sender or payments are enabled.
+
+Local/preview bootstrap adds `/studio-days/studio-demo` with clearly synthetic dates, venue and price,
+preserving editor changes. Real commercial details and imagery still need owner input. The migration
+preserves existing enquiry bookings and refuses rollback once studio-day data exists. See the
+[studio-day specification](specs/studio-days-session-slots/requirements.md).

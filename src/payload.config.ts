@@ -14,6 +14,7 @@ import {
 import { previewEmail } from './hosting/email'
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
+import { StudioDays, StudioSlots } from './collections/StudioDays'
 import { Pages } from './collections/Pages'
 import { Enquiries } from './collections/Enquiries'
 import {
@@ -23,6 +24,8 @@ import {
   CustomerActivities,
 } from './collections/CustomerRecords'
 import { EmailTemplates, EmailMessages } from './collections/EmailRecords'
+import { FollowUps, FollowUpRules, IncomingReplies } from './collections/FollowUps'
+import { followUpTask } from './followups/jobs'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const mode = deploymentMode(process.env)
@@ -73,6 +76,30 @@ export default buildConfig({
     user: Users.slug,
     avatar: 'default',
     components: {
+      views: {
+        dashboard: { Component: './admin/Workspace.server#InboxView' },
+        customer: {
+          Component: './admin/Workspace.server#CustomerView',
+          path: '/customers/:id',
+          exact: true,
+        },
+        studioDays: {
+          Component: './admin/StudioWorkspace.server#StudioDaysView',
+          path: '/studio-days',
+          exact: true,
+        },
+        studioDay: {
+          Component: './admin/StudioWorkspace.server#StudioDaysView',
+          path: '/studio-days/:id',
+          exact: true,
+        },
+        followUps: {
+          Component: './admin/Workspace.server#FollowUpsView',
+          path: '/follow-ups',
+          exact: true,
+        },
+      },
+      beforeNavLinks: ['./admin/workspace-ui#WorkspaceNav'],
       providers: [
         {
           path: './hosting/PrivateBlobUpload#PrivateBlobUpload',
@@ -87,6 +114,8 @@ export default buildConfig({
     Users,
     Media,
     Pages,
+    StudioDays,
+    StudioSlots,
     Enquiries,
     Contacts,
     Bookings,
@@ -94,7 +123,15 @@ export default buildConfig({
     CustomerActivities,
     EmailTemplates,
     EmailMessages,
+    FollowUps,
+    FollowUpRules,
+    IncomingReplies,
   ],
+  jobs: {
+    tasks: [followUpTask],
+    access: { queue: () => false, run: () => false, cancel: () => false },
+    deleteJobOnComplete: false,
+  },
   secret: process.env.PAYLOAD_SECRET || 'showcase-only-cms-routes-are-disabled-0000',
   db: postgresAdapter({
     pool: {

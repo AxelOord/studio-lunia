@@ -66,3 +66,20 @@ Bookings are staff records, with separate expected value and manual realised mon
 There is no calendar, payment provider, mailbox sync, scheduled follow-up or Ads feedback.
 See [the active design](../specs/009-customer-records-and-email-history/design.md) and
 [activation limits](customer-records-and-email.md).
+
+## Selected studio-day journey (#26, #27)
+
+Owner authorization settles the booking model for this slice: the photographer rents studio days,
+and customers book sessions with immediate confirmation by default or explicit per-day approval.
+Bespoke service enquiries remain separate. Versioned StudioDays publish immutable private StudioSlots;
+Bookings and their agreement snapshots hold capacity, including pending requests. Transactions lock
+the day, then the booking, with a PostgreSQL overlap guard and unique active seats. No temporary
+holds or expiry worker are introduced. Day edits preserve customer commitments and require a fresh
+acknowledgement when active bookings are affected.
+
+The existing private customer workspace accepts studio bookings without an enquiry. Test message
+preparation follows the durable reservation commit; failure is visible and retryable. Changes cancel
+obsolete simulation jobs under the same conversation lock and create replacements only for confirmed
+sessions and approved rules. Customer transport, payments, external calendars and new measurement
+or advertising events remain outside this slice. The public booking API uses `/api/studio-sessions`,
+separate from Payload's `/api/studio-days` content endpoint.

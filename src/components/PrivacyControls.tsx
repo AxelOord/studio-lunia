@@ -10,7 +10,13 @@ const PrivacyContext = createContext<{
   track: (event: 'service_viewed' | 'inquiry_started', service: string) => void
   syncCampaign: () => Promise<void>
   settleMeasurement: () => Promise<void>
-}>({ track: () => {}, syncCampaign: async () => {}, settleMeasurement: async () => {} })
+  submissionPermissions: () => { campaignsAllowed: boolean; analyticsAllowed: boolean }
+}>({
+  track: () => {},
+  syncCampaign: async () => {},
+  settleMeasurement: async () => {},
+  submissionPermissions: () => ({ campaignsAllowed: false, analyticsAllowed: false }),
+})
 export function usePrivacy() {
   return useContext(PrivacyContext)
 }
@@ -155,7 +161,15 @@ export function PrivacyControls({
   }
   return (
     <PrivacyContext.Provider
-      value={{ track, syncCampaign, settleMeasurement: () => measurementTask.current }}
+      value={{
+        track,
+        syncCampaign,
+        settleMeasurement: () => measurementTask.current,
+        submissionPermissions: () => ({
+          campaignsAllowed: current.current.campaigns && !disabledHere,
+          analyticsAllowed: current.current.analytics && !disabledHere,
+        }),
+      }}
     >
       {children}
       {!disabledHere && (
@@ -175,8 +189,8 @@ export function PrivacyControls({
             <div className="privacy-panel">
               <h2>Your privacy choices</h2>
               <p>
-                Enquiries work without optional tracking. Choose what to allow; both are off by
-                default.
+                Enquiries and studio bookings work without optional tracking. Choose what to allow;
+                both are off by default.
               </p>
               <label className="check-choice">
                 <input
@@ -199,12 +213,12 @@ export function PrivacyControls({
                   onChange={(e) => setDraft({ ...draft, campaigns: e.target.checked })}
                 />{' '}
                 Remember campaign tags and advertising click IDs for 30 days and attach them to my
-                enquiry.
+                enquiry or studio booking.
               </label>
               <p className="field-help">
                 We remember your choice for 180 days. Withdrawal removes optional browser cookies
                 and stops future collection. It does not erase previously submitted enquiries or
-                already delivered events.{' '}
+                studio bookings, or already delivered events.{' '}
                 <Link href="/privacy">Read the preview privacy notice</Link>.
               </p>
               <div className="form-actions">

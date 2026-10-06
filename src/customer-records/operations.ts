@@ -71,6 +71,11 @@ export async function recordOperation(
         overrideAccess: false,
         depth: 0,
       })
+      if (original.source === 'studio_slot')
+        throw new APIError(
+          'Use the studio-session controls to preserve capacity and agreed details.',
+          422,
+        )
       const reason = textInput(values.reason, 'Reason for this change', 10, 2000)
       const status = values.status
       if (!['proposed', 'confirmed', 'completed', 'cancelled'].includes(String(status)))
@@ -93,7 +98,7 @@ export async function recordOperation(
       })
       await activity(req, {
         contact: idInput(booking.contact),
-        enquiry: idInput(booking.enquiry),
+        enquiry: relationID(booking.enquiry),
         booking: id,
         kind: 'booking_changed',
         summary: `Booking ${booking.status}`,
@@ -189,7 +194,7 @@ export async function recordOperation(
       })
       await activity(req, {
         contact: idInput(booking.contact),
-        enquiry: idInput(booking.enquiry),
+        enquiry: relationID(booking.enquiry),
         booking: id,
         kind: 'revenue_recorded',
         summary:
