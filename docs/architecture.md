@@ -32,6 +32,12 @@ windows, currency and expected versus realized value. Reconcile internal outcome
 platform counts without promising perfect attribution. Start experiments only after
 baseline QA and sample-size planning; low traffic may mean inconclusive results.
 
+The private conversion overview now implements internal outcomes and frozen attribution reporting
+without connecting spend or advertising feedback. Cohort totals use a read-only repeatable-read
+snapshot after checking unrestricted source access. Optional EU PostHog aggregate reads stay disabled;
+no new capture or identity join is introduced. See [the reporting definitions](conversion-overview.md)
+and [its design](../specs/conversion-overview/design.md).
+
 ## Small specs after foundation
 
 1. `002-hosted-cms-preview`: protected hosted editor login, durable database/media,

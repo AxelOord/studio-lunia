@@ -33,6 +33,9 @@ test('local test processes discard inherited provider credentials and disable de
     BLOB_READ_WRITE_TOKEN: 'synthetic-do-not-use',
     RESEND_API_KEY: 'synthetic-do-not-use',
     POSTHOG_PROJECT_TOKEN: 'synthetic-do-not-use',
+    POSTHOG_QUERY_READ_KEY: 'synthetic-do-not-use',
+    POSTHOG_REPORT_PROJECT_ID: '123',
+    LUNIA_POSTHOG_REPORTING_ENABLED: 'true',
     PREVIEW_EDITOR_PASSWORD: 'synthetic-do-not-use',
     MAIL_FROM: 'synthetic-do-not-use',
     CMS_ORIGIN: 'https://synthetic.example.test',
@@ -44,6 +47,7 @@ test('local test processes discard inherited provider credentials and disable de
   assert.equal(env.DATABASE_URL, database)
   assert.equal(env.PATH, source.PATH)
   assert.equal(env.LUNIA_POSTHOG_ENABLED, 'false')
+  assert.equal(env.LUNIA_POSTHOG_REPORTING_ENABLED, 'false')
   assert.equal(env.LUNIA_RESEND_WEBHOOKS_ENABLED, 'false')
   assert.equal(env.LUNIA_CMS_PREVIEW, 'false')
   assert.equal(JSON.stringify(env).includes('synthetic-do-not-use'), false)
@@ -68,6 +72,9 @@ test.each(['dotenv', 'next'])(
       'RESEND_API_KEY=synthetic-do-not-use',
       'RESEND_WEBHOOK_SECRET=synthetic-do-not-use',
       'POSTHOG_PROJECT_TOKEN=synthetic-do-not-use',
+      'POSTHOG_QUERY_READ_KEY=synthetic-do-not-use',
+      'POSTHOG_REPORT_PROJECT_ID=123',
+      'LUNIA_POSTHOG_REPORTING_ENABLED=true',
       'PREVIEW_EDITOR_PASSWORD=synthetic-do-not-use',
       'LUNIA_CMS_PREVIEW=true',
       'LUNIA_POSTHOG_ENABLED=true',
@@ -82,12 +89,12 @@ test.each(['dotenv', 'next'])(
         else require(process.argv[3]).loadEnvConfig(process.cwd(), false)
         const env = process.env
         for (const key of ['LUNIA_STORAGE', 'BLOB_READ_WRITE_TOKEN', 'CMS_ORIGIN',
-          'RESEND_API_KEY', 'RESEND_WEBHOOK_SECRET', 'POSTHOG_PROJECT_TOKEN',
+          'RESEND_API_KEY', 'RESEND_WEBHOOK_SECRET', 'POSTHOG_PROJECT_TOKEN', 'POSTHOG_QUERY_READ_KEY', 'POSTHOG_REPORT_PROJECT_ID',
           'PREVIEW_EDITOR_PASSWORD']) assert.equal(env[key], '', key + ' was rehydrated')
         assert.equal(env.DATABASE_URL, process.argv[4], 'owned database changed')
         assert.equal(env.DATABASE_URL_UNPOOLED, process.argv[4], 'unpooled database changed')
         assert.equal(env.PAYLOAD_SECRET, 'synthetic-verification-signing-secret-only')
-        for (const key of ['LUNIA_CMS_PREVIEW', 'LUNIA_POSTHOG_ENABLED',
+        for (const key of ['LUNIA_CMS_PREVIEW', 'LUNIA_POSTHOG_ENABLED', 'LUNIA_POSTHOG_REPORTING_ENABLED',
           'LUNIA_RESEND_WEBHOOKS_ENABLED']) assert.equal(env[key], 'false', key)
       `
       const result = spawnSync(

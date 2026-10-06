@@ -98,6 +98,11 @@ export default buildConfig({
           path: '/follow-ups',
           exact: true,
         },
+        conversions: {
+          Component: './admin/Conversions.server#ConversionsView',
+          path: '/conversions',
+          exact: true,
+        },
       },
       beforeNavLinks: ['./admin/workspace-ui#WorkspaceNav'],
       providers: [

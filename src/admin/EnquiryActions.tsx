@@ -2,6 +2,7 @@
 import { useDocumentInfo } from '@payloadcms/ui'
 import { useState } from 'react'
 import { EmailComposer } from './EmailComposer'
+import { FirstResponse } from './FirstResponse'
 import { isoDate, recordURL, useRecordAction } from './record-ui'
 
 export function EnquiryActions() {
@@ -68,6 +69,7 @@ export function EnquiryActions() {
         <p role="status">{message}</p>
         {link && <a href={link}>Open booking proposal</a>}
       </section>
+      <FirstResponse key={String(id)} enquiry={Number(id)} />
       <EmailComposer enquiry={Number(id)} />
     </>
   )

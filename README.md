@@ -111,6 +111,13 @@ sections keeps drafts. The follow-up queue supports status filters. Simulation t
 customer follow-up preferences are secondary disclosures. All customer sending and real
 incoming replies remain off. See the [workspace UX audit and evidence](specs/photographer-workspace-ux/design.md).
 
+## Conversion overview
+
+The private workspace reports separate bespoke/studio creation cohorts, expected booking value,
+recorded net payments, campaign groups, staff-attested first response and current published occupancy.
+Source links make totals traceable. Optional PostHog EU aggregate reads remain off pending separate
+approval and secure configuration. See [definitions and activation gates](docs/conversion-overview.md).
+
 ## Service landing pages
 
 Publish a service card, then choose it under a page's **Page settings → Landing page service**.

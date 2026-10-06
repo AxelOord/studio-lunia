@@ -60,6 +60,12 @@ export function WorkspaceNav() {
       >
         Email templates
       </Link>
+      <Link
+        aria-current={path === '/admin/conversions' ? 'page' : undefined}
+        href="/admin/conversions"
+      >
+        Conversion overview
+      </Link>
     </nav>
   )
 }

@@ -9,6 +9,7 @@ import { PlanSummary, WorkspaceShell, workspaceJSON } from './workspace-ui'
 import { FollowUpEditor } from './FollowUpEditor'
 import { StudioBookingCard } from './StudioWorkspace'
 import { BookingAction, DraftAction, ProposalAction } from './WorkspaceActions'
+import { FirstResponse } from './FirstResponse'
 
 type CustomerData = Awaited<ReturnType<typeof workspace>>
 const relation = (value: number | { id: number } | null | undefined) =>
@@ -187,6 +188,7 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
                   templates={data.templates}
                   onDone={reload}
                 />
+                <FirstResponse key={`response:${enquiry.id}`} enquiry={enquiry.id} />
               </section>
             )}
           </div>
