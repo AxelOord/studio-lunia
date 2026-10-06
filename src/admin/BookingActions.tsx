@@ -46,6 +46,7 @@ export function BookingActions() {
   if (view?.booking.source === 'studio_slot')
     return (
       <section className="customer-records">
+        {error && <p role="alert">{error}</p>}
         <StudioBookingCard booking={view.booking} onDone={refresh} />
         <EmailComposer booking={view.booking.id} />
       </section>

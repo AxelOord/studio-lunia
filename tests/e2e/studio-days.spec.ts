@@ -271,7 +271,7 @@ test('manual request approval, rescheduling and cancellation work in the mobile 
   await noOverflow(page)
   await expect(page.getByRole('button', { name: 'Approve session', exact: true })).toHaveCount(0)
   await page.getByText('Add a session for a customer', { exact: true }).click()
-  await page.getByLabel('Session', { exact: true }).selectOption({ index: 1 })
+  await page.getByRole('combobox', { name: 'Session', exact: true }).selectOption({ index: 1 })
   await page.getByLabel('Customer name', { exact: true }).fill('Synthetic Staff Customer')
   await page
     .getByLabel('Customer email', { exact: true })
@@ -282,6 +282,51 @@ test('manual request approval, rescheduling and cancellation work in the mobile 
   await expect(
     page.getByRole('heading', { name: '1 request needs approval', exact: true }),
   ).toBeVisible()
+})
+
+test('stale slot selection recovers to a private sold-out state on desktop and mobile', async ({
+  page,
+}) => {
+  await change({ closesLocal: '09:30', bufferMinutes: 0 })
+  await page.goto(`/studio-days/${slug}`)
+  await page.getByRole('button', { name: 'Decline optional', exact: true }).click()
+  await fill(page)
+  const availability = await (await editor.get(`/api/studio-sessions?day=${id}`)).json()
+  const saved = await editor.post('/api/studio-sessions', {
+    headers: { origin },
+    data: {
+      action: 'staffReserve',
+      day: id,
+      slot: availability.slots[0].id,
+      revision: availability.revision,
+      submissionId: randomUUID(),
+      name: 'Private Synthetic Customer',
+      email: `private-${randomUUID()}@example.test`,
+      conditionsAccepted: true,
+    },
+  })
+  expect(saved.ok(), await saved.text()).toBe(true)
+  await page.getByRole('button', { name: 'Confirm this session', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('That session is full.')
+  await expect(page.getByRole('alert')).toBeFocused()
+  await expect(page.getByLabel('Your name', { exact: true })).toHaveValue(
+    'Synthetic Studio Visitor',
+  )
+  await page.getByRole('button', { name: 'Refresh times and review details', exact: true }).click()
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 })
+    await expect(
+      page.getByText('Every session is currently allocated.', { exact: false }),
+    ).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Browse other studio days' })).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Confirm this session', exact: true }),
+    ).toHaveCount(0)
+    await expect(page.getByText('Private Synthetic Customer', { exact: true })).toHaveCount(0)
+    await noOverflow(page)
+  }
+  expect(await bookings()).toHaveLength(1)
+  await page.screenshot({ path: 'test-results/studio-sold-out-mobile.png', fullPage: true })
 })
 
 test('private draft preview and public unavailable states remain explicit in the native publishing flow', async ({
