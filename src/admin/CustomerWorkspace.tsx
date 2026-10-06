@@ -130,7 +130,7 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
                 setEnquiryID(event.target.value ? Number(event.target.value) : undefined)
                 setEditor(undefined)
                 setShowProposal(false)
-                setSection('reply')
+                setSection(event.target.value ? 'reply' : 'booking')
                 closeEmail()
               }}
             >
@@ -150,16 +150,18 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
               ['booking', `Booking${bookings.length ? ` (${bookings.length})` : ''}`],
               ['followups', `Follow-ups${plans.length ? ` (${plans.length})` : ''}`],
               ['history', 'Conversation & history'],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                aria-pressed={section === value}
-                aria-controls={`task-${value}`}
-                onClick={() => setSection(value)}
-              >
-                {label}
-              </button>
-            ))}
+            ]
+              .filter(([value]) => value !== 'reply' || Boolean(enquiry))
+              .map(([value, label]) => (
+                <button
+                  key={value}
+                  aria-pressed={section === value}
+                  aria-controls={`task-${value}`}
+                  onClick={() => setSection(value)}
+                >
+                  {label}
+                </button>
+              ))}
           </nav>
           <div id="task-reply" hidden={section !== 'reply'}>
             <div className="workspace-next-step">

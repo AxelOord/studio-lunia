@@ -64,12 +64,11 @@ async function currentSlot(
   revision: number,
   excludeBooking = 0,
 ) {
-  // Deliberately read as a visitor: staff reservations use the same published inventory.
+  // Staff and visitors use the same published inventory. The explicit status check also applies to editors.
   const day = await req.payload.findByID({
     collection: 'studio-days',
     id: dayID,
     req,
-    user: null,
     overrideAccess: false,
     draft: false,
     depth: 0,
