@@ -71,6 +71,27 @@ export function StudioBookingCard({
       }
     }
   }
+  async function save() {
+    if (
+      await run({
+        action,
+        booking: booking.id,
+        revision: booking.studioRevision,
+        reason,
+        ...(action === 'reschedule'
+          ? {
+              day: Number(day),
+              slot: Number(slot),
+              scheduleRevision: target?.revision,
+              conditionsAccepted: agreed,
+            }
+          : {}),
+      })
+    ) {
+      setAction('')
+      await onDone()
+    }
+  }
   return (
     <article className="studio-booking-card">
       <div className="studio-booking-heading">
@@ -106,6 +127,7 @@ export function StudioBookingCard({
       </p>
       {booking.studioMessageState !== 'ready' && (
         <button
+          type="button"
           disabled={busy}
           onClick={async () => {
             if (await run({ action: 'retryMessages', booking: booking.id })) await onDone()
@@ -117,44 +139,20 @@ export function StudioBookingCard({
       {['pending_approval', 'confirmed'].includes(booking.status) && (
         <div className="customer-actions">
           {booking.status === 'pending_approval' && (
-            <button disabled={busy} onClick={() => void start('approve')}>
+            <button type="button" disabled={busy} onClick={() => void start('approve')}>
               Approve session
             </button>
           )}
-          <button disabled={busy} onClick={() => void start('reschedule')}>
+          <button type="button" disabled={busy} onClick={() => void start('reschedule')}>
             Reschedule
           </button>
-          <button disabled={busy} onClick={() => void start('cancel')}>
+          <button type="button" disabled={busy} onClick={() => void start('cancel')}>
             Cancel session
           </button>
         </div>
       )}
       {action && (
-        <form
-          className="studio-change-form"
-          onSubmit={async (event) => {
-            event.preventDefault()
-            if (
-              await run({
-                action,
-                booking: booking.id,
-                revision: booking.studioRevision,
-                reason,
-                ...(action === 'reschedule'
-                  ? {
-                      day: Number(day),
-                      slot: Number(slot),
-                      scheduleRevision: target?.revision,
-                      conditionsAccepted: agreed,
-                    }
-                  : {}),
-              })
-            ) {
-              setAction('')
-              await onDone()
-            }
-          }}
-        >
+        <div className="studio-change-form" role="group" aria-label="Booking change">
           <h4>
             {action === 'approve'
               ? 'Approve this request'
@@ -243,14 +241,23 @@ export function StudioBookingCard({
             />
           </label>
           <div className="customer-actions">
-            <button disabled={busy || loading || (action === 'reschedule' && !slot)}>
+            <button
+              type="button"
+              disabled={
+                busy ||
+                loading ||
+                reason.trim().length < 10 ||
+                (action === 'reschedule' && (!slot || !agreed))
+              }
+              onClick={() => void save()}
+            >
               {busy ? 'Saving…' : 'Save booking change'}
             </button>
             <button type="button" disabled={busy} onClick={() => setAction('')}>
               Keep current booking
             </button>
           </div>
-        </form>
+        </div>
       )}
       {loading && <p role="status">Loading available sessions…</p>}
       {error && <p role="alert">{error}</p>}
