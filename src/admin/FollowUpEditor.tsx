@@ -29,7 +29,7 @@ export function FollowUpEditor({
   onCancel,
   onRefresh,
 }: {
-  enquiry: number
+  enquiry?: number
   bookings: Booking[]
   templates: EmailTemplate[]
   plan?: FollowUp
@@ -41,7 +41,9 @@ export function FollowUpEditor({
   useEffect(() => {
     heading.current?.focus()
   }, [])
-  const [purpose, setPurpose] = useState(plan?.purpose || 'enquiry_followup')
+  const [purpose, setPurpose] = useState(
+    plan?.purpose || (enquiry ? 'enquiry_followup' : 'preparation'),
+  )
   const [baseRevision, setBaseRevision] = useState(plan?.revision)
   const changed = Boolean(plan && plan.revision !== baseRevision)
   const terminal = Boolean(plan && !editableStates.includes(plan.state))
@@ -138,11 +140,13 @@ export function FollowUpEditor({
             value={purpose}
             onChange={(event) => setPurpose(event.target.value as typeof purpose)}
           >
-            {purposes.map((item) => (
-              <option key={item} value={item}>
-                {purposeLabels[item]}
-              </option>
-            ))}
+            {purposes
+              .filter((value) => enquiry || value !== 'enquiry_followup')
+              .map((item) => (
+                <option key={item} value={item}>
+                  {purposeLabels[item]}
+                </option>
+              ))}
           </select>
         </label>
         <label>

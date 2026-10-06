@@ -46,7 +46,7 @@ export async function workspace(
       ).docs[0]
     : undefined
   const enquiryID = selectedPlan
-    ? typeof selectedPlan.enquiry === 'object'
+    ? selectedPlan.enquiry && typeof selectedPlan.enquiry === 'object'
       ? selectedPlan.enquiry.id
       : selectedPlan.enquiry
     : selectedID(selection.enquiry)
@@ -107,11 +107,11 @@ export async function inbox(
     all: 'true',
     new: "EXISTS (SELECT 1 FROM enquiries e WHERE e.contact_id = c.id AND e.follow_up = 'new')",
     waiting:
-      "EXISTS (SELECT 1 FROM enquiries e WHERE e.contact_id = c.id AND e.follow_up = 'contacted') OR EXISTS (SELECT 1 FROM bookings b WHERE b.contact_id = c.id AND b.status = 'proposed')",
+      "EXISTS (SELECT 1 FROM enquiries e WHERE e.contact_id = c.id AND e.follow_up = 'contacted') OR EXISTS (SELECT 1 FROM bookings b WHERE b.contact_id = c.id AND b.status IN ('proposed','pending_approval'))",
     upcoming:
       "EXISTS (SELECT 1 FROM bookings b WHERE b.contact_id = c.id AND b.status = 'confirmed' AND b.session_at > now())",
     attention:
-      "EXISTS (SELECT 1 FROM follow_ups f WHERE f.contact_id = c.id AND f.state IN ('blocked','failed')) OR EXISTS (SELECT 1 FROM email_messages m WHERE m.contact_id = c.id AND m.status IN ('failed','uncertain','manual','bounced','delayed'))",
+      "EXISTS (SELECT 1 FROM follow_ups f WHERE f.contact_id = c.id AND f.state IN ('blocked','failed')) OR EXISTS (SELECT 1 FROM email_messages m WHERE m.contact_id = c.id AND m.status IN ('failed','uncertain','manual','bounced','delayed')) OR EXISTS (SELECT 1 FROM bookings b WHERE b.contact_id = c.id AND (b.status = 'pending_approval' OR b.studio_message_state = 'failed'))",
   }
   if (!Object.hasOwn(clauses, filter)) throw new APIError('Choose a valid inbox filter.', 422)
   const query =
@@ -135,7 +135,7 @@ export async function inbox(
         overrideAccess: false,
         depth: 0,
       })
-      const [enquiries, events, plans] = await Promise.all([
+      const [enquiries, events, plans, bookings] = await Promise.all([
         payload.find({
           collection: 'enquiries',
           user,
@@ -173,8 +173,23 @@ export async function inbox(
           limit: 1,
           sort: 'plannedAt',
         }),
+        payload.find({
+          collection: 'bookings',
+          user,
+          overrideAccess: false,
+          where: { contact: { equals: id } },
+          depth: 0,
+          limit: 1,
+          sort: '-updatedAt',
+        }),
       ])
-      return { contact, enquiry: enquiries.docs[0], activity: events.docs[0], plan: plans.docs[0] }
+      return {
+        contact,
+        enquiry: enquiries.docs[0],
+        activity: events.docs[0],
+        plan: plans.docs[0],
+        booking: bookings.docs[0],
+      }
     }),
   )
   return { rows, page, hasNextPage: ids.rows.length > 20, counts: counts.rows[0] }

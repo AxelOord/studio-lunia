@@ -7,6 +7,7 @@ import { editableStates } from '../followups/domain'
 import { EmailFrame, localDate, useRecordAction } from './record-ui'
 import { PlanSummary, WorkspaceShell, workspaceJSON } from './workspace-ui'
 import { FollowUpEditor } from './FollowUpEditor'
+import { StudioBookingCard } from './StudioWorkspace'
 import { BookingAction, DraftAction, ProposalAction } from './WorkspaceActions'
 
 type CustomerData = Awaited<ReturnType<typeof workspace>>
@@ -14,7 +15,11 @@ const relation = (value: number | { id: number } | null | undefined) =>
   typeof value === 'object' ? value?.id : value
 export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
   const [data, setData] = useState(initial)
-  const [enquiryID, setEnquiryID] = useState(initial.selectedEnquiry || initial.enquiries[0]?.id)
+  const [enquiryID, setEnquiryID] = useState<number | undefined>(
+    initial.selectedPlan && !initial.selectedEnquiry
+      ? undefined
+      : initial.selectedEnquiry || initial.enquiries[0]?.id,
+  )
   const [editor, setEditor] = useState<number | 'new'>()
   const [error, setError] = useState('')
   const [reply, setReply] = useState('')
@@ -28,7 +33,13 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
     },
     [],
   )
-  const [section, setSection] = useState(data.selectedPlan ? 'followups' : 'reply')
+  const [section, setSection] = useState(
+    data.selectedPlan
+      ? 'followups'
+      : !data.enquiries.length && data.bookings.length
+        ? 'booking'
+        : 'reply',
+  )
   const planTrigger = useRef<HTMLButtonElement | null>(null)
   const previousEditor = useRef(editor)
   useEffect(() => {
@@ -38,8 +49,10 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
   const [showProposal, setShowProposal] = useState(false)
   const { run, busy, message } = useRecordAction('/api/customer-workspace')
   const enquiry = data.enquiries.find((item) => item.id === enquiryID)
-  const bookings = data.bookings.filter((item) => relation(item.enquiry) === enquiryID)
-  const plans = data.plans.filter((item) => relation(item.enquiry) === enquiryID)
+  const bookings = data.bookings.filter(
+    (item) => (relation(item.enquiry) || undefined) === enquiryID,
+  )
+  const plans = data.plans.filter((item) => (relation(item.enquiry) || undefined) === enquiryID)
   const editingPlan = data.plans.find((item) => item.id === editor)
   function closeEmail() {
     emailRequest.current++
@@ -102,7 +115,7 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
           Showing the latest 100 records per section. Older records remain in the collection views.
         </p>
       )}
-      {!data.enquiries.length ? (
+      {!data.enquiries.length && !data.bookings.length ? (
         <section className="workspace-card">
           <h2>No enquiry linked yet</h2>
           <p>Link an existing enquiry in its record before preparing a proposal or follow-up.</p>
@@ -112,15 +125,18 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
           <label className="workspace-enquiry-select">
             Customer request
             <select
-              value={enquiryID}
+              value={enquiryID || ''}
               onChange={(event) => {
-                setEnquiryID(Number(event.target.value))
+                setEnquiryID(event.target.value ? Number(event.target.value) : undefined)
                 setEditor(undefined)
                 setShowProposal(false)
                 setSection('reply')
                 closeEmail()
               }}
             >
+              {data.bookings.some((booking) => !booking.enquiry) && (
+                <option value="">Studio sessions</option>
+              )}
               {data.enquiries.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.serviceTitle} · {localDate(item.createdAt)}
@@ -181,7 +197,11 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
                     <summary>
                       {booking.title} · {booking.status}
                     </summary>
-                    <BookingAction booking={booking} onDone={reload} />
+                    {booking.source === 'studio_slot' ? (
+                      <StudioBookingCard booking={booking} onDone={reload} />
+                    ) : (
+                      <BookingAction booking={booking} onDone={reload} />
+                    )}
                     <Link href={`/admin/collections/bookings/${booking.id}`}>
                       Open value and money records
                     </Link>
@@ -190,9 +210,11 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
               ) : (
                 <p>No booking proposal yet.</p>
               )}
-              <button onClick={() => setShowProposal(!showProposal)}>
-                {showProposal ? 'Cancel proposal editing' : 'New booking proposal'}
-              </button>
+              {enquiry && (
+                <button onClick={() => setShowProposal(!showProposal)}>
+                  {showProposal ? 'Cancel proposal editing' : 'New booking proposal'}
+                </button>
+              )}
               {showProposal && enquiry && (
                 <ProposalAction
                   enquiry={enquiry.id}
@@ -217,11 +239,11 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
               >
                 Plan a follow-up
               </button>
-              {editor && enquiry && (editor === 'new' || editingPlan) && (
+              {editor && (editor === 'new' || editingPlan) && (
                 <section className="workspace-card" aria-label="Follow-up editor">
                   <FollowUpEditor
                     key={editor}
-                    enquiry={enquiry.id}
+                    enquiry={enquiry?.id}
                     bookings={bookings}
                     templates={data.templates}
                     plan={editingPlan}

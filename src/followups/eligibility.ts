@@ -1,6 +1,6 @@
 import type { PayloadRequest } from 'payload'
 import type { FollowUp } from '../payload-types'
-import { idInput, object } from '../customer-records/core'
+import { idInput, object, relationID } from '../customer-records/core'
 
 export async function eligibility(req: PayloadRequest, plan: FollowUp) {
   const payload = req.payload
@@ -11,17 +11,19 @@ export async function eligibility(req: PayloadRequest, plan: FollowUp) {
     overrideAccess: false,
     depth: 0,
   })
-  const enquiry = await payload.findByID({
-    collection: 'enquiries',
-    id: idInput(plan.enquiry),
-    req,
-    overrideAccess: false,
-    depth: 0,
-  })
-  if (idInput(enquiry.contact) !== contact.id) return 'contact_changed'
+  const enquiry = plan.enquiry
+    ? await payload.findByID({
+        collection: 'enquiries',
+        id: idInput(plan.enquiry),
+        req,
+        overrideAccess: false,
+        depth: 0,
+      })
+    : undefined
+  if (enquiry && idInput(enquiry.contact) !== contact.id) return 'contact_changed'
   if (contact.followUpsStopped) return 'contact_stopped'
   if (contact.email !== plan.recipient) return 'recipient_changed'
-  if (enquiry.followUp === 'closed') return 'enquiry_closed'
+  if (enquiry?.followUp === 'closed') return 'enquiry_closed'
   if (plan.rule) {
     const rule = await payload.findByID({
       collection: 'follow-up-rules',
@@ -56,7 +58,9 @@ export async function eligibility(req: PayloadRequest, plan: FollowUp) {
     limit: 1,
     where: {
       and: [
-        { enquiry: { equals: enquiry.id } },
+        enquiry
+          ? { enquiry: { equals: enquiry.id } }
+          : { booking: { equals: idInput(plan.booking) } },
         { kind: { not_equals: 'photographer_notification' } },
         { status: { in: ['failed', 'uncertain', 'manual', 'bounced', 'delayed'] } },
       ],
@@ -74,6 +78,7 @@ export async function eligibility(req: PayloadRequest, plan: FollowUp) {
     if (source.status === 'cancelled') return 'booking_cancelled'
   }
   if (plan.purpose === 'enquiry_followup') {
+    if (!enquiry) return 'contact_changed'
     const bookings = await payload.find({
       collection: 'bookings',
       req,
@@ -97,7 +102,7 @@ export async function eligibility(req: PayloadRequest, plan: FollowUp) {
     depth: 0,
   })
   if (booking.status !== 'confirmed' || !booking.sessionAt) return 'session_unconfirmed'
-  if (idInput(booking.contact) !== contact.id || idInput(booking.enquiry) !== enquiry.id)
+  if (idInput(booking.contact) !== contact.id || relationID(booking.enquiry) !== enquiry?.id)
     return 'contact_changed'
   if (booking.sessionAt !== plan.sessionSnapshot) return 'session_changed'
   if (new Date(booking.sessionAt).getTime() <= Date.now()) return 'session_passed'

@@ -14,6 +14,7 @@ import {
 import { previewEmail } from './hosting/email'
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
+import { StudioDays, StudioSlots } from './collections/StudioDays'
 import { Pages } from './collections/Pages'
 import { Enquiries } from './collections/Enquiries'
 import {
@@ -82,6 +83,16 @@ export default buildConfig({
           path: '/customers/:id',
           exact: true,
         },
+        studioDays: {
+          Component: './admin/StudioWorkspace.server#StudioDaysView',
+          path: '/studio-days',
+          exact: true,
+        },
+        studioDay: {
+          Component: './admin/StudioWorkspace.server#StudioDaysView',
+          path: '/studio-days/:id',
+          exact: true,
+        },
         followUps: {
           Component: './admin/Workspace.server#FollowUpsView',
           path: '/follow-ups',
@@ -103,6 +114,8 @@ export default buildConfig({
     Users,
     Media,
     Pages,
+    StudioDays,
+    StudioSlots,
     Enquiries,
     Contacts,
     Bookings,

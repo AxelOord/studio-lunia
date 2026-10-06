@@ -70,7 +70,7 @@ export async function FollowUpsView(props: AdminViewServerProps) {
   )
 }
 
-function WorkspaceTemplate({
+export function WorkspaceTemplate({
   props,
   children,
 }: {

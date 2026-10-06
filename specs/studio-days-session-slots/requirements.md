@@ -7,7 +7,7 @@ Status: ready
 
 Implement the owner-authorized studio-day journey in [#26](https://github.com/AxelOord/studio-lunia/issues/26)
 and [#27](https://github.com/AxelOord/studio-lunia/issues/27). Current bodies and empty comments were
-fetched on 2026-10-05. Later overnight authorization supersedes the older wait-for-approval text.
+fetched on 2026-10-05 and rechecked unchanged on 2026-10-06. Later overnight authorization supersedes the older wait-for-approval text.
 Build separately from bespoke enquiries, on the completed #33 branch (PR #40, dependent on #39/#38).
 A photographer rents a studio for specific days; customers reserve a session with her.
 

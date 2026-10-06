@@ -89,7 +89,7 @@ async function applyRules(req: PayloadRequest, event: CustomerActivity) {
     const plan = await createPlan(
       req,
       {
-        enquiry: idInput(booking.enquiry),
+        enquiry: relationID(booking.enquiry),
         booking: booking.id,
         template: template.id,
         rule: rule.id,
@@ -97,7 +97,7 @@ async function applyRules(req: PayloadRequest, event: CustomerActivity) {
         timeZone: rule.timeZone,
         plannedAt,
       },
-      `rule:${rule.id}:${rule.revision}:booking:${booking.id}:${anchor}`,
+      `rule:${rule.id}:${rule.revision}:booking:${booking.id}:${anchor}${booking.studioRevision ? `:studio:${booking.studioRevision}` : ''}`,
       event.createdAt,
     )
     if (

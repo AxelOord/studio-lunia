@@ -2,6 +2,7 @@
 import { useDocumentInfo } from '@payloadcms/ui'
 import { useCallback, useEffect, useState } from 'react'
 import type { Booking, RevenueEntry } from '@/payload-types'
+import { StudioBookingCard } from './StudioWorkspace'
 import { EmailComposer } from './EmailComposer'
 import { inputDate, isoDate, localDate, useRecordAction } from './record-ui'
 
@@ -42,6 +43,13 @@ export function BookingActions() {
     void refresh()
   }, [refresh])
   if (!id) return null
+  if (view?.booking.source === 'studio_slot')
+    return (
+      <section className="customer-records">
+        <StudioBookingCard booking={view.booking} onDone={refresh} />
+        <EmailComposer booking={view.booking.id} />
+      </section>
+    )
   const reversed = new Set(
     view?.entries.map((item) =>
       typeof item.reverses === 'object' ? item.reverses?.id : item.reverses,

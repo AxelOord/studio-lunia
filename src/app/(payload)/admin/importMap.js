@@ -13,6 +13,7 @@ import { WorkspaceNav as WorkspaceNav_c55aab5b3482672b98684361d704e261 } from '.
 import { PrivateBlobUpload as PrivateBlobUpload_3576928557a248601e2a25bcf9a88a28 } from '../../../hosting/PrivateBlobUpload'
 import { InboxView as InboxView_b475916a8de8ba579c112e1c240f1fbd } from '../../../admin/Workspace.server'
 import { CustomerView as CustomerView_b475916a8de8ba579c112e1c240f1fbd } from '../../../admin/Workspace.server'
+import { StudioDaysView as StudioDaysView_6a7780257c4d8e3e8150576ae69bc2a1 } from '../../../admin/StudioWorkspace.server'
 import { FollowUpsView as FollowUpsView_b475916a8de8ba579c112e1c240f1fbd } from '../../../admin/Workspace.server'
 import { CollectionCards as CollectionCards_ab83ff7e88da8d3530831f296ec4756a } from '@payloadcms/ui/rsc'
 import { CollectionQueryWidget as CollectionQueryWidget_ab83ff7e88da8d3530831f296ec4756a } from '@payloadcms/ui/rsc'
@@ -38,6 +39,7 @@ export const importMap = {
   "./hosting/PrivateBlobUpload#PrivateBlobUpload": PrivateBlobUpload_3576928557a248601e2a25bcf9a88a28,
   "./admin/Workspace.server#InboxView": InboxView_b475916a8de8ba579c112e1c240f1fbd,
   "./admin/Workspace.server#CustomerView": CustomerView_b475916a8de8ba579c112e1c240f1fbd,
+  "./admin/StudioWorkspace.server#StudioDaysView": StudioDaysView_6a7780257c4d8e3e8150576ae69bc2a1,
   "./admin/Workspace.server#FollowUpsView": FollowUpsView_b475916a8de8ba579c112e1c240f1fbd,
   "@payloadcms/ui/rsc#CollectionCards": CollectionCards_ab83ff7e88da8d3530831f296ec4756a,
   "@payloadcms/ui/rsc#CollectionQueryWidget": CollectionQueryWidget_ab83ff7e88da8d3530831f296ec4756a,

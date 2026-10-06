@@ -2,6 +2,7 @@ import 'dotenv/config'
 import { getPayload } from 'payload'
 import config from '../src/payload.config'
 import { samplePage } from '../src/lib/sample'
+import { seedStudioDemo } from './seed-studio-demo'
 import { seedLandingDemo } from './seed-landing-demo'
 
 if (process.env.VERCEL || process.env.LUNIA_SHOWCASE === 'true')
@@ -33,6 +34,7 @@ try {
       overrideAccess: true,
     })
   await seedLandingDemo(payload)
+  await seedStudioDemo(payload)
   console.log('Local seed complete; existing editors and content were preserved.')
 } finally {
   const pool = payload.db.pool

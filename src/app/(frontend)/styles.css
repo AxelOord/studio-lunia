@@ -600,3 +600,111 @@ select:focus-visible,
     width: 100%;
   }
 }
+
+.studio-day-intro,
+.studio-reservation {
+  max-width: 1120px;
+  margin: auto;
+  padding: 64px 32px;
+}
+.studio-day-intro h1 {
+  max-width: 900px;
+  font-size: clamp(2.6rem, 6vw, 5rem);
+  line-height: 1.05;
+  margin: 24px 0;
+}
+.studio-day-date {
+  font-size: 1.2rem;
+}
+.studio-offer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  margin: 40px 0;
+}
+.studio-offer-grid p,
+.studio-review p,
+.studio-conditions p {
+  white-space: pre-line;
+}
+.studio-offer-grid dl {
+  margin: 0;
+}
+.studio-offer-grid dl > div {
+  padding: 12px 0;
+  border-bottom: 1px solid #c9c6bf;
+}
+.studio-offer-grid dt {
+  font-size: 0.82rem;
+  color: #53594c;
+}
+.studio-offer-grid dd {
+  margin: 5px 0;
+  font-weight: 600;
+}
+.studio-conditions {
+  margin: 24px 0;
+}
+.studio-conditions summary {
+  cursor: pointer;
+  padding: 12px 0;
+}
+.studio-days-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 40px;
+}
+.studio-day-card,
+.studio-review {
+  padding: 24px;
+  background: #f1eee7;
+  border: 1px solid #d9d4ca;
+}
+.studio-day-card h2 {
+  font-size: 1.7rem;
+}
+.studio-reservation {
+  border-top: 1px solid #d9d4ca;
+  display: grid;
+  grid-template-columns: 0.7fr 1fr;
+  gap: 56px;
+}
+.studio-reservation h2 {
+  font-size: 2.4rem;
+}
+.studio-reservation .inquiry-form {
+  min-width: 0;
+}
+.studio-reservation .inquiry-success {
+  grid-column: 1 / -1;
+}
+@media (max-width: 760px) {
+  .studio-day-intro,
+  .studio-reservation {
+    padding: 40px 20px;
+  }
+  .studio-offer-grid,
+  .studio-reservation,
+  .studio-days-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .studio-day-intro h1 {
+    overflow-wrap: anywhere;
+  }
+}
+
+.studio-reservation .inquiry-form .check-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.studio-reservation .inquiry-form .check-choice input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 3px 0 0;
+}

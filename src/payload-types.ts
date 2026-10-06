@@ -70,6 +70,8 @@ export interface Config {
     users: User;
     media: Media;
     pages: Page;
+    'studio-days': StudioDay;
+    'studio-slots': StudioSlot;
     enquiries: Enquiry;
     contacts: Contact;
     bookings: Booking;
@@ -91,6 +93,8 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
+    'studio-days': StudioDaysSelect<false> | StudioDaysSelect<true>;
+    'studio-slots': StudioSlotsSelect<false> | StudioSlotsSelect<true>;
     enquiries: EnquiriesSelect<false> | EnquiriesSelect<true>;
     contacts: ContactsSelect<false> | ContactsSelect<true>;
     bookings: BookingsSelect<false> | BookingsSelect<true>;
@@ -355,6 +359,90 @@ export interface CallToActionBlock {
   blockType: 'callToAction';
 }
 /**
+ * Publish a rented studio day. Existing bookings keep their agreed details. Preview bookings take no payment and create private email test drafts only.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "studio-days".
+ */
+export interface StudioDay {
+  id: number;
+  title: string;
+  slug: string;
+  location: string;
+  offerTitle: string;
+  inclusions: string;
+  priceMinor: number;
+  /**
+   * ISO currency, for example EUR. Price 10000 means EUR 100.00.
+   */
+  currency: string;
+  changePolicy: string;
+  localDate: string;
+  timeZone: string;
+  opensLocal: string;
+  /**
+   * Only needed when this local time occurs twice at a clock change. Minutes east of UTC, for example 60 or 120.
+   */
+  openOffset?: number | null;
+  closesLocal: string;
+  /**
+   * Only needed when this local time occurs twice at a clock change. Minutes east of UTC, for example 60 or 120.
+   */
+  closeOffset?: number | null;
+  durationMinutes: number;
+  bufferMinutes: number;
+  capacity: number;
+  bookingDeadlineLocal: string;
+  /**
+   * Only needed when this local time occurs twice at a clock change. Minutes east of UTC, for example 60 or 120.
+   */
+  deadlineOffset?: number | null;
+  /**
+   * Pending requests use a place until approved or cancelled. Existing bookings keep their status.
+   */
+  confirmationMode: 'immediate' | 'manual';
+  bookingsOpen?: boolean | null;
+  /**
+   * Cancelling the day stops new bookings. Review and cancel each existing commitment separately.
+   */
+  dayState: 'scheduled' | 'cancelled';
+  /**
+   * Required afresh when publishing changed settings with active bookings. Existing details are never rewritten.
+   */
+  acknowledgeBookings?: boolean | null;
+  layout?: (HeroBlock | TextBlock | GalleryBlock | ImageTextBlock | ServicesBlock | CallToActionBlock)[] | null;
+  scheduleRevision?: number | null;
+  configurationHash?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "studio-slots".
+ */
+export interface StudioSlot {
+  id: number;
+  day: number | StudioDay;
+  revision: number;
+  slotKey: string;
+  startsAt: string;
+  endsAt: string;
+  occupiedUntil: string;
+  capacity: number;
+  snapshot:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * Private enquiry queue. Review each new enquiry and follow up manually. Preview visitor emails are never sent.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -419,7 +507,7 @@ export interface Contact {
   createdAt: string;
 }
 /**
- * Staff-led proposals and confirmed records. No calendar capacity or online payment is created.
+ * Private enquiry-led records and capacity-checked studio sessions. No online payment is created.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "bookings".
@@ -428,9 +516,9 @@ export interface Booking {
   id: number;
   title: string;
   contact: number | Contact;
-  enquiry: number | Enquiry;
-  source: 'staff_enquiry';
-  status: 'proposed' | 'confirmed' | 'completed' | 'cancelled';
+  enquiry?: (number | null) | Enquiry;
+  source: 'staff_enquiry' | 'studio_slot';
+  status: 'proposed' | 'pending_approval' | 'confirmed' | 'completed' | 'cancelled';
   sessionAt?: string | null;
   /**
    * Expected value in minor currency units. Separate from money actually recorded.
@@ -446,6 +534,24 @@ export interface Booking {
     | number
     | boolean
     | null;
+  studioDay?: (number | null) | StudioDay;
+  studioSlot?: (number | null) | StudioSlot;
+  studioSeat?: number | null;
+  studioRevision?: number | null;
+  studioSnapshot?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  sessionEndsAt?: string | null;
+  occupiedUntil?: string | null;
+  studioSubmissionHash?: string | null;
+  studioContentHash?: string | null;
+  studioMessageState?: ('pending' | 'ready' | 'failed') | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -602,7 +708,7 @@ export interface EmailTemplate {
 export interface FollowUp {
   id: number;
   contact: number | Contact;
-  enquiry: number | Enquiry;
+  enquiry?: (number | null) | Enquiry;
   booking?: (number | null) | Booking;
   template: number | EmailTemplate;
   rule?: (number | null) | FollowUpRule;
@@ -828,6 +934,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'pages';
         value: number | Page;
+      } | null)
+    | ({
+        relationTo: 'studio-days';
+        value: number | StudioDay;
+      } | null)
+    | ({
+        relationTo: 'studio-slots';
+        value: number | StudioSlot;
       } | null)
     | ({
         relationTo: 'enquiries';
@@ -1085,6 +1199,66 @@ export interface CallToActionBlockSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "studio-days_select".
+ */
+export interface StudioDaysSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  location?: T;
+  offerTitle?: T;
+  inclusions?: T;
+  priceMinor?: T;
+  currency?: T;
+  changePolicy?: T;
+  localDate?: T;
+  timeZone?: T;
+  opensLocal?: T;
+  openOffset?: T;
+  closesLocal?: T;
+  closeOffset?: T;
+  durationMinutes?: T;
+  bufferMinutes?: T;
+  capacity?: T;
+  bookingDeadlineLocal?: T;
+  deadlineOffset?: T;
+  confirmationMode?: T;
+  bookingsOpen?: T;
+  dayState?: T;
+  acknowledgeBookings?: T;
+  layout?:
+    | T
+    | {
+        hero?: T | HeroBlockSelect<T>;
+        text?: T | TextBlockSelect<T>;
+        gallery?: T | GalleryBlockSelect<T>;
+        imageText?: T | ImageTextBlockSelect<T>;
+        services?: T | ServicesBlockSelect<T>;
+        callToAction?: T | CallToActionBlockSelect<T>;
+      };
+  scheduleRevision?: T;
+  configurationHash?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "studio-slots_select".
+ */
+export interface StudioSlotsSelect<T extends boolean = true> {
+  day?: T;
+  revision?: T;
+  slotKey?: T;
+  startsAt?: T;
+  endsAt?: T;
+  occupiedUntil?: T;
+  capacity?: T;
+  snapshot?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "enquiries_select".
  */
 export interface EnquiriesSelect<T extends boolean = true> {
@@ -1132,6 +1306,16 @@ export interface BookingsSelect<T extends boolean = true> {
   expectedMinor?: T;
   currency?: T;
   attribution?: T;
+  studioDay?: T;
+  studioSlot?: T;
+  studioSeat?: T;
+  studioRevision?: T;
+  studioSnapshot?: T;
+  sessionEndsAt?: T;
+  occupiedUntil?: T;
+  studioSubmissionHash?: T;
+  studioContentHash?: T;
+  studioMessageState?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1408,6 +1592,7 @@ export interface CollectionQueryWidget {
       | 'users'
       | 'media'
       | 'pages'
+      | 'studio-days'
       | 'enquiries'
       | 'contacts'
       | 'bookings'
@@ -1444,6 +1629,7 @@ export interface ActivityWidget {
           | 'users'
           | 'media'
           | 'pages'
+          | 'studio-days'
           | 'enquiries'
           | 'contacts'
           | 'bookings'

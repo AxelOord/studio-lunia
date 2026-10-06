@@ -43,6 +43,12 @@ export function WorkspaceNav() {
         Enquiry inbox
       </Link>
       <Link
+        aria-current={path.startsWith('/admin/studio-days') ? 'page' : undefined}
+        href="/admin/studio-days"
+      >
+        Studio days
+      </Link>
+      <Link
         aria-current={path === '/admin/follow-ups' ? 'page' : undefined}
         href="/admin/follow-ups"
       >

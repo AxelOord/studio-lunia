@@ -23,7 +23,7 @@ export function InquiryForm({
   const submission = useRef('')
   const submitting = useRef(false)
   const result = useRef<HTMLDivElement>(null)
-  const { track, syncCampaign, settleMeasurement } = usePrivacy()
+  const { track, syncCampaign, settleMeasurement, submissionPermissions } = usePrivacy()
   const selectedService = services.find((choice) => choice.id === service)
   useEffect(() => {
     submission.current = crypto.randomUUID()
@@ -89,7 +89,7 @@ export function InquiryForm({
           const response = await fetch('/api/inquiry', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
+            body: JSON.stringify({ ...body, ...submissionPermissions() }),
             signal: AbortSignal.timeout(15000),
           })
           const data = await response.json()

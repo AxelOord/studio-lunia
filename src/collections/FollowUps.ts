@@ -29,7 +29,7 @@ export const FollowUps: CollectionConfig = {
   },
   fields: [
     relation('contact', 'contacts', true),
-    relation('enquiry', 'enquiries', true),
+    relation('enquiry', 'enquiries'),
     relation('booking', 'bookings'),
     relation('template', 'email-templates', true),
     relation('rule', 'follow-up-rules'),

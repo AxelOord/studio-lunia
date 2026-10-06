@@ -61,3 +61,23 @@ Additive migration preserves existing enquiry bookings and records. Tests use ow
 PostgreSQL databases, real concurrent commands and actual browser flows. Inspect before delivery.
 Exact-head GitHub CI remains required. Automatic preview is expected to be quota-blocked at Neon10/10;
 record the actual result without retrying or changing provider resources.
+
+## Implementation and review notes
+
+The custom booking/availability endpoint is `/api/studio-sessions`, keeping Payload's native
+`/api/studio-days` content API intact. Capacity is enforced by a PostgreSQL trigger under the studio-day
+row lock plus a partial unique active-seat index. Availability counts overlapping active commitments
+across all schedule revisions in one query. Changes take the conversation lock before cancelling
+obsolete jobs, serializing against in-flight simulations. Last published settings, rather than draft
+settings, determine current slot revision and capacity.
+
+Form submissions can only restrict server consent further. This withholds optional attribution while
+withdrawal is in flight or failed even if the browser still carries the previous signed consent cookie.
+The shared campaign validator returns only its allowed top-level snapshot fields. No new analytics
+events were added. Approved reminder rule/template reads accept the existing trusted server capability;
+visitor access remains denied.
+
+The ticket's [Google Ads landing-page guidance](https://support.google.com/google-ads/answer/6238826)
+was checked on 2026-10-06. The editable offer, prominent session action and mobile layout follow its
+ad/landing consistency and clear navigation guidance. This is a design reference, not Ads activation.
+Real photographs and commercial wording remain owner inputs; synthetic bootstrap is explicitly labelled.

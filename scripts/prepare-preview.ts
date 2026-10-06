@@ -1,6 +1,7 @@
 import type { Payload } from 'payload'
 import type { Page } from '../src/payload-types'
 import { deploymentMode } from '../src/hosting/environment'
+import { seedStudioDemo } from './seed-studio-demo'
 import { seedLandingDemo } from './seed-landing-demo'
 
 // Build-only secret access. Do not import this module into HTTP routes or client code.
@@ -124,4 +125,5 @@ export async function initializePreview(
     })
   }
   await seedLandingDemo(payload)
+  await seedStudioDemo(payload)
 }

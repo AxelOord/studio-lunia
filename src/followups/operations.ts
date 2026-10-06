@@ -9,6 +9,7 @@ import {
   idInput,
   internalTransaction,
   object,
+  relationID,
   textInput,
   transactionDB,
 } from '../customer-records/core'
@@ -45,7 +46,7 @@ async function savePlan(req: PayloadRequest, id: number, data: Partial<FollowUp>
 async function planActivity(req: PayloadRequest, plan: FollowUp, summary: string) {
   await activity(req, {
     contact: idInput(plan.contact),
-    enquiry: idInput(plan.enquiry),
+    enquiry: relationID(plan.enquiry),
     booking: plan.booking ? idInput(plan.booking) : undefined,
     kind: 'followup_updated',
     summary,
@@ -81,20 +82,6 @@ async function cancelJob(req: PayloadRequest, plan: FollowUp) {
 }
 
 export async function renderPlan(req: PayloadRequest, input: Record<string, unknown>) {
-  const enquiry = await req.payload.findByID({
-    collection: 'enquiries',
-    id: idInput(input.enquiry),
-    req,
-    overrideAccess: false,
-    depth: 0,
-  })
-  const contact = await req.payload.findByID({
-    collection: 'contacts',
-    id: idInput(enquiry.contact),
-    req,
-    overrideAccess: false,
-    depth: 0,
-  })
   const booking = input.booking
     ? await req.payload.findByID({
         collection: 'bookings',
@@ -104,11 +91,32 @@ export async function renderPlan(req: PayloadRequest, input: Record<string, unkn
         depth: 0,
       })
     : undefined
+  const enquiryID = relationID(input.enquiry) || relationID(booking?.enquiry)
+  const enquiry = enquiryID
+    ? await req.payload.findByID({
+        collection: 'enquiries',
+        id: enquiryID,
+        req,
+        overrideAccess: false,
+        depth: 0,
+      })
+    : undefined
+  if (!enquiry && booking?.source !== 'studio_slot')
+    throw new APIError('Choose an enquiry or studio booking.', 422)
+  const contact = await req.payload.findByID({
+    collection: 'contacts',
+    id: idInput(enquiry?.contact || booking?.contact),
+    req,
+    overrideAccess: false,
+    depth: 0,
+  })
   if (
     booking &&
-    (idInput(booking.enquiry) !== enquiry.id || idInput(booking.contact) !== contact.id)
+    (relationID(booking.enquiry) !== enquiry?.id || idInput(booking.contact) !== contact.id)
   )
     throw new APIError('Choose a booking from this enquiry and customer.', 422)
+  if (input.purpose === 'enquiry_followup' && !enquiry)
+    throw new APIError('An enquiry follow-up needs an enquiry.', 422)
   const purpose = input.purpose
   if (!purposes.includes(purpose as (typeof purposes)[number]))
     throw new APIError('Choose a follow-up purpose.', 422)
@@ -141,7 +149,7 @@ export async function renderPlan(req: PayloadRequest, input: Record<string, unkn
       input.body === undefined ? template.body : textInput(input.body, 'Message', 1, 12000)
     const rendered = renderEmail(subject, body, {
       contact_name: contact.name,
-      service_title: enquiry.serviceTitle,
+      service_title: enquiry?.serviceTitle || booking!.title,
       studio_name: 'Studio Lunia',
       ...(booking
         ? {
@@ -169,7 +177,7 @@ export async function renderPlan(req: PayloadRequest, input: Record<string, unkn
     })
     const result = {
       contact: contact.id,
-      enquiry: enquiry.id,
+      enquiry: enquiry?.id,
       booking: booking?.id,
       template: template.id,
       purpose: purpose as (typeof purposes)[number],
@@ -360,7 +368,7 @@ export async function followUpOperation(
         values.action === 'editFollowUp'
           ? await renderPlan(req, {
               ...values,
-              enquiry: idInput(plan.enquiry),
+              enquiry: relationID(plan.enquiry),
               booking: plan.booking ? idInput(plan.booking) : undefined,
             })
           : {}

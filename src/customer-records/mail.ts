@@ -1,7 +1,15 @@
 import { randomUUID } from 'node:crypto'
 import { sql } from '@payloadcms/db-postgres'
 import { APIError, type Payload, type PayloadRequest } from 'payload'
-import { activity, command, idInput, internalTransaction, lockRecord, transactionDB } from './core'
+import {
+  activity,
+  command,
+  idInput,
+  relationID,
+  internalTransaction,
+  lockRecord,
+  transactionDB,
+} from './core'
 import {
   notificationTemplate,
   renderEmail,
@@ -66,16 +74,19 @@ export async function prepareEmail(
           depth: 0,
         })
       : undefined
-    const enquiry = await payload.findByID({
-      collection: 'enquiries',
-      id: booking ? idInput(booking.enquiry) : idInput(values.enquiry),
-      req,
-      overrideAccess: false,
-      depth: 0,
-    })
+    const enquiryID = booking ? relationID(booking.enquiry) : idInput(values.enquiry)
+    const enquiry = enquiryID
+      ? await payload.findByID({
+          collection: 'enquiries',
+          id: enquiryID,
+          req,
+          overrideAccess: false,
+          depth: 0,
+        })
+      : undefined
     const contact = await payload.findByID({
       collection: 'contacts',
-      id: booking ? idInput(booking.contact) : idInput(enquiry.contact),
+      id: booking ? idInput(booking.contact) : idInput(enquiry?.contact),
       req,
       overrideAccess: false,
       depth: 0,
@@ -86,7 +97,7 @@ export async function prepareEmail(
       ? syntheticEmailVariables
       : {
           contact_name: contact.name,
-          service_title: enquiry.serviceTitle,
+          service_title: enquiry?.serviceTitle || booking!.title,
           studio_name: 'Studio Lunia',
           ...(booking
             ? {
@@ -116,7 +127,7 @@ export async function prepareEmail(
       depth: 0,
       data: {
         contact: contact.id,
-        enquiry: enquiry.id,
+        enquiry: enquiry?.id,
         booking: booking?.id,
         template: template.id,
         kind: test ? 'sandbox_test' : 'customer_draft',
@@ -141,7 +152,7 @@ export async function prepareEmail(
     })
     await activity(req, {
       contact: contact.id,
-      enquiry: enquiry.id,
+      enquiry: enquiry?.id,
       booking: booking?.id,
       emailMessage: message.id,
       kind: 'email_prepared',

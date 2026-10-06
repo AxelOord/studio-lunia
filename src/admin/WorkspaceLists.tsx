@@ -96,7 +96,7 @@ export function EnquiryInbox({
             </p>
           </section>
         )}
-        {data.rows.map(({ contact, enquiry, activity, plan }) => {
+        {data.rows.map(({ contact, enquiry, activity, plan, booking }) => {
           const href = `/admin/customers/${contact.id}?filter=${filter}&page=${data.page}${enquiry ? `&enquiry=${enquiry.id}` : ''}`
           const nextAction =
             enquiry?.followUp === 'new'
@@ -110,9 +110,11 @@ export function EnquiryInbox({
                 <h2>
                   <Link href={href}>{contact.name}</Link>
                 </h2>
-                <p>{enquiry?.serviceTitle || 'No enquiry yet'}</p>
+                <p>{enquiry?.serviceTitle || booking?.title || 'No enquiry yet'}</p>
                 <span className={`workspace-badge state-${enquiry?.followUp || 'contact'}`}>
-                  {enquiry?.followUp === 'new' ? 'New enquiry' : enquiry?.followUp || 'Contact'}
+                  {enquiry?.followUp === 'new'
+                    ? 'New enquiry'
+                    : enquiry?.followUp || booking?.status.replaceAll('_', ' ') || 'Contact'}
                 </span>
               </div>
               <div className="inbox-activity">
