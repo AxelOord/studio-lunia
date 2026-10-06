@@ -12,7 +12,12 @@ import { uuidPattern } from '../lib/inquiry'
 export const preferenceCookie = 'lunia_preferences'
 export const campaignCookie = 'lunia_campaign'
 export const measurementCookie = 'lunia_measurement'
-export type Preferences = { analytics: boolean; campaigns: boolean; decided: boolean }
+export type Preferences = {
+  experiments?: boolean
+  analytics: boolean
+  campaigns: boolean
+  decided: boolean
+}
 export const denied: Preferences = { analytics: false, campaigns: false, decided: false }
 const day = 86400
 
@@ -49,7 +54,7 @@ export function readPreferences(raw?: string): Preferences {
     typeof value.analytics === 'boolean' &&
     typeof value.campaigns === 'boolean' &&
     value.decided === true
-    ? value
+    ? { ...value, experiments: value.experiments === true }
     : denied
 }
 export async function privacyState() {

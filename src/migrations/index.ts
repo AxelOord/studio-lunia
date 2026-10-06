@@ -6,6 +6,7 @@ import * as migration_20261005_181401_customer_records_email_history from './202
 import * as migration_20261005_211842_customer_followups from './20261005_211842_customer_followups';
 import * as migration_20261005_231620_service_inquiry_landings from './20261005_231620_service_inquiry_landings';
 import * as migration_20261005_234950_studio_days_session_slots from './20261005_234950_studio_days_session_slots';
+import * as migration_20261006_022147_experiment_groundwork from './20261006_022147_experiment_groundwork';
 
 export const migrations = [
   {
@@ -46,6 +47,11 @@ export const migrations = [
   {
     up: migration_20261005_234950_studio_days_session_slots.up,
     down: migration_20261005_234950_studio_days_session_slots.down,
-    name: '20261005_234950_studio_days_session_slots'
+    name: '20261005_234950_studio_days_session_slots',
+  },
+  {
+    up: migration_20261006_022147_experiment_groundwork.up,
+    down: migration_20261006_022147_experiment_groundwork.down,
+    name: '20261006_022147_experiment_groundwork'
   },
 ];

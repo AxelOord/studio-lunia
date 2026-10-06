@@ -4,18 +4,40 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { usePathname } from 'next/navigation'
 import { campaignKeys } from '@/lib/campaign'
 
-type Choice = { analytics: boolean; campaigns: boolean; decided: boolean; configured: boolean }
-const initial: Choice = { analytics: false, campaigns: false, decided: false, configured: false }
+type Choice = {
+  experiments: boolean
+  analytics: boolean
+  campaigns: boolean
+  decided: boolean
+  configured: boolean
+}
+const initial: Choice = {
+  experiments: false,
+  analytics: false,
+  campaigns: false,
+  decided: false,
+  configured: false,
+}
 const PrivacyContext = createContext<{
+  experimentsAllowed: boolean
   track: (event: 'service_viewed' | 'inquiry_started', service: string) => void
   syncCampaign: () => Promise<void>
   settleMeasurement: () => Promise<void>
-  submissionPermissions: () => { campaignsAllowed: boolean; analyticsAllowed: boolean }
+  submissionPermissions: () => {
+    campaignsAllowed: boolean
+    analyticsAllowed: boolean
+    experimentsAllowed: boolean
+  }
 }>({
+  experimentsAllowed: false,
   track: () => {},
   syncCampaign: async () => {},
   settleMeasurement: async () => {},
-  submissionPermissions: () => ({ campaignsAllowed: false, analyticsAllowed: false }),
+  submissionPermissions: () => ({
+    campaignsAllowed: false,
+    analyticsAllowed: false,
+    experimentsAllowed: false,
+  }),
 })
 export function usePrivacy() {
   return useContext(PrivacyContext)
@@ -40,6 +62,7 @@ export function PrivacyControls({
   const generation = useRef(0)
   const measurementTask = useRef<Promise<void>>(Promise.resolve())
   const campaignTask = useRef<Promise<void>>(Promise.resolve())
+  const privacyChannel = useRef<BroadcastChannel | null>(null)
   const disabledHere = disabled || path.startsWith('/preview')
   const syncCampaign = useCallback(async () => {
     if (!current.current.campaigns || disabledHere) return
@@ -79,12 +102,14 @@ export function PrivacyControls({
   useEffect(() => {
     if (disabledHere) return
     const controller = new AbortController()
+    const readGeneration = generation.current
     fetch('/api/privacy', { cache: 'no-store', signal: controller.signal })
       .then((r) => {
         if (!r.ok) throw new Error()
         return r.json()
       })
       .then((value: Choice) => {
+        if (controller.signal.aborted || generation.current !== readGeneration) return
         current.current = value
         setChoice(value)
         setDraft(value)
@@ -97,6 +122,22 @@ export function PrivacyControls({
   useEffect(() => {
     void syncCampaign()
   }, [path, syncCampaign])
+  useEffect(() => {
+    const channel = new BroadcastChannel('lunia-privacy')
+    privacyChannel.current = channel
+    channel.onmessage = () => {
+      // Pause immediately in other tabs. A refresh reads the saved server choice.
+      current.current = initial
+      setChoice(initial)
+      generation.current++
+      for (const controller of pending.current) controller.abort()
+      pending.current.clear()
+    }
+    return () => {
+      privacyChannel.current = null
+      channel.close()
+    }
+  }, [])
   const track = useCallback(
     (event: 'service_viewed' | 'inquiry_started', service: string) => {
       if (!current.current.analytics || !current.current.configured || disabledHere) return
@@ -132,8 +173,10 @@ export function PrivacyControls({
   const save = async (value: Choice) => {
     setBusy(true)
     setError('')
+    privacyChannel.current?.postMessage('pause')
     // Stop collection immediately, even if saving the withdrawal subsequently fails.
     current.current = initial
+    setChoice(initial)
     generation.current++
     for (const controller of pending.current) controller.abort()
     pending.current.clear()
@@ -141,7 +184,11 @@ export function PrivacyControls({
       const result = await fetch('/api/privacy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ analytics: value.analytics, campaigns: value.campaigns }),
+        body: JSON.stringify({
+          analytics: value.analytics,
+          campaigns: value.campaigns,
+          experiments: value.experiments,
+        }),
       })
       if (!result.ok) throw new Error()
       const saved: Choice = await result.json()
@@ -162,12 +209,14 @@ export function PrivacyControls({
   return (
     <PrivacyContext.Provider
       value={{
+        experimentsAllowed: Boolean(choice.experiments) && !disabledHere,
         track,
         syncCampaign,
         settleMeasurement: () => measurementTask.current,
         submissionPermissions: () => ({
           campaignsAllowed: current.current.campaigns && !disabledHere,
           analyticsAllowed: current.current.analytics && !disabledHere,
+          experimentsAllowed: current.current.experiments && !disabledHere,
         }),
       }}
     >
@@ -190,7 +239,7 @@ export function PrivacyControls({
               <h2>Your privacy choices</h2>
               <p>
                 Enquiries and studio bookings work without optional tracking. Choose what to allow;
-                both are off by default.
+                all are off by default.
               </p>
               <label className="check-choice">
                 <input
@@ -203,7 +252,7 @@ export function PrivacyControls({
               </label>
               {!choice.configured && (
                 <p className="field-help">
-                  Measurement is not connected in this preview. No events are sent.
+                  PostHog is not connected in this preview. No PostHog events are sent.
                 </p>
               )}
               <label className="check-choice">
@@ -215,6 +264,19 @@ export function PrivacyControls({
                 Remember campaign tags and advertising click IDs for 30 days and attach them to my
                 enquiry or studio booking.
               </label>
+              <label className="check-choice">
+                <input
+                  type="checkbox"
+                  checked={Boolean(draft.experiments)}
+                  onChange={(e) => setDraft({ ...draft, experiments: e.target.checked })}
+                />{' '}
+                Take part in page improvement tests. Remember my variant for up to 30 days and
+                measure whether I send an enquiry. No form details are included.
+              </label>
+              <p className="field-help">
+                Live tests are disabled in this preview. Signed-in staff can try a labelled
+                simulation.
+              </p>
               <p className="field-help">
                 We remember your choice for 180 days. Withdrawal removes optional browser cookies
                 and stops future collection. It does not erase previously submitted enquiries or
@@ -239,7 +301,7 @@ export function PrivacyControls({
                   Save choices
                 </button>
               </div>
-              {choice.decided && (choice.analytics || choice.campaigns) && (
+              {choice.decided && (choice.analytics || choice.campaigns || choice.experiments) && (
                 <button
                   type="button"
                   className="text-button"

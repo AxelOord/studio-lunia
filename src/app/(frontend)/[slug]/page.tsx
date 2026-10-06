@@ -14,6 +14,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
       editorPreview={editorPreview}
       inquiryService={page.inquiryService}
       inquiryOffer={page.inquiryOffer}
+      inquiryButtonLabel={'inquiryButtonLabel' in page ? page.inquiryButtonLabel : undefined}
     />
   )
 }

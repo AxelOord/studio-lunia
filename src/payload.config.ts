@@ -12,6 +12,7 @@ import {
   MAX_UPLOAD_BYTES,
 } from './hosting/environment'
 import { previewEmail } from './hosting/email'
+import { Experiments } from './collections/Experiments'
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
 import { StudioDays, StudioSlots } from './collections/StudioDays'
@@ -98,6 +99,11 @@ export default buildConfig({
           path: '/follow-ups',
           exact: true,
         },
+        experiments: {
+          Component: './admin/Experiments.server#ExperimentsView',
+          path: '/experiments',
+          exact: true,
+        },
         conversions: {
           Component: './admin/Conversions.server#ConversionsView',
           path: '/conversions',
@@ -117,6 +123,7 @@ export default buildConfig({
   },
   collections: [
     Users,
+    Experiments,
     Media,
     Pages,
     StudioDays,

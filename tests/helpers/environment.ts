@@ -54,6 +54,7 @@ export function syntheticEnvironment(
     SEED_PASSWORD: 'synthetic-browser-verification-password',
     LUNIA_CMS_PREVIEW: 'false',
     LUNIA_SHOWCASE: 'false',
+    LUNIA_EXPERIMENTS_ENABLED: 'false',
     LUNIA_POSTHOG_ENABLED: 'false',
     LUNIA_POSTHOG_REPORTING_ENABLED: 'false',
     LUNIA_RESEND_WEBHOOKS_ENABLED: 'false',

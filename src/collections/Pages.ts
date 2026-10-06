@@ -70,6 +70,15 @@ export const Pages: CollectionConfig = {
             },
             { name: 'description', type: 'textarea', required: true, maxLength: 180 },
             {
+              name: 'inquiryButtonLabel',
+              label: 'Landing enquiry button (optional)',
+              type: 'text',
+              hooks: {
+                beforeValidate: [({ value }) => (typeof value === 'string' ? value.trim() : value)],
+              },
+              maxLength: 70,
+            },
+            {
               name: 'inquiryService',
               label: 'Landing page service (optional)',
               type: 'text',

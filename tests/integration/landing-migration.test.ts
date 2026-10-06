@@ -55,6 +55,9 @@ test('landing migration preserves existing published pages, service IDs and priv
     for (const [index, table] of tables.entries())
       expect((await db.query(`SELECT * FROM "${table}" ORDER BY id`)).rows).toEqual(before[index])
     await up(args)
+    // The application config follows the latest schema. Preserve this migration's
+    // exact up/down assertions above, then apply later additions before the public read.
+    for (const migration of testMigrations.slice(index + 1)) await migration.up(args)
     expect(
       (await payload.find({ collection: 'pages', overrideAccess: false })).docs[0].layout[0],
     ).toMatchObject({

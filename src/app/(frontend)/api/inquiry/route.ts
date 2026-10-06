@@ -1,3 +1,5 @@
+import { convertExperiment } from '@/experiments/server'
+import { experimentContext } from '@/experiments/privacy'
 import { after } from 'next/server'
 import { getPayload } from 'payload'
 import config from '@payload-config'
@@ -55,6 +57,17 @@ export async function POST(request: Request) {
       }
     } catch {
       /* best effort, no replay queue */
+    }
+    try {
+      if (permissions.experimentsAllowed !== false)
+        await convertExperiment(
+          payload,
+          await experimentContext(payload, request),
+          doc.serviceId,
+          result.created,
+        )
+    } catch {
+      /* Best effort; never backfill a committed enquiry after consent changes. */
     }
     return Response.json({ receipt: result.receipt }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {

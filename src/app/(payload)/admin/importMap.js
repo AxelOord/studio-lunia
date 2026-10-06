@@ -15,6 +15,7 @@ import { InboxView as InboxView_b475916a8de8ba579c112e1c240f1fbd } from '../../.
 import { CustomerView as CustomerView_b475916a8de8ba579c112e1c240f1fbd } from '../../../admin/Workspace.server'
 import { StudioDaysView as StudioDaysView_6a7780257c4d8e3e8150576ae69bc2a1 } from '../../../admin/StudioWorkspace.server'
 import { FollowUpsView as FollowUpsView_b475916a8de8ba579c112e1c240f1fbd } from '../../../admin/Workspace.server'
+import { ExperimentsView as ExperimentsView_74ae07c32e7e96a6a5f2cef8ce09592f } from '../../../admin/Experiments.server'
 import { ConversionsView as ConversionsView_f81ebc550240135dbba286317b5763c1 } from '../../../admin/Conversions.server'
 import { CollectionCards as CollectionCards_ab83ff7e88da8d3530831f296ec4756a } from '@payloadcms/ui/rsc'
 import { CollectionQueryWidget as CollectionQueryWidget_ab83ff7e88da8d3530831f296ec4756a } from '@payloadcms/ui/rsc'
@@ -42,6 +43,7 @@ export const importMap = {
   "./admin/Workspace.server#CustomerView": CustomerView_b475916a8de8ba579c112e1c240f1fbd,
   "./admin/StudioWorkspace.server#StudioDaysView": StudioDaysView_6a7780257c4d8e3e8150576ae69bc2a1,
   "./admin/Workspace.server#FollowUpsView": FollowUpsView_b475916a8de8ba579c112e1c240f1fbd,
+  "./admin/Experiments.server#ExperimentsView": ExperimentsView_74ae07c32e7e96a6a5f2cef8ce09592f,
   "./admin/Conversions.server#ConversionsView": ConversionsView_f81ebc550240135dbba286317b5763c1,
   "@payloadcms/ui/rsc#CollectionCards": CollectionCards_ab83ff7e88da8d3530831f296ec4756a,
   "@payloadcms/ui/rsc#CollectionQueryWidget": CollectionQueryWidget_ab83ff7e88da8d3530831f296ec4756a,

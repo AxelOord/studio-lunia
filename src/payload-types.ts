@@ -68,6 +68,7 @@ export interface Config {
   blocks: {};
   collections: {
     users: User;
+    experiments: Experiment;
     media: Media;
     pages: Page;
     'studio-days': StudioDay;
@@ -91,6 +92,7 @@ export interface Config {
   collectionsJoins: {};
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
+    experiments: ExperimentsSelect<false> | ExperimentsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
     'studio-days': StudioDaysSelect<false> | StudioDaysSelect<true>;
@@ -184,6 +186,76 @@ export interface User {
   collection: 'users';
 }
 /**
+ * Plan a service landing CTA test. Simulation is the default. Live delivery stays separately disabled. Once prepared, the plan is immutable; duplicate to revise.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "experiments".
+ */
+export interface Experiment {
+  id: number;
+  name: string;
+  hypothesis: string;
+  page: number | Page;
+  mode: 'simulation' | 'live';
+  state: 'draft' | 'ready' | 'stopped';
+  controlLabel?: string | null;
+  treatmentLabel: string;
+  treatmentPercent: number;
+  /**
+   * Record measured baseline, period and consent coverage. Simulation may use explicitly synthetic assumptions.
+   */
+  baseline?: string | null;
+  /**
+   * Audience: consenting browsers on this exact published landing. Outcome: saved enquiry within 30 days of exposure. Record minimum detectable effect, sample rationale and stopping/review plan; thresholds do not prove significance.
+   */
+  trafficPlan?: string | null;
+  minimumPerVariant: number;
+  durationDays: number;
+  service?: string | null;
+  preparedAt?: string | null;
+  stoppedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pages".
+ */
+export interface Page {
+  id: number;
+  /**
+   * Save a first draft to enable Live Preview. Preview changes are unsaved until Save Draft; only Publish makes them public.
+   */
+  layout: (HeroBlock | TextBlock | GalleryBlock | ImageTextBlock | ServicesBlock | CallToActionBlock)[];
+  title: string;
+  /**
+   * The page address. Use home for the home page.
+   */
+  slug: string;
+  description: string;
+  inquiryButtonLabel?: string | null;
+  inquiryService?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "HeroBlock".
+ */
+export interface HeroBlock {
+  eyebrow?: string | null;
+  heading: string;
+  body?: string | null;
+  /**
+   * Choose an image. Private images appear only in editor previews.
+   */
+  image?: (number | null) | Media;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'hero';
+}
+/**
  * Search by filename or alt text; filter by visibility. JPEG, PNG, WebP or AVIF, up to 20 MiB. Open an image for dimensions and details.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -230,43 +302,6 @@ export interface Media {
       filename?: string | null;
     };
   };
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "pages".
- */
-export interface Page {
-  id: number;
-  /**
-   * Save a first draft to enable Live Preview. Preview changes are unsaved until Save Draft; only Publish makes them public.
-   */
-  layout: (HeroBlock | TextBlock | GalleryBlock | ImageTextBlock | ServicesBlock | CallToActionBlock)[];
-  title: string;
-  /**
-   * The page address. Use home for the home page.
-   */
-  slug: string;
-  description: string;
-  inquiryService?: string | null;
-  updatedAt: string;
-  createdAt: string;
-  _status?: ('draft' | 'published') | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "HeroBlock".
- */
-export interface HeroBlock {
-  eyebrow?: string | null;
-  heading: string;
-  body?: string | null;
-  /**
-   * Choose an image. Private images appear only in editor previews.
-   */
-  image?: (number | null) | Media;
-  id?: string | null;
-  blockName?: string | null;
-  blockType: 'hero';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -928,6 +963,10 @@ export interface PayloadLockedDocument {
         value: number | User;
       } | null)
     | ({
+        relationTo: 'experiments';
+        value: number | Experiment;
+      } | null)
+    | ({
         relationTo: 'media';
         value: number | Media;
       } | null)
@@ -1050,6 +1089,29 @@ export interface UsersSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "experiments_select".
+ */
+export interface ExperimentsSelect<T extends boolean = true> {
+  name?: T;
+  hypothesis?: T;
+  page?: T;
+  mode?: T;
+  state?: T;
+  controlLabel?: T;
+  treatmentLabel?: T;
+  treatmentPercent?: T;
+  baseline?: T;
+  trafficPlan?: T;
+  minimumPerVariant?: T;
+  durationDays?: T;
+  service?: T;
+  preparedAt?: T;
+  stoppedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "media_select".
  */
 export interface MediaSelect<T extends boolean = true> {
@@ -1111,6 +1173,7 @@ export interface PagesSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
   description?: T;
+  inquiryButtonLabel?: T;
   inquiryService?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1590,6 +1653,7 @@ export interface CollectionQueryWidget {
     title?: string | null;
     relatedCollection:
       | 'users'
+      | 'experiments'
       | 'media'
       | 'pages'
       | 'studio-days'
@@ -1627,6 +1691,7 @@ export interface ActivityWidget {
     excludedCollections?:
       | (
           | 'users'
+          | 'experiments'
           | 'media'
           | 'pages'
           | 'studio-days'

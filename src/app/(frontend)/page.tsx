@@ -10,6 +10,7 @@ export default async function Home() {
       editorPreview={editorPreview}
       inquiryService={page.inquiryService}
       inquiryOffer={page.inquiryOffer}
+      inquiryButtonLabel={'inquiryButtonLabel' in page ? page.inquiryButtonLabel : undefined}
     />
   )
 }

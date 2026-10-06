@@ -66,6 +66,12 @@ export function WorkspaceNav() {
       >
         Conversion overview
       </Link>
+      <Link
+        aria-current={path === '/admin/experiments' ? 'page' : undefined}
+        href="/admin/experiments"
+      >
+        Page experiments
+      </Link>
     </nav>
   )
 }

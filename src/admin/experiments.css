@@ -1,0 +1,77 @@
+.experiment-summary {
+  border-left: 4px solid #756345;
+}
+.experiment-card {
+  margin-top: 1.5rem;
+}
+.experiment-card > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.experiment-variants {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.experiment-variants article {
+  padding: 1.25rem;
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+}
+.experiment-copy {
+  min-height: 3rem;
+  overflow-wrap: anywhere;
+}
+.experiment-variants dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+.experiment-variants dt {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary, #65605a);
+}
+.experiment-variants dd {
+  margin: 0.4rem 0 0;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+.experiment-card details {
+  margin: 1rem 0;
+}
+.experiment-card details p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.experiment-card summary {
+  cursor: pointer;
+  padding: 0.5rem 0;
+}
+@media (max-width: 650px) {
+  .experiment-variants {
+    grid-template-columns: 1fr;
+  }
+}
+
+.experiment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+.experiment-create {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 14px;
+  min-height: 44px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 6px;
+}
+.experiment-summary {
+  background: var(--color-bg-secondary, #f8f7f5);
+}

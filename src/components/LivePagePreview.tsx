@@ -18,6 +18,7 @@ export function LivePagePreview({ page }: { page: Page }) {
       blocks={page.layout}
       inquiryService={page.inquiryService}
       inquiryOffer={page.inquiryOffer}
+      inquiryButtonLabel={'inquiryButtonLabel' in page ? page.inquiryButtonLabel : undefined}
       editorPreview
     />
   )
@@ -99,6 +100,7 @@ function ConnectedPreview({ page, origin }: { page: Page; origin: string }) {
       blocks={data.layout}
       inquiryService={data.inquiryService}
       inquiryOffer={data.inquiryOffer}
+      inquiryButtonLabel={data.inquiryButtonLabel}
       editorPreview
     />
   )

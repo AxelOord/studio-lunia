@@ -149,3 +149,10 @@ Local/preview bootstrap adds `/studio-days/studio-demo` with clearly synthetic d
 preserving editor changes. Real commercial details and imagery still need owner input. The migration
 preserves existing enquiry bookings and refuses rollback once studio-day data exists. See the
 [studio-day specification](specs/studio-days-session-slots/requirements.md).
+
+## Page experiments
+
+Private CTA experiment planning, staff simulation and results are available under **Page experiments**.
+Live delivery remains disabled. Assignment needs separate page-test consent; exposure and saved-enquiry
+outcomes are deduplicated. Results show uncertainty without declaring a winner. See [the groundwork
+runbook](docs/experiments.md) for the simulation journey and remaining launch gates.

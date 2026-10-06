@@ -34,9 +34,19 @@ export default function PrivacyPage() {
         Free-text search terms and arbitrary URL parameters are discarded. Without consent,
         attribution is marked withheld.
       </p>
+      <h2>Optional page tests</h2>
+      <p>
+        With your separate permission, a signed browser cookie keeps a page-test variant for up to
+        30 days from grant. We store a keyed anonymous identifier, assigned variant, visible CTA
+        exposure and whether a matching enquiry was saved within 30 days. No form details, contact
+        record, campaign tags or full URLs are included. Results describe browsers, not people.
+        Withdrawal removes the cookie and blocks future use of that identifier; existing test counts
+        remain. Live experiments are disabled for this groundwork. Staff simulations use separate,
+        labelled experiments.
+      </p>
       <h2>Change your mind</h2>
       <p>
-        Use Privacy choices below to decline or withdraw either purpose. Your preference is
+        Use Privacy choices below to decline or withdraw any optional purpose. Your preference is
         remembered for 180 days. Withdrawal removes optional browser cookies and stops future
         collection. It cannot recall events already sent and does not delete an enquiry or studio
         booking already submitted. Ask the preview owner to remove synthetic enquiry records when

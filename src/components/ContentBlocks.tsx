@@ -51,12 +51,14 @@ export function ContentBlocks({
   pageId,
   inquiryService,
   inquiryOffer,
+  inquiryButtonLabel,
 }: {
   blocks: Page['layout']
   editorPreview?: boolean
   pageId?: number
   inquiryService?: string | null
   inquiryOffer?: ServiceChoice | null
+  inquiryButtonLabel?: string | null
 }) {
   const visibleBlocks = (Array.isArray(blocks) ? blocks : []).filter(Boolean)
   const offer = inquiryService ? (
@@ -64,7 +66,13 @@ export function ContentBlocks({
       {inquiryOffer ? (
         <>
           <ServiceOffer service={inquiryOffer} />
-          <ServiceInquiryLink service={inquiryOffer.id} primary editorPreview={editorPreview} />
+          <ServiceInquiryLink
+            page={pageId}
+            label={inquiryButtonLabel || undefined}
+            service={inquiryOffer.id}
+            primary
+            editorPreview={editorPreview}
+          />
           <p className="field-help">
             Start with a short enquiry. Your date and details are agreed personally.
           </p>

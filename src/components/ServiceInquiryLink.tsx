@@ -1,18 +1,24 @@
 'use client'
 import { useEffect, useRef } from 'react'
+import { originalLabel } from '../experiments/domain'
+import { ExperimentLink } from './ExperimentLink'
 import { usePrivacy } from './PrivacyControls'
 
 export function ServiceInquiryLink({
   service,
   primary = false,
+  page,
+  label = originalLabel,
   editorPreview = false,
 }: {
   service: string
   primary?: boolean
+  page?: number
+  label?: string
   editorPreview?: boolean
 }) {
   const link = useRef<HTMLAnchorElement>(null)
-  const { track } = usePrivacy()
+  const { track, experimentsAllowed } = usePrivacy()
   useEffect(() => {
     if (!link.current || editorPreview) return
     const observer = new IntersectionObserver(
@@ -24,6 +30,15 @@ export function ServiceInquiryLink({
     observer.observe(link.current)
     return () => observer.disconnect()
   }, [service, track, editorPreview])
+  if (primary && page && !editorPreview)
+    return (
+      <ExperimentLink
+        key={`${page}:${experimentsAllowed}`}
+        page={page}
+        service={service}
+        original={label}
+      />
+    )
   return (
     <a
       ref={link}
@@ -33,7 +48,7 @@ export function ServiceInquiryLink({
         if (!editorPreview) track('service_viewed', service)
       }}
     >
-      Enquire about this service <span aria-hidden="true">{primary ? '→' : '↗'}</span>
+      {label} <span aria-hidden="true">{primary ? '→' : '↗'}</span>
     </a>
   )
 }
