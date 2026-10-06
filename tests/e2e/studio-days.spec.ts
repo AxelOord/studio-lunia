@@ -327,6 +327,18 @@ test('stale slot selection recovers to a private sold-out state on desktop and m
   }
   expect(await bookings()).toHaveLength(1)
   await page.screenshot({ path: 'test-results/studio-sold-out-mobile.png', fullPage: true })
+  const bookingID = (await saved.json()).id
+  await page.context().addCookies((await editor.storageState()).cookies)
+  await page.goto(`/admin/collections/bookings/${bookingID}`)
+  await expect(page.getByRole('button', { name: 'Cancel session', exact: true })).toBeVisible()
+  await page.route(`**/api/customer-records?booking=${bookingID}`, (route) => route.abort())
+  await page.getByRole('button', { name: 'Cancel session', exact: true }).click()
+  await page
+    .getByLabel('Reason for this change')
+    .fill('Synthetic cancellation after customer review.')
+  await page.getByRole('button', { name: 'Save booking change', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('Could not load this record.')
+  await expect.poll(async () => (await bookings())[0].status).toBe('cancelled')
 })
 
 test('private draft preview and public unavailable states remain explicit in the native publishing flow', async ({
