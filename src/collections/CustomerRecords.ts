@@ -123,7 +123,11 @@ export const Bookings: CollectionConfig = {
       { name: 'studioSlot', type: 'relationship', relationTo: 'studio-slots', index: true },
       { name: 'studioSeat', type: 'number' },
       { name: 'studioRevision', type: 'number' },
-      { name: 'studioSnapshot', type: 'json' },
+      {
+        name: 'studioSnapshot',
+        type: 'json',
+        admin: { components: { Field: './admin/PrivateJSON#PrivateJSON' } },
+      },
       { name: 'sessionEndsAt', type: 'date' },
       { name: 'occupiedUntil', type: 'date' },
       { name: 'studioSubmissionHash', type: 'text', unique: true },

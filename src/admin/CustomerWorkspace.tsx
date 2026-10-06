@@ -205,7 +205,9 @@ export function CustomerWorkspace({ initial }: { initial: CustomerData }) {
                       <BookingAction booking={booking} onDone={reload} />
                     )}
                     <Link href={`/admin/collections/bookings/${booking.id}`}>
-                      Open value and money records
+                      {booking.source === 'studio_slot'
+                        ? 'Open booking record'
+                        : 'Open value and money records'}
                     </Link>
                   </details>
                 ))

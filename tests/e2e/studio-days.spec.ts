@@ -244,9 +244,20 @@ test('manual request approval, rescheduling and cancellation work in the mobile 
   await page.getByRole('button', { name: 'Save booking change', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Session overview', exact: true })).toBeVisible()
   await expect.poll(async () => (await bookings())[0].status).toBe('confirmed')
+  expect(
+    (
+      await editor.patch(`/api/studio-days/${id}?draft=true`, {
+        data: { location: 'Private future venue draft' },
+      })
+    ).ok(),
+  ).toBe(true)
   await page.getByRole('button', { name: 'Reschedule', exact: true }).click()
   await page.getByLabel('Replacement studio day').selectOption(String(id))
   await page.getByLabel('Replacement time').selectOption({ index: 2 })
+  await expect(page.locator('.studio-change-form')).toContainText(
+    'Synthetic test studio · no real venue',
+  )
+  await expect(page.locator('.studio-change-form')).not.toContainText('Private future venue draft')
   await page.getByLabel('The customer agreed to these replacement').check()
   await page
     .getByLabel('Reason for this change')
@@ -311,7 +322,7 @@ test('private draft preview and public unavailable states remain explicit in the
     page.getByRole('heading', { name: 'Edited synthetic studio day', exact: true }),
   ).toBeVisible()
   await page.goto(`/admin/collections/studio-days/${id}`)
-  await page.getByRole('button', { name: 'Publish changes', exact: true }).click()
+  await page.getByRole('button', { name: 'Publish', exact: true }).click()
   await expect
     .poll(async () => (await (await editor.get(`/api/studio-days/${id}`)).json())._status)
     .toBe('published')

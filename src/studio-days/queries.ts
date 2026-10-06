@@ -75,6 +75,16 @@ export async function studioWorkspace(
     depth: 0,
     sort: '-localDate',
   })
+  // Rescheduling uses published facts even when staff have a newer private draft.
+  const publishedDays = await payload.find({
+    collection: 'studio-days',
+    overrideAccess: false,
+    draft: false,
+    limit: 100,
+    depth: 0,
+    sort: '-localDate',
+    select: { title: true, localDate: true },
+  })
   const day = dayID
     ? await payload.findByID({
         collection: 'studio-days',
@@ -110,6 +120,7 @@ export async function studioWorkspace(
   }
   return {
     days: days.docs,
+    publishedDays: publishedDays.docs,
     hasMoreDays: days.hasNextPage,
     day,
     bookings: bookings?.docs || [],

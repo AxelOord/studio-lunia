@@ -22,7 +22,7 @@ export function StudioBookingCard({
   const [action, setAction] = useState('')
   const [reason, setReason] = useState('')
   const [target, setTarget] = useState<StudioAvailability>()
-  const [days, setDays] = useState<StudioWorkspaceData['days']>([])
+  const [days, setDays] = useState<StudioWorkspaceData['publishedDays']>([])
   const [day, setDay] = useState('')
   const [slot, setSlot] = useState('')
   const [agreed, setAgreed] = useState(false)
@@ -60,7 +60,10 @@ export function StudioBookingCard({
       setTarget(undefined)
       setLoading(true)
       try {
-        setDays((await workspaceJSON<StudioWorkspaceData>('/api/studio-sessions?workspace=1')).days)
+        setDays(
+          (await workspaceJSON<StudioWorkspaceData>('/api/studio-sessions?workspace=1'))
+            .publishedDays,
+        )
       } catch {
         setError('Studio days could not load. Try again.')
       } finally {
@@ -170,13 +173,11 @@ export function StudioBookingCard({
                   onChange={(event) => void chooseDay(event.target.value)}
                 >
                   <option value="">Choose a published studio day</option>
-                  {days
-                    .filter((item) => item._status !== 'draft')
-                    .map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.localDate} · {item.title}
-                      </option>
-                    ))}
+                  {days.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.localDate} · {item.title}
+                    </option>
+                  ))}
                 </select>
               </label>
               {target && (
