@@ -19,6 +19,44 @@ export async function recordOperation(
 ) {
   const { key, ...values } = input
   return command(payload, user, key, values, async (req) => {
+    if (values.action === 'recordFirstResponse' || values.action === 'clearFirstResponse') {
+      const id = idInput(values.enquiry)
+      await lockRecord(req, 'enquiries', id)
+      const enquiry = await payload.findByID({
+        collection: 'enquiries',
+        id,
+        req,
+        overrideAccess: false,
+        depth: 0,
+      })
+      const contact = relationID(enquiry.contact)
+      if (!contact) throw new APIError('Link this enquiry to a contact first.', 422)
+      const reason = textInput(values.reason, 'Response record reason', 10, 2000)
+      const clearing = values.action === 'clearFirstResponse'
+      const occurredAt = clearing ? new Date().toISOString() : dateInput(values.occurredAt)
+      if (
+        !clearing &&
+        (values.attested !== true ||
+          Date.parse(occurredAt) < Date.parse(enquiry.createdAt) ||
+          Date.parse(occurredAt) > Date.now())
+      )
+        throw new APIError(
+          'Confirm the first personal outbound response and use a time between the enquiry and now.',
+          422,
+        )
+      const event = await activity(req, {
+        contact,
+        enquiry: id,
+        kind: clearing ? 'first_response_cleared' : 'first_response_recorded',
+        summary: clearing
+          ? 'First human response timestamp cleared'
+          : 'First human response timestamp recorded by staff',
+        source: 'staff',
+        occurredAt,
+        details: { reason, evidence: 'Staff attestation; no email was sent by this action' },
+      })
+      return { id: event.id, collection: 'customer-activities' }
+    }
     if (values.action === 'proposeBooking') {
       const enquiryID = idInput(values.enquiry)
       await lockRecord(req, 'enquiries', enquiryID)
@@ -71,6 +109,11 @@ export async function recordOperation(
         overrideAccess: false,
         depth: 0,
       })
+      if (original.source === 'studio_slot')
+        throw new APIError(
+          'Use the studio-session controls to preserve capacity and agreed details.',
+          422,
+        )
       const reason = textInput(values.reason, 'Reason for this change', 10, 2000)
       const status = values.status
       if (!['proposed', 'confirmed', 'completed', 'cancelled'].includes(String(status)))
@@ -93,7 +136,7 @@ export async function recordOperation(
       })
       await activity(req, {
         contact: idInput(booking.contact),
-        enquiry: idInput(booking.enquiry),
+        enquiry: relationID(booking.enquiry),
         booking: id,
         kind: 'booking_changed',
         summary: `Booking ${booking.status}`,
@@ -189,7 +232,7 @@ export async function recordOperation(
       })
       await activity(req, {
         contact: idInput(booking.contact),
-        enquiry: idInput(booking.enquiry),
+        enquiry: relationID(booking.enquiry),
         booking: id,
         kind: 'revenue_recorded',
         summary:

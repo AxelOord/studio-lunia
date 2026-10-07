@@ -117,6 +117,8 @@ test('native editor previews unsaved changes for all blocks, mobile, slug and ex
         frame.getByRole('heading', { name: `Unsaved section ${i}`, exact: true }),
       ).toBeVisible()
     }
+    // Payload mounts nested fields when their row enters the viewport.
+    await page.locator('#layout-row-4').scrollIntoViewIfNeeded()
     await page.locator('#field-layout__4__items__0__title').fill('Unsaved service card')
     await expect(
       frame.getByRole('heading', { name: 'Unsaved service card', exact: true }),

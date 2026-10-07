@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react'
 import { useLivePreview } from '@payloadcms/live-preview-react'
-import type { Page } from '@/payload-types'
+import type { LandingPreviewPage as Page } from '@/inquiries/services'
 import { ContentBlocks } from './ContentBlocks'
 
 const subscribeToOrigin = () => () => {}
@@ -14,7 +14,13 @@ export function LivePagePreview({ page }: { page: Page }) {
   return origin ? (
     <ConnectedPreview page={page} origin={origin} />
   ) : (
-    <ContentBlocks blocks={page.layout} editorPreview />
+    <ContentBlocks
+      blocks={page.layout}
+      inquiryService={page.inquiryService}
+      inquiryOffer={page.inquiryOffer}
+      inquiryButtonLabel={'inquiryButtonLabel' in page ? page.inquiryButtonLabel : undefined}
+      editorPreview
+    />
   )
 }
 
@@ -89,5 +95,13 @@ function ConnectedPreview({ page, origin }: { page: Page; origin: string }) {
         in the editor.
       </p>
     )
-  return <ContentBlocks blocks={data.layout} editorPreview />
+  return (
+    <ContentBlocks
+      blocks={data.layout}
+      inquiryService={data.inquiryService}
+      inquiryOffer={data.inquiryOffer}
+      inquiryButtonLabel={data.inquiryButtonLabel}
+      editorPreview
+    />
+  )
 }

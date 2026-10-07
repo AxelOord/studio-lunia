@@ -3,16 +3,60 @@ import Link from 'next/link'
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { campaignKeys } from '@/lib/campaign'
+import type { StudioVisitorEvent } from '@/studio-days/measurement'
 
-type Choice = { analytics: boolean; campaigns: boolean; decided: boolean; configured: boolean }
-const initial: Choice = { analytics: false, campaigns: false, decided: false, configured: false }
+type VisitorMeasurement =
+  | { event: 'service_viewed' | 'inquiry_started'; service: string }
+  | { event: StudioVisitorEvent; day: number }
+
+type Choice = {
+  experiments: boolean
+  analytics: boolean
+  campaigns: boolean
+  decided: boolean
+  configured: boolean
+}
+const initial: Choice = {
+  experiments: false,
+  analytics: false,
+  campaigns: false,
+  decided: false,
+  configured: false,
+}
 const PrivacyContext = createContext<{
+  experimentsAllowed: boolean
   track: (event: 'service_viewed' | 'inquiry_started', service: string) => void
+  trackStudio: (event: StudioVisitorEvent, day: number) => void
+  measurementReady: boolean
   syncCampaign: () => Promise<void>
   settleMeasurement: () => Promise<void>
-}>({ track: () => {}, syncCampaign: async () => {}, settleMeasurement: async () => {} })
+  submissionPermissions: () => {
+    campaignsAllowed: boolean
+    analyticsAllowed: boolean
+    experimentsAllowed: boolean
+  }
+}>({
+  experimentsAllowed: false,
+  track: () => {},
+  trackStudio: () => {},
+  measurementReady: false,
+  syncCampaign: async () => {},
+  settleMeasurement: async () => {},
+  submissionPermissions: () => ({
+    campaignsAllowed: false,
+    analyticsAllowed: false,
+    experimentsAllowed: false,
+  }),
+})
 export function usePrivacy() {
   return useContext(PrivacyContext)
+}
+
+async function withPrivacyLock<T>(work: () => Promise<T>) {
+  // Keep Set-Cookie responses in order across tabs. Do not fall back to
+  // uncoordinated writes when the browser cannot provide this guarantee.
+  if (!navigator.locks?.request) throw new Error('Privacy coordination is unavailable.')
+  return navigator.locks.request('lunia-privacy-choice', work)
 }
 
 export function PrivacyControls({
@@ -34,6 +78,7 @@ export function PrivacyControls({
   const generation = useRef(0)
   const measurementTask = useRef<Promise<void>>(Promise.resolve())
   const campaignTask = useRef<Promise<void>>(Promise.resolve())
+  const privacyChannel = useRef<BroadcastChannel | null>(null)
   const disabledHere = disabled || path.startsWith('/preview')
   const syncCampaign = useCallback(async () => {
     if (!current.current.campaigns || disabledHere) return
@@ -73,28 +118,45 @@ export function PrivacyControls({
   useEffect(() => {
     if (disabledHere) return
     const controller = new AbortController()
-    fetch('/api/privacy', { cache: 'no-store', signal: controller.signal })
-      .then((r) => {
-        if (!r.ok) throw new Error()
-        return r.json()
-      })
-      .then((value: Choice) => {
-        current.current = value
-        setChoice(value)
-        setDraft(value)
-        setOpen(!value.decided)
-        void syncCampaign()
-      })
-      .catch(() => {})
+    const readGeneration = generation.current
+    void withPrivacyLock(async () => {
+      if (controller.signal.aborted || generation.current !== readGeneration) return
+      const r = await fetch('/api/privacy', { cache: 'no-store', signal: controller.signal })
+      if (!r.ok) throw new Error()
+      const value: Choice = await r.json()
+      if (controller.signal.aborted || generation.current !== readGeneration) return
+      current.current = value
+      setChoice(value)
+      setDraft(value)
+      setOpen(!value.decided)
+      void syncCampaign()
+    }).catch(() => {})
     return () => controller.abort()
   }, [disabledHere, syncCampaign])
   useEffect(() => {
     void syncCampaign()
   }, [path, syncCampaign])
-  const track = useCallback(
-    (event: 'service_viewed' | 'inquiry_started', service: string) => {
+  useEffect(() => {
+    const channel = new BroadcastChannel('lunia-privacy')
+    privacyChannel.current = channel
+    channel.onmessage = () => {
+      // Pause immediately in other tabs. A refresh reads the saved server choice.
+      current.current = initial
+      setChoice(initial)
+      setDraft(initial)
+      generation.current++
+      for (const controller of pending.current) controller.abort()
+      pending.current.clear()
+    }
+    return () => {
+      privacyChannel.current = null
+      channel.close()
+    }
+  }, [])
+  const queueMeasurement = useCallback(
+    (measurement: VisitorMeasurement) => {
       if (!current.current.analytics || !current.current.configured || disabledHere) return
-      const key = `${event}:${service}`
+      const key = `${measurement.event}:${'day' in measurement ? measurement.day : measurement.service}`
       if (sent.current.has(key)) return
       sent.current.add(key)
       const controller = new AbortController()
@@ -111,11 +173,11 @@ export function PrivacyControls({
           await fetch('/api/measurement', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ event, service }),
+            body: JSON.stringify(measurement),
             signal: AbortSignal.any([controller.signal, AbortSignal.timeout(4000)]),
           })
         } catch {
-          /* Missing events never block the enquiry. */
+          /* Missing events never block an enquiry or booking. */
         } finally {
           pending.current.delete(controller)
         }
@@ -123,22 +185,43 @@ export function PrivacyControls({
     },
     [disabledHere],
   )
+  const track = useCallback(
+    (event: 'service_viewed' | 'inquiry_started', service: string) =>
+      queueMeasurement({ event, service }),
+    [queueMeasurement],
+  )
+  const trackStudio = useCallback(
+    (event: StudioVisitorEvent, day: number) => queueMeasurement({ event, day }),
+    [queueMeasurement],
+  )
   const save = async (value: Choice) => {
     setBusy(true)
     setError('')
+    privacyChannel.current?.postMessage('pause')
     // Stop collection immediately, even if saving the withdrawal subsequently fails.
     current.current = initial
+    setChoice(initial)
     generation.current++
+    const saveGeneration = generation.current
     for (const controller of pending.current) controller.abort()
     pending.current.clear()
     try {
-      const result = await fetch('/api/privacy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ analytics: value.analytics, campaigns: value.campaigns }),
+      const saved = await withPrivacyLock(async () => {
+        // Do not abort an in-flight save: its cookies must settle before a
+        // queued withdrawal can revoke that identity and clear those cookies.
+        const result = await fetch('/api/privacy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            analytics: value.analytics,
+            campaigns: value.campaigns,
+            experiments: value.experiments,
+          }),
+        })
+        if (!result.ok) throw new Error()
+        return (await result.json()) as Choice
       })
-      if (!result.ok) throw new Error()
-      const saved: Choice = await result.json()
+      if (generation.current !== saveGeneration) return
       current.current = saved
       setChoice(saved)
       setDraft(saved)
@@ -146,6 +229,7 @@ export function PrivacyControls({
       sent.current.clear()
       await syncCampaign()
     } catch {
+      if (generation.current !== saveGeneration) return
       setError(
         'We could not save your choice. Collection is paused on this page. Please try again before leaving.',
       )
@@ -155,7 +239,19 @@ export function PrivacyControls({
   }
   return (
     <PrivacyContext.Provider
-      value={{ track, syncCampaign, settleMeasurement: () => measurementTask.current }}
+      value={{
+        experimentsAllowed: Boolean(choice.experiments) && !disabledHere,
+        track,
+        trackStudio,
+        measurementReady: choice.analytics && choice.configured && !busy && !error && !disabledHere,
+        syncCampaign,
+        settleMeasurement: () => measurementTask.current,
+        submissionPermissions: () => ({
+          campaignsAllowed: current.current.campaigns && !disabledHere,
+          analyticsAllowed: current.current.analytics && !disabledHere,
+          experimentsAllowed: current.current.experiments && !disabledHere,
+        }),
+      }}
     >
       {children}
       {!disabledHere && (
@@ -175,8 +271,8 @@ export function PrivacyControls({
             <div className="privacy-panel">
               <h2>Your privacy choices</h2>
               <p>
-                Enquiries work without optional tracking. Choose what to allow; both are off by
-                default.
+                Enquiries and studio bookings work without optional tracking. Choose what to allow;
+                all are off by default.
               </p>
               <label className="check-choice">
                 <input
@@ -184,12 +280,12 @@ export function PrivacyControls({
                   checked={draft.analytics}
                   onChange={(e) => setDraft({ ...draft, analytics: e.target.checked })}
                 />{' '}
-                Measure service views and enquiry steps with PostHog EU. No form details or session
-                recordings.
+                Measure service views, enquiry steps and studio booking steps with PostHog EU. No
+                form details or session recordings.
               </label>
               {!choice.configured && (
                 <p className="field-help">
-                  Measurement is not connected in this preview. No events are sent.
+                  PostHog is not connected in this preview. No PostHog events are sent.
                 </p>
               )}
               <label className="check-choice">
@@ -199,12 +295,25 @@ export function PrivacyControls({
                   onChange={(e) => setDraft({ ...draft, campaigns: e.target.checked })}
                 />{' '}
                 Remember campaign tags and advertising click IDs for 30 days and attach them to my
-                enquiry.
+                enquiry or studio booking.
               </label>
+              <label className="check-choice">
+                <input
+                  type="checkbox"
+                  checked={Boolean(draft.experiments)}
+                  onChange={(e) => setDraft({ ...draft, experiments: e.target.checked })}
+                />{' '}
+                Take part in page improvement tests. Remember my variant for up to 30 days and
+                measure whether I send an enquiry. No form details are included.
+              </label>
+              <p className="field-help">
+                Live tests are disabled in this preview. Signed-in staff can try a labelled
+                simulation.
+              </p>
               <p className="field-help">
                 We remember your choice for 180 days. Withdrawal removes optional browser cookies
                 and stops future collection. It does not erase previously submitted enquiries or
-                already delivered events.{' '}
+                studio bookings, or already delivered events.{' '}
                 <Link href="/privacy">Read the preview privacy notice</Link>.
               </p>
               <div className="form-actions">
@@ -225,7 +334,7 @@ export function PrivacyControls({
                   Save choices
                 </button>
               </div>
-              {choice.decided && (choice.analytics || choice.campaigns) && (
+              {choice.decided && (choice.analytics || choice.campaigns || choice.experiments) && (
                 <button
                   type="button"
                   className="text-button"

@@ -8,6 +8,9 @@ export default async function Home() {
       blocks={page.layout}
       pageId={'id' in page ? Number(page.id) : undefined}
       editorPreview={editorPreview}
+      inquiryService={page.inquiryService}
+      inquiryOffer={page.inquiryOffer}
+      inquiryButtonLabel={'inquiryButtonLabel' in page ? page.inquiryButtonLabel : undefined}
     />
   )
 }

@@ -113,3 +113,26 @@
   font-size: 1.1rem;
   margin-top: 22px;
 }
+
+.first-response summary {
+  min-height: 44px;
+  padding: 12px 0;
+  font-weight: 600;
+  cursor: pointer;
+}
+.first-response textarea {
+  min-height: 100px;
+}
+.first-response .response-attestation {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+}
+.first-response .response-attestation input {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  flex: 0 0 18px;
+  margin: 2px 0 0;
+  padding: 0;
+}

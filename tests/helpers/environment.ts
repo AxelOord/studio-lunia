@@ -22,6 +22,8 @@ export function syntheticEnvironment(
     'RESEND_API_KEY',
     'RESEND_WEBHOOK_SECRET',
     'POSTHOG_PROJECT_TOKEN',
+    'POSTHOG_REPORT_PROJECT_ID',
+    'POSTHOG_QUERY_READ_KEY',
     'PREVIEW_EDITOR_EMAIL',
     'PREVIEW_EDITOR_PASSWORD',
     'CMS_ORIGIN',
@@ -52,7 +54,9 @@ export function syntheticEnvironment(
     SEED_PASSWORD: 'synthetic-browser-verification-password',
     LUNIA_CMS_PREVIEW: 'false',
     LUNIA_SHOWCASE: 'false',
+    LUNIA_EXPERIMENTS_ENABLED: 'false',
     LUNIA_POSTHOG_ENABLED: 'false',
+    LUNIA_POSTHOG_REPORTING_ENABLED: 'false',
     LUNIA_RESEND_WEBHOOKS_ENABLED: 'false',
   }
 }

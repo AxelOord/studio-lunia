@@ -2,11 +2,15 @@ import 'server-only'
 import { draftMode, headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { blockPreviewPage } from './block-preview'
+import { resolveLandingPage } from '../inquiries/services'
 
 export async function getPage(slug: string) {
   if (process.env.LUNIA_SHOWCASE === 'true')
     return slug === 'home' || slug === 'blocks'
-      ? { page: blockPreviewPage(slug), editorPreview: false }
+      ? {
+          page: { ...blockPreviewPage(slug), inquiryService: null, inquiryOffer: null },
+          editorPreview: false,
+        }
       : notFound()
   const [{ getPayload }, { default: config }] = await Promise.all([
     import('payload'),
@@ -26,5 +30,8 @@ export async function getPage(slug: string) {
     depth: 2,
   })
   // Only this authenticated server path can allow private media in the renderer.
-  return { page: docs[0] ?? notFound(), editorPreview: preview && Boolean(user) }
+  return {
+    page: await resolveLandingPage(payload, docs[0] ?? notFound()),
+    editorPreview: preview && Boolean(user),
+  }
 }
