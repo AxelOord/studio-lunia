@@ -52,9 +52,16 @@ Withdrawal pauses this tab immediately, aborts outstanding experiment requests, 
 to other open tabs, revokes the database identity and removes the cookie. Participant row locks
 serialize revocation against first assignment, exposure and conversion. A request committed before
 withdrawal can remain counted; requests serialized after revocation cannot record using an old
-cookie. Other tabs resume only on refresh and then read the saved preference. A failed save shows
+cookie. Other tabs stay paused until a refresh reads the saved preference or the visitor makes a new explicit choice. A failed save shows
 a retry message and keeps this page paused; reloading before successful withdrawal can restore the
 previous persisted choice. Prior enquiries and counts are not erased by withdrawing.
+
+Privacy reads and saves use the same cross-tab browser lock. An older grant response must finish
+before the next withdrawal request is sent, so withdrawal receives and revokes its newly issued
+experiment identity and clears its optional cookies. A stale save response cannot restore local
+permissions or restart campaign collection. An unavailable coordinator or failed save stays paused
+and shows an unsaved-choice error; no uncoordinated write silently succeeds. Forms remain usable
+with denied submission permissions. See the [privacy save-race fix](../specs/privacy-save-race/design.md).
 
 Assignment uses a stable hash bucket and a unique experiment/browser key. Exposure requires at
 least half the CTA to intersect the viewport after the variant text is rendered. Repeated visits

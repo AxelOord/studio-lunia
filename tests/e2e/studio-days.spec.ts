@@ -682,13 +682,13 @@ test('a delayed privacy read cannot restore studio tracking after a newer declin
     await readLoaded
     await page.getByRole('button', { name: 'Privacy choices', exact: true }).click()
     await page.getByRole('button', { name: 'Decline optional', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Your privacy choices' })).not.toBeVisible()
     const completed = page.waitForResponse(
       (response) =>
         response.url().endsWith('/api/privacy') && response.request().method() === 'GET',
     )
     release()
     await completed
+    await expect(page.getByRole('heading', { name: 'Your privacy choices' })).not.toBeVisible()
     await page
       .getByRole('heading', { name: 'Synthetic portrait studio day', exact: true })
       .scrollIntoViewIfNeeded()

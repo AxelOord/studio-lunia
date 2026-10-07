@@ -52,6 +52,13 @@ export function usePrivacy() {
   return useContext(PrivacyContext)
 }
 
+async function withPrivacyLock<T>(work: () => Promise<T>) {
+  // Keep Set-Cookie responses in order across tabs. Do not fall back to
+  // uncoordinated writes when the browser cannot provide this guarantee.
+  if (!navigator.locks?.request) throw new Error('Privacy coordination is unavailable.')
+  return navigator.locks.request('lunia-privacy-choice', work)
+}
+
 export function PrivacyControls({
   children,
   disabled = false,
@@ -112,20 +119,18 @@ export function PrivacyControls({
     if (disabledHere) return
     const controller = new AbortController()
     const readGeneration = generation.current
-    fetch('/api/privacy', { cache: 'no-store', signal: controller.signal })
-      .then((r) => {
-        if (!r.ok) throw new Error()
-        return r.json()
-      })
-      .then((value: Choice) => {
-        if (controller.signal.aborted || generation.current !== readGeneration) return
-        current.current = value
-        setChoice(value)
-        setDraft(value)
-        setOpen(!value.decided)
-        void syncCampaign()
-      })
-      .catch(() => {})
+    void withPrivacyLock(async () => {
+      if (controller.signal.aborted || generation.current !== readGeneration) return
+      const r = await fetch('/api/privacy', { cache: 'no-store', signal: controller.signal })
+      if (!r.ok) throw new Error()
+      const value: Choice = await r.json()
+      if (controller.signal.aborted || generation.current !== readGeneration) return
+      current.current = value
+      setChoice(value)
+      setDraft(value)
+      setOpen(!value.decided)
+      void syncCampaign()
+    }).catch(() => {})
     return () => controller.abort()
   }, [disabledHere, syncCampaign])
   useEffect(() => {
@@ -138,6 +143,7 @@ export function PrivacyControls({
       // Pause immediately in other tabs. A refresh reads the saved server choice.
       current.current = initial
       setChoice(initial)
+      setDraft(initial)
       generation.current++
       for (const controller of pending.current) controller.abort()
       pending.current.clear()
@@ -196,20 +202,26 @@ export function PrivacyControls({
     current.current = initial
     setChoice(initial)
     generation.current++
+    const saveGeneration = generation.current
     for (const controller of pending.current) controller.abort()
     pending.current.clear()
     try {
-      const result = await fetch('/api/privacy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          analytics: value.analytics,
-          campaigns: value.campaigns,
-          experiments: value.experiments,
-        }),
+      const saved = await withPrivacyLock(async () => {
+        // Do not abort an in-flight save: its cookies must settle before a
+        // queued withdrawal can revoke that identity and clear those cookies.
+        const result = await fetch('/api/privacy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            analytics: value.analytics,
+            campaigns: value.campaigns,
+            experiments: value.experiments,
+          }),
+        })
+        if (!result.ok) throw new Error()
+        return (await result.json()) as Choice
       })
-      if (!result.ok) throw new Error()
-      const saved: Choice = await result.json()
+      if (generation.current !== saveGeneration) return
       current.current = saved
       setChoice(saved)
       setDraft(saved)
@@ -217,6 +229,7 @@ export function PrivacyControls({
       sent.current.clear()
       await syncCampaign()
     } catch {
+      if (generation.current !== saveGeneration) return
       setError(
         'We could not save your choice. Collection is paused on this page. Please try again before leaving.',
       )

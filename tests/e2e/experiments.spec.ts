@@ -5,6 +5,7 @@ import { test, expect, type Page } from '@playwright/test'
 const origin = 'http://127.0.0.1:3000'
 let pageID: number, experimentID: number, service: string, slug: string
 let studioDayID = 0
+let revokedVisitorKeys: string[] = []
 let inquiryAttempts = 0
 const original = 'Enquire about this service',
   alternate = 'Share your session idea'
@@ -49,6 +50,7 @@ test.beforeEach(async ({ page }) => {
   experimentID = 0
   inquiryAttempts = 0
   studioDayID = 0
+  revokedVisitorKeys = []
   expect(
     (
       await page.request.post('/api/users/login', {
@@ -129,7 +131,7 @@ test.afterEach(async () => {
       )
       await db.query('DELETE FROM experiments WHERE id=$1', [experimentID])
       await db.query('DELETE FROM lunia_experiment_visitors WHERE key=ANY($1::text[])', [
-        visitors.rows.map((row) => row.visitor_key),
+        [...visitors.rows.map((row) => row.visitor_key), ...revokedVisitorKeys],
       ])
     }
     if (pageID) {
@@ -233,9 +235,14 @@ test('mobile withdrawal clears persistent assignment, stops other tabs and rejec
   await other.goto('/' + slug)
   await expect(other.getByText('Staff simulation · Synthetic test results only')).toBeVisible()
   await page.getByRole('button', { name: 'Privacy choices', exact: true }).click()
+  const firstWithdrawal = page.waitForResponse(
+    (response) => response.url().endsWith('/api/privacy') && response.request().method() === 'POST',
+  )
   await page.getByRole('button', { name: 'Withdraw optional consent' }).click()
   await expect(page.locator('.landing-offer a.button-link')).toContainText(original)
   await expect(other.getByText('Staff simulation · Synthetic test results only')).not.toBeVisible()
+  expect((await firstWithdrawal).ok()).toBe(true)
+  await expect(page.getByRole('heading', { name: 'Your privacy choices' })).not.toBeVisible()
   expect(
     (await context.cookies()).find((cookie) => cookie.name === 'lunia_experiments'),
   ).toBeUndefined()
@@ -257,7 +264,12 @@ test('mobile withdrawal clears persistent assignment, stops other tabs and rejec
   await consent(page, true)
   await ready
   await page.getByRole('button', { name: 'Privacy choices', exact: true }).click()
+  const secondWithdrawal = page.waitForResponse(
+    (response) => response.url().endsWith('/api/privacy') && response.request().method() === 'POST',
+  )
   await page.getByRole('button', { name: 'Withdraw optional consent' }).click()
+  expect((await secondWithdrawal).ok()).toBe(true)
+  await expect(page.getByRole('heading', { name: 'Your privacy choices' })).not.toBeVisible()
   release()
   await expect.poll(counts).toEqual({ assigned: 2, exposed: 1, converted: 0 })
   await expect(page.locator('.landing-offer a.button-link')).toContainText(original)
@@ -363,15 +375,15 @@ test('studio and experiment consent stay independent across tabs, withdrawal and
     await captured
     await studio.getByRole('button', { name: 'Privacy choices', exact: true }).click()
     await studio.getByRole('button', { name: 'Withdraw optional consent' }).click()
-    await expect(studio.getByRole('heading', { name: 'Your privacy choices' })).not.toBeVisible()
     await expect(page.getByText('Staff simulation · Synthetic test results only')).not.toBeVisible()
     await expect(page.locator('.landing-offer a.button-link')).toContainText(original)
-    expect((await context.cookies()).some((cookie) => cookie.name === 'lunia_experiments')).toBe(
-      false,
-    )
     const completed = late.waitForResponse('**/api/privacy')
     release()
     await completed
+    await expect(studio.getByRole('heading', { name: 'Your privacy choices' })).not.toBeVisible()
+    expect((await context.cookies()).some((cookie) => cookie.name === 'lunia_experiments')).toBe(
+      false,
+    )
     await late
       .getByRole('heading', { name: 'Synthetic combined privacy day' })
       .scrollIntoViewIfNeeded()
@@ -411,6 +423,183 @@ test('studio and experiment consent stay independent across tabs, withdrawal and
     await late.close()
     await studio.close()
   }
+})
+
+test('a withdrawal in another tab wins over an in-flight grant in UI, cookies and server revocation; fresh reconsent works', async ({
+  page,
+  context,
+}) => {
+  await context.route('**/api/privacy', async (route) => {
+    const response = await route.fetch()
+    await route.fulfill({ response, json: { ...(await response.json()), configured: true } })
+  })
+  const optionalRequests: string[] = []
+  await context.route('**/api/measurement', async (route) => {
+    optionalRequests.push(route.request().url())
+    await route.fulfill({ status: 204 })
+  })
+  context.on('request', (request) => {
+    if (request.url().endsWith('/api/campaign')) optionalRequests.push(request.url())
+  })
+  await simulate(page)
+  const other = await context.newPage()
+  await other.goto('/' + slug)
+  await expect(other.getByRole('heading', { name: 'Your privacy choices' })).toBeVisible()
+  const before = await context.cookies()
+  let release!: () => void, received!: () => void
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const ready = new Promise<void>((resolve) => {
+    received = resolve
+  })
+  let grantCookies: { name: string; value: string }[] = []
+  let grantReleased = false
+  const withdrawalRequests: { afterGrant: boolean; cookie: string }[] = []
+  await other.route('**/api/privacy', async (route) => {
+    if (route.request().method() === 'POST')
+      withdrawalRequests.push({
+        afterGrant: grantReleased,
+        cookie: route.request().headers().cookie || '',
+      })
+    await route.fallback()
+  })
+  await page.route('**/api/privacy', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback()
+    const response = await route.fetch()
+    grantCookies = response
+      .headersArray()
+      .filter((header) => header.name.toLowerCase() === 'set-cookie')
+      .map((header) => {
+        const pair = header.value.split(';')[0]
+        const index = pair.indexOf('=')
+        return { name: pair.slice(0, index), value: pair.slice(index + 1) }
+      })
+    received()
+    await held
+    grantReleased = true
+    await route.fulfill({ response, json: { ...(await response.json()), configured: true } })
+  })
+  try {
+    await page.getByLabel(/Measure service/).check()
+    await page.getByLabel(/Remember campaign tags/).check()
+    await page.getByLabel(/Take part in page improvement tests/).check()
+    await page.getByRole('button', { name: 'Save choices', exact: true }).click()
+    await ready
+    expect(grantCookies.map((cookie) => cookie.name)).toEqual(
+      expect.arrayContaining(['lunia_preferences', 'lunia_experiments', 'lunia_measurement']),
+    )
+    const issued = grantCookies.find((cookie) => cookie.name === 'lunia_experiments')!.value
+    const visitor = JSON.parse(Buffer.from(issued.split('.')[0], 'base64url').toString()).value
+    const visitorKey = createHmac('sha256', process.env.PAYLOAD_SECRET!)
+      .update('experiment:' + visitor.id)
+      .digest('hex')
+    revokedVisitorKeys.push(visitorKey)
+    await other.getByRole('button', { name: 'Decline optional', exact: true }).click()
+    // Keep the first real response in flight until the second tab is waiting.
+    // No withdrawal request may leave with the pre-grant cookie jar.
+    await expect
+      .poll(() => other.evaluate(async () => (await navigator.locks.query()).pending?.length || 0))
+      .toBeGreaterThan(0)
+    expect(withdrawalRequests).toEqual([])
+    await expect(page.getByLabel(/Measure service/)).not.toBeChecked()
+    await expect(page.getByLabel(/Take part in page improvement tests/)).not.toBeChecked()
+    const withdrawn = other.waitForResponse(
+      (response) =>
+        response.url().endsWith('/api/privacy') && response.request().method() === 'POST',
+    )
+    release()
+    expect((await withdrawn).ok()).toBe(true)
+    await expect(other.getByRole('heading', { name: 'Your privacy choices' })).not.toBeVisible()
+    await expect(page.getByRole('button', { name: 'Save choices', exact: true })).toBeEnabled()
+    expect(withdrawalRequests).toHaveLength(1)
+    expect(withdrawalRequests[0].afterGrant).toBe(true)
+    expect(withdrawalRequests[0].cookie).toContain('lunia_experiments=' + issued)
+    expect(optionalRequests).toEqual([])
+    expect(await counts()).toEqual({ assigned: 0, exposed: 0, converted: 0 })
+    expect(
+      (await context.cookies()).filter((cookie) =>
+        ['lunia_experiments', 'lunia_measurement', 'lunia_campaign'].includes(cookie.name),
+      ),
+    ).toEqual([])
+    expect(await (await page.request.get('/api/privacy')).json()).toMatchObject({
+      analytics: false,
+      campaigns: false,
+      experiments: false,
+      decided: true,
+    })
+    await localDB(async (db) => {
+      expect(
+        (await db.query('SELECT revoked FROM lunia_experiment_visitors WHERE key=$1', [visitorKey]))
+          .rows,
+      ).toEqual([{ revoked: true }])
+    })
+    // Even replaying the entire older grant's signed cookie set cannot assign.
+    const oldJar = [
+      ...before.filter((cookie) => !grantCookies.some((grant) => grant.name === cookie.name)),
+      ...grantCookies,
+    ]
+    const retry = await page.request.post('/api/experiments/assignment', {
+      headers: {
+        origin,
+        cookie: oldJar.map((cookie) => cookie.name + '=' + cookie.value).join('; '),
+      },
+      data: { page: pageID },
+    })
+    expect(await retry.json()).toBeNull()
+    await page.unroute('**/api/privacy')
+    await page.reload()
+    await page.getByRole('button', { name: 'Privacy choices', exact: true }).click()
+    await expect(page.getByLabel(/Measure service/)).not.toBeChecked()
+    await expect(page.getByLabel(/Take part in page improvement tests/)).not.toBeChecked()
+    await expect(page.locator('.landing-offer a.button-link')).toContainText(original)
+    await page.getByLabel(/Measure service/).check()
+    await consent(page)
+    await page.locator('.landing-offer a.button-link').scrollIntoViewIfNeeded()
+    await expect.poll(counts).toEqual({ assigned: 1, exposed: 1, converted: 0 })
+    const fresh = (await context.cookies()).find(
+      (cookie) => cookie.name === 'lunia_experiments',
+    )!.value
+    expect(fresh).not.toBe(issued)
+    await page.reload()
+    await expect(page.getByText('Staff simulation · Synthetic test results only')).toBeVisible()
+    expect(
+      (await context.cookies()).find((cookie) => cookie.name === 'lunia_experiments')!.value,
+    ).toBe(fresh)
+    expect(await counts()).toEqual({ assigned: 1, exposed: 1, converted: 0 })
+  } finally {
+    release()
+    await other.close()
+  }
+})
+
+test('missing cross-tab coordination fails closed without creating optional consent or preventing an enquiry', async ({
+  page,
+  context,
+}) => {
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, 'locks', { value: undefined })
+  })
+  const writes: string[] = []
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/privacy') && request.method() === 'POST')
+      writes.push(request.url())
+  })
+  await simulate(page)
+  await page.getByRole('button', { name: 'Privacy choices', exact: true }).click()
+  await page.getByLabel(/Measure service/).check()
+  await page.getByLabel(/Take part in page improvement tests/).check()
+  await page.getByRole('button', { name: 'Save choices', exact: true }).click()
+  await expect(
+    page.getByRole('region', { name: 'Privacy choices' }).getByRole('alert'),
+  ).toContainText('Collection is paused on this page')
+  expect(writes).toEqual([])
+  expect((await context.cookies()).some((cookie) => cookie.name === 'lunia_experiments')).toBe(
+    false,
+  )
+  expect(await counts()).toEqual({ assigned: 0, exposed: 0, converted: 0 })
+  await page.locator('.landing-offer a.button-link').click()
+  await expect(page.getByLabel('Your name', { exact: true })).toBeVisible()
 })
 
 test('private authoring, permanent stop and retain-to-draft preserve published content and deny anonymous commands', async ({

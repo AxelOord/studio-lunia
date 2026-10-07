@@ -21,8 +21,8 @@
       Verify: npm run verify, exact-head CI, one preview outcome and PR dependencies.
       Evidence: PR #45 checkpoint https://github.com/AxelOord/studio-lunia/pull/45#issuecomment-6019848323 records local verification, exact-head CI success and the blocked automatic preview for ff443ce.
 
-- [ ] T-5: Integrate PR #44 and verify the combined consent contracts
+- [x] T-5: Integrate PR #44 and verify the combined consent contracts
       Refs: R-2, R-3, R-5, R-6
       Depends: T-4
       Verify: combined consent/withdrawal/stale-read browser journey, full npm run verify and exact-head CI.
-      Evidence: four focused browser journeys and full combined verification passed (50 unit, 103 integration, 50 Chromium plus tooling/build); see verification.md. Exact-head CI and publication are pending at this source checkpoint and will be recorded in the PR conversation.
+      Evidence: terminal combined checkpoint https://github.com/AxelOord/studio-lunia/pull/45#issuecomment-6020336181 records b687d7e local verification, exact-head CI success and blocked preview. Subsequent save-response race is tracked separately in specs/privacy-save-race.
