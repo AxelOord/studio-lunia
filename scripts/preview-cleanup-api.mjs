@@ -54,6 +54,17 @@ export function cleanupAPI(env = process.env, fetcher = fetch, options = {}) {
     throw new CleanupError('github-pagination-incomplete')
   }
   const teamQuery = `teamId=${scope.teamId}`
+  async function nativeProjectPath() {
+    requireCleanup(/^[a-z0-9-]{1,60}$/.test(config.neonProjectId), 'invalid-neon-project')
+    const path = `/api/v2/projects/${config.neonProjectId}`
+    const project = await read('neon', path)
+    requireCleanup(
+      project.project?.id === config.neonProjectId &&
+        project.project.org_id === config.neonOrganizationId,
+      'native-project-unverified',
+    )
+    return path
+  }
   return {
     repository: () => read('github', repoPath),
     project: () => read('vercel', `/v9/projects/${scope.projectId}?${teamQuery}`),
@@ -121,15 +132,21 @@ export function cleanupAPI(env = process.env, fetcher = fetch, options = {}) {
     },
     ...(config.neonProjectId
       ? {
-          async nativeBranch(branch) {
-            requireCleanup(/^[a-z0-9-]{1,60}$/.test(config.neonProjectId), 'invalid-neon-project')
-            const path = `/api/v2/projects/${config.neonProjectId}`
-            const project = await read('neon', path)
+          async nativeBranchById(id) {
+            requireCleanup(/^br-[a-z0-9-]+$/.test(id), 'invalid-native-branch-id')
+            const path = await nativeProjectPath()
+            const data = await read('neon', `${path}/branches/${id}`, true)
+            if (data === null) return null
             requireCleanup(
-              project.project?.id === config.neonProjectId &&
-                project.project.org_id === config.neonOrganizationId,
-              'native-project-unverified',
+              data.branch?.id === id && data.branch.project_id === config.neonProjectId,
+              'native-branch-id-unverified',
             )
+            // Existence is sufficient to disprove deletion, regardless of name,
+            // protection, parent or other changes since the original capture.
+            return { id, projectId: config.neonProjectId }
+          },
+          async nativeBranch(branch) {
+            const path = await nativeProjectPath()
             const branches = []
             const ids = new Set()
             const cursors = new Set()

@@ -132,3 +132,42 @@ repository ID could evade shared-branch detection, and a malformed project-targe
 could evade retained-target detection. These now block before any DELETE. Four regression
 cases bring the cleanup suite to **118 passing tests**; final static/unit/tooling checks
 were rerun. No provider access or application code change was involved.
+
+## Immutable Neon identity correction and ordinary-alias investigation
+
+Independent review reproduced a false success path: after the last Vercel DELETE, a
+renamed Neon branch disappeared from the expected-name lookup while the original ID
+still existed. Final verification now uses GET of the ID captured before execution,
+inside the reverified project/organization. Rename remains retained; replacement,
+wrong ID/project, permission failure, missing observation capability and conflicting
+list/detail evidence cannot establish absence. Results preserve the captured ID.
+Later stateless runs with no known ID report native state unverified rather than
+inferring deletion from the missing expected name. No trusted persistence was added.
+
+The fake HTTP regression retains the original br-preview ID under a different name
+after the final DELETE and asserts retained state. A subsequent run also stays
+unverified and makes no additional DELETE. Thirteen new cases, including exact-ID
+lookup failures and automatic-alias non-authority, bring the cleanup suite to **131**.
+The production adapter calls only GET for Neon, including the new exact-ID endpoint.
+
+Alias evidence was reviewed against Vercel's generated-URL, Get Alias and project-domain
+contracts and official SDK commit a35c06b4644dc56ce956f66da06a41d50ee5a791. Current route
+identity and optional automaticAliases/userAliases arrays do not establish exclusive,
+disposable full-ref provenance, particularly after reuse or name truncation. All aliases
+remain blocked. The runbook states the exact bounded tuple approval or authoritative
+provenance/registry decision needed; no allowlist, broad suffix exception, alias mutation
+or automatic-disposability claim was added. Ordinary aliased preview cleanup remains blocked.
+
+Full local `npm run verify` passed on 2026-10-08: static/generated checks, **34 unit,
+32 PostgreSQL integration, 35 Python, 4 hook, 12 release, 131 cleanup, 1 built-dependency
+and 21 browser tests**, plus production build. Browser retries remain zero. Log:
+`/tmp/lunia-cleanup-native-id-verify-final.log`; focused log:
+`/tmp/lunia-cleanup-native-id-focused.log`. An initial attempt stopped in the spec
+checker because T-7 was placed before its dependency and lacked an Evidence field;
+the task structure was fixed before rerunning the aggregate. The failed log is
+`/tmp/lunia-cleanup-native-id-verify.log`. No application test was weakened or retried.
+
+Default master, develop and PR45 remote heads were rechecked unchanged. Follow-up exact-head
+CI and normal preview terminal results are recorded in the PR handoff after publication.
+Actual cleanup, delayed cross-run native proof, alias eligibility, management access and
+activation remain unverified/unapproved. No live resources, settings or credentials changed.

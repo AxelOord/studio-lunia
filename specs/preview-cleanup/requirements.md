@@ -20,6 +20,9 @@ protected refs (main/master/develop/hosted-cms-preview), open/shared branches an
 remaining Git branch. Each deployment must belong to that sole PR's commit history;
 an explicit different PR ID is a blocker. Immutable repository provenance is required.
 Assigned aliases and current project targets SHALL block deletion. Names or prefixes alone are insufficient.
+Optional automaticAliases metadata SHALL NOT bypass that protection without authoritative
+exclusive ownership and an approved disposal policy; ordinary aliased previews remain a
+documented operational blocker.
 Check: owned synthetic API inventories and negative ownership/protection cases.
 
 ### R-2: Disabled execution and trusted workflow
@@ -48,6 +51,9 @@ A fresh plan can resume remaining exact resources. Empty Vercel inventory SHALL 
 be reported as proof of Neon deletion. Pagination and malformed responses fail closed.
 A read-only Neon inventory SHALL verify the configured project and exact native branch;
 retained/unknown database state SHALL remain distinguishable from absence.
+Absence SHALL be verified by the immutable branch ID captured in that execution, not
+by a missing name. A rename SHALL remain retained; a later run without a trusted
+captured identity SHALL report unverified even if the expected name is missing.
 Check: fake transport failures, pagination boundaries and outcome reporting.
 
 ### R-5: Operational handover and preservation

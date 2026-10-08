@@ -31,3 +31,8 @@
       Depends: T-5
       Verify: missed close events, delayed branch removal/build completion, cutoff and partial batches.
       Evidence: verification.md records 118 fake-provider cleanup tests, including real adapter composition and reconciliation; no provider writes.
+- [x] T-7: Verify native absence by immutable ID and document alias evidence limits
+      Refs: R-1, R-4, R-5
+      Depends: T-5, T-6
+      Verify: fake HTTP rename, replacement, missing identity, immutable-ID errors and full checks; supported alias schema review.
+      Evidence: verification.md records 131 cleanup tests and the full passing aggregate; docs/preview-cleanup.md records pinned SDK/API evidence and the unresolved alias policy decision.

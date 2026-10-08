@@ -603,6 +603,10 @@ function httpFixture() {
       assert.equal(options.headers.Authorization, 'Bearer synthetic-neon')
       if (u.pathname.endsWith('/branches'))
         return json({ branches: state.native ? [state.native] : [], pagination: {} })
+      if (u.pathname.includes('/branches/')) {
+        const id = u.pathname.split('/').at(-1)
+        return state.native?.id === id ? json({ branch: state.native }) : json({}, 404)
+      }
       return json({
         project: { id: approvedPolicy.neonProjectId, org_id: approvedPolicy.neonOrganizationId },
       })
@@ -652,7 +656,7 @@ test('real adapters compose through fake HTTP: last deployment removal and verif
   assert.equal(result.nativeDatabase, 'absent')
   assert.deepEqual(state.deleted, ['dpl_old', 'dpl_last'])
   assert.equal(calls.filter(({ options }) => options.method === 'DELETE').length, 2)
-  assert.equal((await executeCleanup(api, 91)).status, 'cleanup-verified')
+  assert.equal((await executeCleanup(api, 91)).status, 'deployments-absent')
   assert.deepEqual(state.deleted, ['dpl_old', 'dpl_last'])
 })
 test('empty Vercel inventory is distinct from retained or unreadable Neon branch', async () => {
@@ -806,6 +810,30 @@ test('retained aliases and project targets block the whole branch', async () => 
   assert.equal((await executeCleanup(api, 91)).reason, 'project-targets-unverified')
   assert.deepEqual(state.deleted, [])
 })
+for (const alias of [
+  'studio-lunia-git-feat-owned-preview-axeloords-projects.vercel.app',
+  'studio-lunia-axeloords-projects.vercel.app',
+  'studio-lunia-git-feat-owned-axeloords-projects.vercel.app',
+])
+  test(`automaticAliases alone does not authorize disposal: ${alias}`, async () => {
+    const { state, api } = fixture()
+    for (const deployment of state.rows.values()) {
+      deployment.automaticAliases = [alias]
+      deployment.userAliases = []
+    }
+    api.aliases = async (id) => [
+      {
+        uid: 'alias-owned',
+        alias,
+        projectId: scope.projectId,
+        deploymentId: id,
+        redirect: null,
+      },
+    ]
+    const result = await executeCleanup(api, 91)
+    assert.equal(result.reason, 'deployment-has-retained-aliases')
+    assert.deepEqual(state.deleted, [])
+  })
 test('native pagination, project identity, protected/shared branches fail closed', async () => {
   const { state, fetcher } = httpFixture()
   let pages = 0
@@ -923,7 +951,8 @@ test('CLI event orchestration uses the real apply adapter only with all approved
     env.GITHUB_EVENT_NAME = 'schedule'
     const result = await main([], env, fetcher, approvedPolicy)
     assert.equal(result.status, 'reconciled')
-    assert.equal(result.results[0].status, 'cleanup-verified')
+    assert.equal(result.results[0].status, 'deployments-absent')
+    assert.equal(result.results[0].nativeDatabase, 'unverified')
     assert.equal(result.results[0].journal.length, 0)
   } finally {
     rmSync(directory, { recursive: true, force: true })
@@ -951,12 +980,124 @@ test('reconciliation validates all candidate dates before any work and preserves
   assert.equal(JSON.stringify(result).includes('secret'), false)
 })
 
-test('native observation retries only reads when cleanup arrives later', async () => {
+test('later stateless runs cannot verify native deletion from a missing name', async () => {
   const { state, api } = httpFixture()
   state.rows.clear()
   assert.equal((await executeCleanup(api, 91)).status, 'native-cleanup-pending')
   state.native = null
-  assert.equal((await executeCleanup(api, 91)).status, 'cleanup-verified')
+  const later = await executeCleanup(api, 91)
+  assert.equal(later.status, 'deployments-absent')
+  assert.equal(later.nativeDatabase, 'unverified')
+  assert.deepEqual(state.deleted, [])
+})
+test('renaming the captured Neon branch after the last DELETE is retained, not deleted', async () => {
+  const { state, fetcher, calls } = httpFixture()
+  const captured = structuredClone(state.native)
+  const api = cleanupAPI(
+    approvedEnv,
+    async (url, options) => {
+      const response = await fetcher(url, options)
+      if (options.method === 'DELETE' && state.rows.size === 0)
+        state.native = { ...captured, name: 'retained/renamed-preview' }
+      return response
+    },
+    { apply: true, policy: approvedPolicy },
+  )
+  const result = await executeCleanup(api, 91)
+  assert.equal(result.status, 'native-cleanup-pending')
+  assert.equal(result.nativeDatabase, 'retained')
+  assert.equal(result.nativeBranchId, captured.id)
+  assert.deepEqual(state.deleted, ['dpl_old', 'dpl_last'])
+  const observations = calls.filter(({ u }) => u.pathname.endsWith(`/branches/${captured.id}`))
+  assert.equal(observations.length, 1)
+  assert.equal(observations[0].options.method, 'GET')
+  // A later run knows neither the old nor the new name's identity; it must not
+  // convert this pending result into success, or perform another mutation.
+  const later = await executeCleanup(api, 91)
+  assert.equal(later.nativeDatabase, 'unverified')
+  assert.equal(later.status, 'deployments-absent')
+  assert.deepEqual(state.deleted, ['dpl_old', 'dpl_last'])
+})
+test('a new Neon ID under the original name cannot substitute for the captured branch', async () => {
+  const { state, api } = httpFixture()
+  const captured = structuredClone(state.native)
+  const remove = api.deleteDeployment
+  api.deleteDeployment = async (id) => {
+    const result = await remove(id)
+    if (state.rows.size === 0) state.native = { ...captured, id: 'br-replacement' }
+    return result
+  }
+  const result = await executeCleanup(api, 91)
+  assert.equal(result.reason, 'native-branch-changed')
+  assert.equal(result.nativeBranchId, captured.id)
+  assert.equal(result.nativeDatabase, 'unverified')
+})
+for (const [label, body, status, reason] of [
+  [
+    'wrong branch ID',
+    { branch: { id: 'br-other', project_id: approvedPolicy.neonProjectId } },
+    200,
+    'native-branch-id-unverified',
+  ],
+  [
+    'wrong project',
+    { branch: { id: 'br-preview', project_id: 'other' } },
+    200,
+    'native-branch-id-unverified',
+  ],
+  ['missing branch', {}, 200, 'native-branch-id-unverified'],
+  ['forbidden read', { error: 'private' }, 403, 'neon-read-failed'],
+  ['failed read', { error: 'private' }, 500, 'neon-read-failed'],
+])
+  test(`immutable native observation rejects ${label} after deletion`, async () => {
+    const { state, fetcher } = httpFixture()
+    const api = cleanupAPI(
+      approvedEnv,
+      (url, options) =>
+        url.endsWith('/branches/br-preview') ? json(body, status) : fetcher(url, options),
+      { apply: true, policy: approvedPolicy },
+    )
+    const result = await executeCleanup(api, 91)
+    assert.equal(result.reason, reason)
+    assert.equal(result.phase, 'verifying')
+    assert.equal(result.status, 'incomplete')
+    assert.equal(result.nativeDatabase, 'unverified')
+    assert.equal(result.nativeBranchId, 'br-preview')
+    assert.deepEqual(state.deleted, ['dpl_old', 'dpl_last'])
+    assert.equal(result.journal.length, 2)
+    assert.equal(JSON.stringify(result).includes('private'), false)
+  })
+test('immutable native observation requires the configured project and exact ID', async () => {
+  const { api, fetcher, calls } = httpFixture()
+  await assert.rejects(api.nativeBranchById('../other'), /invalid-native-branch-id/)
+  assert.equal(calls.length, 0)
+  for (const status of [403, 404]) {
+    const denied = cleanupAPI(
+      approvedEnv,
+      (url, options) =>
+        url.endsWith(`/projects/${approvedPolicy.neonProjectId}`)
+          ? json({}, status)
+          : fetcher(url, options),
+      { policy: approvedPolicy },
+    )
+    await assert.rejects(denied.nativeBranchById('br-preview'), /neon-read-failed/)
+  }
+})
+test('conflicting native list and ID observations never establish deletion', async () => {
+  const { state, api } = httpFixture()
+  state.rows.clear()
+  api.nativeBranchById = async () => null
+  const result = await executeCleanup(api, 91)
+  assert.equal(result.reason, 'native-observation-conflict')
+  assert.equal(result.nativeDatabase, 'unverified')
+  assert.deepEqual(state.deleted, [])
+})
+test('missing immutable observation capability cannot fall back to name absence', async () => {
+  const { state, api } = httpFixture()
+  delete api.nativeBranchById
+  const result = await executeCleanup(api, 91)
+  assert.equal(result.reason, 'native-identity-read-unavailable')
+  assert.equal(result.nativeDatabase, 'unverified')
   assert.deepEqual(state.deleted, [])
 })
 test('new alias after partial progress protects the remaining deployment', async () => {

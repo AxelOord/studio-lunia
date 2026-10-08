@@ -247,9 +247,13 @@ export async function planCleanup(api, number) {
 export async function executeCleanup(api, number, beforeDelete = () => {}) {
   const journal = []
   let phase = 'planning'
+  let nativeBranchId
   try {
     const plan = await planCleanup(api, number)
     requireCleanup(plan.status === 'planned', plan.reason)
+    nativeBranchId = plan.nativeBranch?.id
+    if (nativeBranchId)
+      requireCleanup(typeof api.nativeBranchById === 'function', 'native-identity-read-unavailable')
     beforeDelete(plan.context)
     const original = new Map(plan.deployments.map((item) => [item.id, JSON.stringify(item)]))
     for (const candidate of plan.deployments) {
@@ -284,18 +288,33 @@ export async function executeCleanup(api, number, beforeDelete = () => {}) {
     requireCleanup(final.status === 'planned', final.reason)
     requireCleanup(JSON.stringify(final.context) === JSON.stringify(plan.context), 'pr-changed')
     requireCleanup(final.deployments.length === 0, 'deployments-remain')
-    if (api.nativeBranch) {
+    if (nativeBranchId) {
       requireCleanup(
         final.nativeBranch === null ||
           JSON.stringify(final.nativeBranch) === JSON.stringify(plan.nativeBranch),
         'native-branch-changed',
       )
+      const observed = await api.nativeBranchById(nativeBranchId)
+      requireCleanup(
+        observed === null ||
+          (observed?.id === nativeBranchId && observed.projectId === plan.nativeBranch.projectId),
+        'native-branch-id-unverified',
+      )
+      // A missing name is not proof: the original branch can have been renamed.
+      // Conflicting list/detail reads are also uncertainty, not success.
+      requireCleanup(
+        observed !== null || final.nativeBranch === null,
+        'native-observation-conflict',
+      )
       return {
-        status: final.nativeBranch === null ? 'cleanup-verified' : 'native-cleanup-pending',
+        status: observed === null ? 'cleanup-verified' : 'native-cleanup-pending',
         journal,
-        nativeDatabase: final.nativeBranch === null ? 'absent' : 'retained',
+        nativeBranchId,
+        nativeDatabase: observed === null ? 'absent' : 'retained',
       }
     }
+    // No trusted identity persists across runs. A later name-only miss must not
+    // upgrade a previous pending/unknown outcome to verified deletion.
     return { status: 'deployments-absent', journal, nativeDatabase: 'unverified' }
   } catch (error) {
     return {
@@ -303,6 +322,7 @@ export async function executeCleanup(api, number, beforeDelete = () => {}) {
       phase,
       reason: reasonFor(error),
       journal,
+      nativeBranchId,
       nativeDatabase: 'unverified',
     }
   }

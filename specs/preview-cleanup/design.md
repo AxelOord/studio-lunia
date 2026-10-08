@@ -34,7 +34,12 @@ are used for tests. Native Neon inventory is GET-only: match the documented full
 preview/<git-branch> name inside that configured project, reject protected/default/root
 or parent branches, and preserve its immutable ID through execution. Missing or retained
 Neon resources never authorize a broader deletion. Post-delete Neon absence is observed
-separately; no direct Neon mutation exists.
+separately by GET of the captured immutable ID; a rename cannot establish deletion.
+Reproduction: after the final Vercel DELETE, retain the same Neon ID under a different
+name. The expected outcome is retained, never cleanup-verified. A later stateless run
+cannot prove a missing name represents deletion; without the original captured ID it
+reports unverified. This implementation does not accept identity from untrusted run
+artifacts or add persistent state. No direct Neon mutation exists.
 
 An approved closure cutoff and minimum closed age exclude historical previews and provide
 a settling window. Hourly reconciliation inventories all PRs before mutations, prefilters

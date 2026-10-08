@@ -64,11 +64,20 @@ after closure and builds that finish later. Retained/protected branches remain b
 Uncertain execution stops the batch, preserving earlier results; the next run reconciles anew.
 GitHub scheduling is best effort and public-repository inactivity can disable schedules.
 
-Final Vercel absence is verified independently of the native database. A paginated read-only
-Neon inventory reports `cleanup-verified` only when both are absent, `native-cleanup-pending`
-when the mapped branch remains, and `unverified` on errors. A later scheduled/manual run can
-observe delayed cleanup without issuing another DELETE. Absence is not a claim about reclaimed
-billing/quota, recovery windows or backups. There is no direct Neon deletion fallback.
+Final Vercel absence is verified independently of the native database. The controller captures
+the immutable Neon branch ID before execution and, after the final inventory, reads that exact
+ID in the verified project. Only an exact-ID 404 together with no replacement at the original
+name establishes `cleanup-verified`. A renamed branch with the same ID remains
+`native-cleanup-pending`/`retained`. Inconsistent observations or read errors stay unverified.
+The result includes the captured `nativeBranchId` for operator reconciliation.
+
+No trusted identity store persists across runs. A later run with no branch at the expected
+name reports `deployments-absent`/`unverified`; it cannot prove whether the prior ID was deleted
+or renamed. The same applies after a crash that loses the captured identity. A later run may
+observe a retained branch, but automatic verification of delayed disappearance needs a separately
+reviewed trusted identity store or operator verification of the earlier journal's exact ID.
+The controller never consumes prior logs/artifacts as deletion authority. Absence is not a claim
+about reclaimed billing/quota, recovery windows or backups. There is no direct Neon deletion fallback.
 
 **Cross-provider atomicity remains unavailable.** A user can reopen/recreate a branch, promote
 or alias a deployment, or trigger another build after the final check. A settling interval and
@@ -104,6 +113,42 @@ reconciliation before those previews are eligible. This implementation deliberat
 them; it does **not** promise unattended deletion of all existing aliased previews. No alias
 removal or security/permission change is included here.
 
+## Ordinary branch aliases: evidence and precise remaining decision
+
+The reviewer observed the ordinary branch alias
+`studio-lunia-git-chore-preview-cleanup-axeloords-projects.vercel.app` on this draft.
+The [Get Alias contract](https://vercel.com/docs/rest-api/aliases/get-an-alias) exposes its
+UID, hostname, project and deployment IDs, redirects and microfrontend routing. These identify
+its current route; they do not certify that the alias is generated, exclusive to one full Git
+ref, or disposable. The [documented URL formats](https://vercel.com/docs/deployments/generated-urls)
+also include shared project/author URLs, label truncation and project-name shortening.
+Matching a hostname pattern cannot establish the required exclusive ownership.
+
+The official SDK's [deployment response](https://github.com/vercel/sdk/blob/a35c06b4644dc56ce956f66da06a41d50ee5a791/src/models/getdeploymentresponsebody.ts)
+includes optional `automaticAliases` and `userAliases` arrays. The former has no documented
+per-alias kind or immutable full-ref mapping; the latter describes aliases supplied at deployment
+creation, not every later assignment. These fields strengthen a review but do not establish that
+a currently assigned alias was never reused. The [project-domain inventory](https://vercel.com/docs/rest-api/projects/retrieve-project-domains-by-project-by-id-or-name)
+can exclude configured custom/production domains; its absence alone is not disposability proof.
+No safe automatic classifier was established from these public contracts. Tests keep even an
+exact generated-looking automatic alias blocked; no broad `*.vercel.app` exception is added.
+
+The smallest bounded policy decision is approval to dispose of **explicit exact alias tuples**:
+repository/team/project IDs, PR number/full ref/head SHA/closure, deployment ID, alias UID and
+complete hostname, with an owner attestation that each is exclusive and disposable. A future
+implementation would reread the tuple before each DELETE and refuse project/custom/protected
+domains, redirects, microfrontends, changed mappings and normalized/truncated-ref collisions.
+An exact tuple would not authorize future deployments, a branch prefix, a domain suffix or alias
+deletion. No such tuples or approvals are present in this draft, and this mechanism is not
+implemented. It would be bounded disposal, not unattended classification of future previews.
+
+For fully automatic future branch aliases, the remaining evidence gap is a supported authoritative
+alias-kind/full-ref/exclusive-ownership contract (including reuse and truncation), or a separately
+approved trusted registry that records that provenance when previews are created. The requested
+cleanup can remove alias-free eligible deployments automatically after activation; ordinary aliased
+previews remain blocked until that specific policy/evidence gap is resolved. All activation gates,
+the remaining-Git-ref guard and the cross-provider race limits still apply.
+
 Read-only local plan: `npm run preview:cleanup -- --pr 91`, replacing 91 with the intended
 closed PR and securely supplying read credentials. No environment-file loader is included.
 `npm run test:cleanup` needs no management credentials and makes no external requests.
@@ -125,7 +170,8 @@ reads for manually selected PRs. No merge/default-branch/repository-permission c
 
 [Vercel exact-ID deletion](https://vercel.com/docs/rest-api/deployments/delete-a-deployment),
 [complete deployment aliases](https://vercel.com/docs/rest-api/aliases/list-deployment-aliases),
-and [Neon branch inventory](https://api-docs.neon.tech/reference/listprojectbranches) define the
+and [Neon branch inventory](https://api-docs.neon.tech/reference/listprojectbranches) plus
+[immutable branch lookup](https://api-docs.neon.tech/reference/getprojectbranch) define the
 adapters. Neon's [official cleanup guide source](https://github.com/neondatabase/website/blob/main/content/docs/guides/vercel-branch-cleanup.md)
 confirms last-deployment cleanup. Its table lists Hobby preview retention as 30 days, with
 exceptions for recent deployments and custom aliases; a retained deployment can keep a
