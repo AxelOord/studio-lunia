@@ -53,3 +53,28 @@ regression evidence; exact-head CI runs the full aggregate with the corrected ad
 No live management token or cleanup execution was used. The initial ordinary deployment
 `dpl_29yeDAZLPyrakpJMy8EWgsFzJMjh` reached READY at 0311e3f; this is application deployment
 evidence, not lifecycle activation. Final-head evidence belongs in the PR conversation.
+
+## Inherited integration timing repair
+
+Exact-head Foundation run 37810385352 failed at
+`tests/integration/inquiry.test.ts:164`: two concurrent callers returned `accepted`
+where the test expected exactly one. This did not establish two provider sends: the
+subsequent send-count assertion had not run. The test and notification implementation
+were byte-for-byte unchanged from develop 5f1669e. `claimSend` correctly returns an
+already terminal status without sending, so an immediate fake response could finish
+before the second caller read the row. The earlier local aggregate passed under a
+different schedule; the remote failure was not retried or hidden.
+
+The fixture now holds the first fake provider response while the second caller observes
+the active sending lease. It releases the response in finally and retains the exact
+one-accepted-result, two-total-provider-calls (including the initial failed attempt),
+frozen payload/key, durable state/attempts, privacy and cutoff assertions. It also
+explicitly checks the overlapping caller sees `sending`. No notification/application
+code, timeout, retry setting, actual email or provider configuration is changed.
+
+All five selected enquiry integrations passed after the barrier repair. The final full
+local `npm run verify` then passed: 34 unit, 32 PostgreSQL integration, 35 Python, 4 hook,
+12 release, **85 cleanup**, 1 built-dependency and **21 browser tests**, with static,
+generated-file and production-build checks. Logs: `/tmp/lunia-cleanup-inquiry-regression.log`
+and `/tmp/lunia-cleanup-final-verify.log`. No retries were added. This final source checkpoint
+is ready for fresh exact-head CI; the earlier failed run remains evidence of the timing bug.
