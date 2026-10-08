@@ -153,14 +153,40 @@ test('notification failure is durable; retries use same safe payload/key and con
       }),
       'uncertain',
     )
+    let markStarted!: () => void
+    let releaseSend!: () => void
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve
+    })
+    const released = new Promise<void>((resolve) => {
+      releaseSend = resolve
+    })
+    let retryCalls = 0
     const retry = async (_url: string | URL | Request, options?: RequestInit) => {
       sent.push(options!)
+      if (++retryCalls === 1) {
+        markStarted()
+        await released
+      }
       return Response.json({ id: `synthetic-enquiry-${id}-provider-id` })
     }
-    const results = await Promise.all([
-      notifyPhotographer(payload, id, retry),
-      notifyPhotographer(payload, id, retry),
-    ])
+    // Hold the provider response so the second caller actually overlaps the sending
+    // lease. A later caller may correctly return the already accepted status.
+    const first = notifyPhotographer(payload, id, retry)
+    const results = []
+    try {
+      await Promise.race([
+        started,
+        first.then(() => {
+          throw new Error('First retry ended before reaching the provider')
+        }),
+      ])
+      results.push(await notifyPhotographer(payload, id, retry))
+    } finally {
+      releaseSend()
+      results.push(await first)
+    }
+    assert.equal(results[0], 'sending')
     assert.equal(results.filter((r) => r === 'accepted').length, 1)
     assert.equal(sent.length, 2)
     assert.deepEqual(sent[0].headers, sent[1].headers)

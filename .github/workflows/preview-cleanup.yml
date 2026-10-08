@@ -1,0 +1,51 @@
+name: Preview cleanup (disabled until approved)
+on:
+  pull_request_target:
+    types: [closed]
+    branches: [develop]
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Closed same-repository PR number to inspect
+        required: true
+        type: string
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+concurrency:
+  group: studio-lunia-preview-cleanup
+  cancel-in-progress: false
+jobs:
+  plan:
+    if: >-
+      github.repository == 'AxelOord/studio-lunia' &&
+      github.ref == 'refs/heads/master' &&
+      vars.LUNIA_PREVIEW_CLEANUP_PLANNING_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ||
+       github.event.pull_request.head.repo.full_name == 'AxelOord/studio-lunia')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: preview-cleanup
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      # No npm install, PR checkout, cache or execution of PR data.
+      # Receipt archives are verified as bounded data from approved default-code runs.
+      - name: Reconcile approved preview scope
+        run: node scripts/preview-cleanup.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          LUNIA_VERCEL_CLEANUP_TOKEN: ${{ secrets.LUNIA_VERCEL_CLEANUP_TOKEN }}
+          LUNIA_NEON_CLEANUP_READ_TOKEN: ${{ secrets.LUNIA_NEON_CLEANUP_READ_TOKEN }}
+          LUNIA_PREVIEW_CLEANUP_MODE: ${{ vars.LUNIA_PREVIEW_CLEANUP_MODE || 'plan' }}
+          LUNIA_PREVIEW_CLEANUP_APPROVED_SHA: ${{ vars.LUNIA_PREVIEW_CLEANUP_APPROVED_SHA }}
+          LUNIA_PREVIEW_RECEIPT_APPROVED_SHAS: ${{ vars.LUNIA_PREVIEW_RECEIPT_APPROVED_SHAS }}

@@ -1,0 +1,16 @@
+{
+  "executionEnabled": false,
+  "ownershipConsumptionEnabled": false,
+  "ownershipRegistrationEnabled": false,
+  "trustedProvisioningClaimsEnabled": false,
+  "ownershipReceiptsEnabled": false,
+  "prospectiveNativeAliasesExclusive": false,
+  "vercelDispatchSenderId": null,
+  "ownershipProvisioningAfter": null,
+  "closedAfter": null,
+  "minimumClosedHours": 24,
+  "neonProjectId": null,
+  "neonOrganizationId": null,
+  "neonParentBranchId": null,
+  "exclusiveNativeProjectConfirmed": false
+}

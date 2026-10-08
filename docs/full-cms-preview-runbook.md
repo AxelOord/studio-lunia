@@ -36,7 +36,9 @@ VERCEL_BRANCH_URL and VERCEL_URL. The application gate accepts only the exact
 studio-lunia project and AxelOord/studio-lunia repository, with a non-release branch.
 Keep Vercel fork-deployment protection enabled: an environment variable check is
 not a substitute for reviewing code that will receive shared preview capabilities.
-No privileged pull_request_target workflow is introduced.
+The application preview workflow does not run privileged PR code. A separate
+[disabled cleanup planner](preview-cleanup.md) uses reviewed default-branch code only;
+its provider access/setup and any live deletion remain separately gated.
 
 Remove obsolete branch-scoped overrides when they conflict with these settings.
 LUNIA_CMS_BRANCH and manual CMS_ORIGIN are no longer used for hosted configuration.
@@ -101,7 +103,8 @@ lock prevents simultaneous migrations, but superseded-build promotion still need
 hosted verification. Retain the current Free plan/10-branch limit and default provider
 retention. Retention exceptions may retain branches; report exhaustion instead of
 automatically deleting active editor work or upgrading. Shared Blob orphans are
-reviewed separately; no automatic destructive cleanup is added.
+reviewed separately. The [closed-PR cleanup controller](preview-cleanup.md) is plan-only,
+with execution disabled by committed policy pending operational review; it never deletes Blob or Neon directly.
 
 ## Acceptance evidence
 
