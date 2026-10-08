@@ -1,11 +1,14 @@
 import { policy, requireApplyApproval } from './preview-cleanup-approval.mjs'
-import { scope, requireCleanup, CleanupError } from './preview-cleanup-core.mjs'
+import { scope, requireCleanup, CleanupError } from './preview-cleanup-identity.mjs'
+import manifest from './preview-ownership-manifest.json' with { type: 'json' }
+import { emptyOwnership, validateOwnership } from './preview-ownership.mjs'
 
 // No caller-controlled host, verb, team, project or repository. Provider response
 // bodies/errors never enter the public journal, including authentication failures.
 export function cleanupAPI(env = process.env, fetcher = fetch, options = {}) {
   const config = structuredClone(options.policy ?? policy)
   const apply = options.apply === true
+  const ownership = structuredClone(options.manifest ?? manifest)
   if (apply) requireApplyApproval(env, config)
   requireCleanup(
     env.GITHUB_TOKEN && env.LUNIA_VERCEL_CLEANUP_TOKEN,
@@ -66,6 +69,10 @@ export function cleanupAPI(env = process.env, fetcher = fetch, options = {}) {
     return path
   }
   return {
+    ownershipManifest: () =>
+      config.ownershipConsumptionEnabled === true
+        ? validateOwnership(structuredClone(ownership))
+        : emptyOwnership(),
     repository: () => read('github', repoPath),
     project: () => read('vercel', `/v9/projects/${scope.projectId}?${teamQuery}`),
     pullRequest: (number) => read('github', `${repoPath}/pulls/${number}`),
@@ -83,6 +90,48 @@ export function cleanupAPI(env = process.env, fetcher = fetch, options = {}) {
       // future partial schemas rather than assuming the first page is complete.
       requireCleanup(Array.isArray(data.aliases) && !data.pagination, 'invalid-alias-inventory')
       return data.aliases
+    },
+    alias: (id) => {
+      requireCleanup(/^[A-Za-z0-9_-]{1,128}$/.test(id), 'invalid-alias-id')
+      return read(
+        'vercel',
+        `/v4/aliases/${encodeURIComponent(id)}?${teamQuery}&projectId=${scope.projectId}`,
+        true,
+      )
+    },
+    async projectDomains() {
+      const domains = []
+      const names = new Set()
+      let until
+      for (let page = 0; page < 20; page++) {
+        const query = new URLSearchParams({ teamId: scope.teamId, limit: '100', order: 'DESC' })
+        if (until !== undefined) query.set('until', String(until))
+        // Keep custom, production, redirect and branch domains in this inventory.
+        const data = await read('vercel', `/v9/projects/${scope.projectId}/domains?${query}`)
+        requireCleanup(
+          Array.isArray(data.domains) &&
+            data.domains.length <= 100 &&
+            Number.isSafeInteger(data.pagination?.count) &&
+            data.pagination.count === data.domains.length,
+          'invalid-project-domain-page',
+        )
+        for (const domain of data.domains) {
+          requireCleanup(
+            typeof domain.name === 'string' && !names.has(domain.name),
+            'invalid-project-domain-inventory',
+          )
+          names.add(domain.name)
+          domains.push(domain)
+        }
+        const next = data.pagination.next
+        if (next === undefined || next === null) return domains
+        requireCleanup(
+          Number.isSafeInteger(next) && next > 0 && (until === undefined || next < until),
+          'invalid-project-domain-cursor',
+        )
+        until = next
+      }
+      throw new CleanupError('project-domain-pagination-incomplete')
     },
     async deployments(branch) {
       const items = []
@@ -132,8 +181,9 @@ export function cleanupAPI(env = process.env, fetcher = fetch, options = {}) {
     },
     ...(config.neonProjectId
       ? {
-          async nativeBranchById(id) {
+          async nativeBranchById(id, expectedProjectId = config.neonProjectId) {
             requireCleanup(/^br-[a-z0-9-]+$/.test(id), 'invalid-native-branch-id')
+            requireCleanup(expectedProjectId === config.neonProjectId, 'native-project-unverified')
             const path = await nativeProjectPath()
             const data = await read('neon', `${path}/branches/${id}`, true)
             if (data === null) return null

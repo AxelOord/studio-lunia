@@ -19,10 +19,11 @@ It SHALL refuse forks, missing/contradictory ownership, production/custom target
 protected refs (main/master/develop/hosted-cms-preview), open/shared branches and any
 remaining Git branch. Each deployment must belong to that sole PR's commit history;
 an explicit different PR ID is a blocker. Immutable repository provenance is required.
-Assigned aliases and current project targets SHALL block deletion. Names or prefixes alone are insufficient.
-Optional automaticAliases metadata SHALL NOT bypass that protection without authoritative
-exclusive ownership and an approved disposal policy; ordinary aliased previews remain a
-documented operational blocker.
+Current project targets SHALL block deletion. Assigned aliases SHALL require an explicit
+trusted disposable-preview ownership record plus fresh exact-ID/hostname/project/deployment
+validation and complete project-domain exclusion. Names or prefixes alone are insufficient.
+Unregistered, custom, shared, reassigned, redirected, recreated or ambiguous aliases SHALL
+remain protected. Optional automaticAliases metadata SHALL NOT authorize disposal.
 Check: owned synthetic API inventories and negative ownership/protection cases.
 
 ### R-2: Disabled execution and trusted workflow
@@ -51,7 +52,7 @@ A fresh plan can resume remaining exact resources. Empty Vercel inventory SHALL 
 be reported as proof of Neon deletion. Pagination and malformed responses fail closed.
 A read-only Neon inventory SHALL verify the configured project and exact native branch;
 retained/unknown database state SHALL remain distinguishable from absence.
-Absence SHALL be verified by the immutable branch ID captured in that execution, not
+Absence SHALL be verified by the immutable branch ID captured in that execution or a trusted manifest, not
 by a missing name. A rename SHALL remain retained; a later run without a trusted
 captured identity SHALL report unverified even if the expected name is missing.
 Check: fake transport failures, pagination boundaries and outcome reporting.
@@ -64,6 +65,20 @@ race limits, retention and manual reconciliation. Existing checks SHALL remain i
 Hourly reconciliation SHALL revisit all eligible closed PRs after an approved cutoff,
 including events displaced from the concurrency queue, delayed branch removal and builds.
 Check: full npm run verify, exact-head CI and review of the separate draft.
+
+### R-6: Trusted registration and reviewed adoption
+
+WHEN registering disposable preview ownership, the registrar SHALL capture exact repository,
+project, PR/full ref, deployment, alias UID/hostname and available native branch identity from
+fresh canonical provider reads. Registration SHALL require a trusted explicit exclusivity claim;
+an ordinary native deployment event or generated-looking URL alone is insufficient.
+Existing previews SHALL use explicitly reviewed adoption intents; trusted-completion records
+SHALL be limited to deployments after an approved provisioning cutoff. A committed default-branch
+manifest is the consumption trust boundary; runtime paths, PR files and arbitrary artifacts
+SHALL NOT supply cleanup authority. Registration/publication remains disabled pending setup.
+Local manifest updates SHALL be atomic, compare the prior snapshot and preserve other records.
+Check: registration-to-cleanup fake-provider journeys, immutable binding/conflict/schema tests,
+stale snapshots/concurrent writers, disabled gates and exact adoption/provisioning contracts.
 
 ## Open questions
 

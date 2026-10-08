@@ -7,7 +7,7 @@ Related: [issue #46](https://github.com/AxelOord/studio-lunia/issues/46),
 The controller implements planning, exact-ID Vercel deletion, scheduled reconciliation and
 read-only native Neon observation. **Destructive execution remains disabled.** The committed
 [activation policy](../scripts/preview-cleanup-policy.json) has `executionEnabled=false`,
-no closure cutoff and no native project IDs. Neither an apply flag nor variables can bypass
+no closure cutoff and no native project IDs. Ownership registration, consumption and trusted-provisioning claims are also disabled; the manifest and adoption-intent list are empty. Neither an apply flag nor variables can bypass
 that policy. The real HTTP adapter is exercised only through owned fake transports in tests.
 No live cleanup, credential setup, resource retry or provider setting change was performed.
 
@@ -29,9 +29,11 @@ Canonical project/repository links must agree. Every deletion requires all of th
   Conflicting metadata, custom/production targets, active deployments, incomplete history
   (including GitHub's 250-commit cap) or ambiguous pagination block the whole branch.
 - Complete project targets are available and no candidate is a current project target.
-  Every candidate's complete alias list must be empty. **All assigned aliases, including
-  `vercel.app` aliases, block cleanup.** The alias endpoint does not establish disposability;
-  the controller never guesses from a generated-looking hostname or removes aliases.
+  Each assigned alias must have an explicit disposable-preview record in the trusted manifest.
+  Its exact UID, hostname, generation observations, project and deployment association must still
+  match. User-supplied aliases, configured custom/production/branch domains, known project/author URLs, redirects,
+  microfrontends, shared bypasses, conflicting owners and unknown aliases remain protected.
+  There is no hostname-based ownership inference or direct alias DELETE.
 - For apply mode, the reviewed native Neon project/organization/source branch must match.
   The documented exact `preview/<full-git-ref>` name must identify a single non-default,
   unprotected child of that source, with no children. Its immutable ID stays fixed during
@@ -71,12 +73,10 @@ name establishes `cleanup-verified`. A renamed branch with the same ID remains
 `native-cleanup-pending`/`retained`. Inconsistent observations or read errors stay unverified.
 The result includes the captured `nativeBranchId` for operator reconciliation.
 
-No trusted identity store persists across runs. A later run with no branch at the expected
-name reports `deployments-absent`/`unverified`; it cannot prove whether the prior ID was deleted
-or renamed. The same applies after a crash that loses the captured identity. A later run may
-observe a retained branch, but automatic verification of delayed disappearance needs a separately
-reviewed trusted identity store or operator verification of the earlier journal's exact ID.
-The controller never consumes prior logs/artifacts as deletion authority. Absence is not a claim
+A trusted manifest record can preserve that native ID across runs. A later run verifies the
+same ID even if its name changed; conflicting replacement identities block. Without such a
+record, a missing expected name still reports `deployments-absent`/`unverified`. The controller
+never consumes prior logs or arbitrary artifacts as deletion authority. Absence is not a claim
 about reclaimed billing/quota, recovery windows or backups. There is no direct Neon deletion fallback.
 
 **Cross-provider atomicity remains unavailable.** A user can reopen/recreate a branch, promote
@@ -95,7 +95,7 @@ The code path is implemented; operational setup remains separate:
    process and configures a protected `preview-cleanup` environment with required reviewers
    and a branch restriction to reviewed `master` code. This task changes no such settings.
 3. Supply GitHub metadata/PR/contents **read** access and scoped Vercel project, deployment
-   and alias **read**, plus deployment **delete** management access. The future environment
+   alias and project-domain **read**, plus deployment **delete** management access. The future environment
    secret is `LUNIA_VERCEL_CLEANUP_TOKEN`. A team token is not necessarily project-isolated;
    validate the actual provider scopes before granting it.
 4. Native cleanup uses the existing integration, but **automated verification additionally
@@ -108,46 +108,88 @@ The code path is implemented; operational setup remains separate:
    default-branch commit stops writes until its SHA is approved. Manual inputs select a PR,
    never execution code or a deletion URL. Local apply is refused.
 
-Existing branch aliases may require a separately approved provider policy or operator
-reconciliation before those previews are eligible. This implementation deliberately blocks
-them; it does **not** promise unattended deletion of all existing aliased previews. No alias
-removal or security/permission change is included here.
+## Trusted ownership manifest and registration
 
-## Ordinary branch aliases: evidence and precise remaining decision
+The implementation now supports ordinary branch aliases through exact ownership records in
+[`preview-ownership-manifest.json`](../scripts/preview-ownership-manifest.json), loaded only from
+the same reviewed checkout as cleanup code. No runtime manifest path, PR file, downloaded artifact
+or webhook payload grants authority. `ownershipConsumptionEnabled=false` keeps this path disabled.
+The committed empty manifest grants no disposal authority to any existing preview.
 
-The reviewer observed the ordinary branch alias
-`studio-lunia-git-chore-preview-cleanup-axeloords-projects.vercel.app` on this draft.
-The [Get Alias contract](https://vercel.com/docs/rest-api/aliases/get-an-alias) exposes its
-UID, hostname, project and deployment IDs, redirects and microfrontend routing. These identify
-its current route; they do not certify that the alias is generated, exclusive to one full Git
-ref, or disposable. The [documented URL formats](https://vercel.com/docs/deployments/generated-urls)
-also include shared project/author URLs, label truncation and project-name shortening.
-Matching a hostname pattern cannot establish the required exclusive ownership.
+Each immutable record contains the fixed scope, PR number/creation identity/full ref/observed head,
+deployment ID/commit/creation time, alias UID/full hostname/creation and available update timestamp,
+registration provenance, and available native Neon ID/project/source identity. A new deployment
+needs a new record. Successive bindings of the same alias are permitted only for the same PR/ref;
+a different owner or recreated UID for the same hostname is rejected, including collisions caused
+by normalization or truncation. Cleanup never follows a stale record to a different deployment.
+An old deployment from which an alias has already been removed can still use the alias-free path.
 
-The official SDK's [deployment response](https://github.com/vercel/sdk/blob/a35c06b4644dc56ce956f66da06a41d50ee5a791/src/models/getdeploymentresponsebody.ts)
-includes optional `automaticAliases` and `userAliases` arrays. The former has no documented
-per-alias kind or immutable full-ref mapping; the latter describes aliases supplied at deployment
-creation, not every later assignment. These fields strengthen a review but do not establish that
-a currently assigned alias was never reused. The [project-domain inventory](https://vercel.com/docs/rest-api/projects/retrieve-project-domains-by-project-by-id-or-name)
-can exclude configured custom/production domains; its absence alone is not disposability proof.
-No safe automatic classifier was established from these public contracts. Tests keep even an
-exact generated-looking automatic alias blocked; no broad `*.vercel.app` exception is added.
+Before each deletion, the complete assigned-alias list must be covered by exact records. The
+controller rereads each alias by UID and fully paginates project domains without filtering out
+production, redirects or branch domains. Any custom suffix, configured domain, project/author
+URL, redirect, microfrontend, shared bypass, missing detail or changed generation/mapping blocks.
+The existing protected-ref/project-target/open/shared/reused-PR guards remain mandatory. Alias
+checks reduce races but cannot lock an outside actor's changes after the last read.
 
-The smallest bounded policy decision is approval to dispose of **explicit exact alias tuples**:
-repository/team/project IDs, PR number/full ref/head SHA/closure, deployment ID, alias UID and
-complete hostname, with an owner attestation that each is exclusive and disposable. A future
-implementation would reread the tuple before each DELETE and refuse project/custom/protected
-domains, redirects, microfrontends, changed mappings and normalized/truncated-ref collisions.
-An exact tuple would not authorize future deployments, a branch prefix, a domain suffix or alias
-deletion. No such tuples or approvals are present in this draft, and this mechanism is not
-implemented. It would be bounded disposal, not unattended classification of future previews.
+### Existing previews: concrete reviewed adoption path
 
-For fully automatic future branch aliases, the remaining evidence gap is a supported authoritative
-alias-kind/full-ref/exclusive-ownership contract (including reuse and truncation), or a separately
-approved trusted registry that records that provenance when previews are created. The requested
-cleanup can remove alias-free eligible deployments automatically after activation; ordinary aliased
-previews remain blocked until that specific policy/evidence gap is resolved. All activation gates,
-the remaining-Git-ref guard and the cross-provider race limits still apply.
+The registrar is [`preview-register.mjs`](../scripts/preview-register.mjs). Its operations use
+provider reads only; the only write is an atomic local manifest candidate. It does not publish
+Git, change aliases, configure accounts or deploy a new controller.
+
+1. Prepare an exact intent from canonical observations and owner review that this is an exclusive,
+   disposable native branch alias, with no custom/shared use. The intent has `scope` (copy the fixed object from the manifest),
+   `disposable: "exclusive-pr-preview"`, `prNumber`, `branch`, `prHead`, `deploymentId`, `commit`,
+   and `aliases: [{ "id": "<observed UID>", "hostname": "<complete observed hostname>" }]`.
+   Do not substitute a generated-looking URL or a suffix wildcard for observed identity.
+2. Run `node scripts/preview-register.mjs --capture /tmp/ownership-intent.json` from reviewed
+   code, with management-read access and `GITHUB_SHA` naming that code. It returns a
+   `proposal-only` record and changes nothing. Capture is not an exclusivity attestation.
+3. Put approved exact intents in
+   [`preview-ownership-adoptions.json`](../scripts/preview-ownership-adoptions.json) through
+   review and the normal default-branch release process. The committed list is currently empty.
+   Old previews cannot be adopted just by supplying a runtime deployment ID.
+4. After separately enabling `ownershipRegistrationEnabled` in reviewed code, a trusted default
+   runner with `LUNIA_PREVIEW_REGISTRATION_APPROVED_SHA` equal to `GITHUB_SHA` may run
+   `node scripts/preview-register.mjs --adopt <exact-deployment-id>`. It selects only the reviewed
+   intent, rechecks canonical state and writes a private temporary manifest candidate, separate
+   from the committed manifest consumed by cleanup. It returns `candidatePath` and `published:false`;
+   running cleanup in that same job cannot consume the candidate. Conflicting existing
+   records are immutable; repeat capture is idempotent. A lock, expected-snapshot comparison and
+   atomic rename prevent lost updates and partial JSON. No stale lock is stolen.
+5. Review/publish that manifest through the existing default-branch process. It becomes usable
+   only when ownership consumption and the original cleanup activation gates are approved.
+   Every new default SHA still needs exact-SHA cleanup approval. No publication automation or
+   bypass of that gate is included. Once the record is installed, ordinary close/reconciliation
+   events can remove its eligible deployment and observe native cleanup automatically.
+
+### Trusted completion contract and minimal native Vercel hookup
+
+A trusted provisioning host may call `registerOwnership(...)` or
+`node scripts/preview-register.mjs --completion <trusted-intent-file>` after deployment completion.
+This additionally requires `trustedProvisioningClaimsEnabled=true` and an owner-reviewed
+`ownershipProvisioningAfter` cutoff; older deployments still require reviewed adoption.
+It must authenticate the
+completion signal, run reviewed default code independently of the PR build, and supply its own
+explicit exact exclusive/disposable alias binding. It then publishes the local manifest candidate
+through the same reviewed process. No listener, signing key, new storage service, data branch,
+workflow, auto-publisher or account setting is installed by this PR.
+
+The precise native-Vercel boundary is the _disposable/exclusive intent_, not the ability to read
+alias identity. A native completion event or API response alone does not provide that intent.
+The [Get Alias contract](https://vercel.com/docs/rest-api/aliases/get-an-alias) provides UID and
+current routing. The official SDK's [deployment response](https://github.com/vercel/sdk/blob/a35c06b4644dc56ce956f66da06a41d50ee5a791/src/models/getdeploymentresponsebody.ts)
+provides optional automaticAliases/userAliases, without an exclusive full-ref ownership contract.
+The [generated URL documentation](https://vercel.com/docs/deployments/generated-urls) includes
+shared names and shortening, so deriving the binding from a pattern remains unsupported.
+
+The smallest safe hookup to the existing native integration is therefore: completion identifies
+an exact deployment; a trusted read-only capture prepares its tuple; owner-reviewed adoption
+supplies the missing exclusivity intent; the registrar records it; cleanup consumes the published
+record. Fully unattended registration requires a provisioning host that actually owns that
+binding and the existing approval/publication process to be operational. Blindly forwarding
+native webhook or PR fields into the trusted-completion API does not meet this contract.
+The exact adoption path is implemented now; no real preview has been adopted or removed.
 
 Read-only local plan: `npm run preview:cleanup -- --pr 91`, replacing 91 with the intended
 closed PR and securely supplying read credentials. No environment-file loader is included.
@@ -179,5 +221,5 @@ branch indefinitely. Provider docs were checked on 2026-10-08; no retention sett
 
 All restored previews and PR45 are preserved. The previously reported spare slot is not a
 current quota claim. Full local checks and exact-head CI belong to the draft's verification
-record. Live permission checks, actual deletion/native cleanup, alias eligibility, operational
+record. Live permission checks, actual deletion/native cleanup, registry publication/alias acceptance, operational
 quiescence and owner activation remain unverified and unapproved.

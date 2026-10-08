@@ -1,5 +1,9 @@
 {
   "executionEnabled": false,
+  "ownershipConsumptionEnabled": false,
+  "ownershipRegistrationEnabled": false,
+  "trustedProvisioningClaimsEnabled": false,
+  "ownershipProvisioningAfter": null,
   "closedAfter": null,
   "minimumClosedHours": 24,
   "neonProjectId": null,

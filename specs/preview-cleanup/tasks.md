@@ -36,3 +36,8 @@
       Depends: T-5, T-6
       Verify: fake HTTP rename, replacement, missing identity, immutable-ID errors and full checks; supported alias schema review.
       Evidence: verification.md records 131 cleanup tests and the full passing aggregate; docs/preview-cleanup.md records pinned SDK/API evidence and the unresolved alias policy decision.
+- [x] T-8: Register and consume trusted disposable-preview ownership
+      Refs: R-1, R-2, R-3, R-4, R-5, R-6
+      Depends: T-7
+      Verify: exact adoption and trusted-completion contracts, alias/domain/race protections, atomic registry updates, full checks and existing draft publication.
+      Evidence: verification.md records the full aggregate, 170 passing cleanup/registration tests and final static/unit/tooling checks; ownership records and all activation gates remain empty/disabled.

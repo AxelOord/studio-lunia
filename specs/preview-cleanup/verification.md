@@ -171,3 +171,49 @@ Default master, develop and PR45 remote heads were rechecked unchanged. Follow-u
 CI and normal preview terminal results are recorded in the PR handoff after publication.
 Actual cleanup, delayed cross-run native proof, alias eligibility, management access and
 activation remain unverified/unapproved. No live resources, settings or credentials changed.
+
+## Trusted ownership registration and manifest consumption
+
+The follow-up implements R-6 on the same PR47 branch. It supersedes the blanket alias
+block for explicitly registered exact tuples; unregistered aliases remain protected.
+The fixed manifest and reviewed-adoption list are empty, registration/consumption/trusted
+completion gates are false, and the provisioning cutoff is unset. No live preview was adopted.
+
+The registrar verifies fresh canonical PR/ref/commit/project/deployment/alias/domain/native
+identity. Existing previews require exact reviewed adoption intents; trusted completion additionally
+requires an explicit exclusive binding and approved provisioning cutoff. Native completion data
+alone does not prove disposable intent. Shared ownership guards are factored into one module
+used by registration and cleanup. No PR code or runtime manifest path is consumed.
+
+Registration returns a separate private temporary candidate, never overwrites the consumed
+manifest and never publishes Git. This separation prevents a candidate from gaining authority
+under the older approved workflow SHA in the same workspace. Local candidate updates use a
+lock, expected-snapshot check and atomic rename. Review/default-branch publication remains
+the trust boundary; no new controller, workflow, storage service, data branch or setting exists.
+
+Cleanup now rereads registered alias UIDs and complete project-domain pages before each DELETE.
+Wrong/recreated/reassigned identities, unknown aliases, custom domains, user-supplied aliases,
+known project/author URLs, redirects, microfrontends, shared bypasses, malformed metadata and
+current project targets remain protected. Multiple deployment bindings are permitted only for
+the same sole PR/full ref and alias generation. Manifest-preserved Neon IDs support delayed
+verification across runs; a retained renamed ID never reports deleted. A missing trusted ID
+still reports unverified. This does not remove cross-provider race/quiescence requirements.
+
+The **170-test** cleanup/registration suite uses fake APIs and HTTP only. It includes complete
+registration → ordinary aliased deployment removal → delayed native verification, source/approval
+gates, publication isolation, schema/owner conflicts, cutoff denial, aliases/domains, partial
+progress, pagination, old tests and concurrent/stale candidate writes. No provider mutation,
+real credential or artificial retry was used. Focused log:
+`/tmp/lunia-ownership-final-focused.log`.
+
+Full local `npm run verify` passed with static/generated checks, **34 unit, 32 PostgreSQL
+integration, 35 Python, 4 hook, 12 release, 168 cleanup, 1 built-dependency and 21 browser
+tests**, plus the production build. Two final malformed-domain/cutoff cases brought the
+focused suite to 170; final `npm run check` passed all static/unit/tooling stages on that
+implementation. Logs: `/tmp/lunia-ownership-final-verify.log` and
+`/tmp/lunia-ownership-final-check.log`. Browser retries remain zero. Final evidence-only
+documentation is checked again before commit; exact-head full CI is reported in the handoff.
+
+Default master, develop and PR45 were rechecked unchanged. The draft remains against develop;
+master installation, management access, actual registry publication, supported live alias
+acceptance, provider deletion/native reclamation and activation are still unperformed.

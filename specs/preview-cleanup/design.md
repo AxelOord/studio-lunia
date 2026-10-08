@@ -17,7 +17,8 @@ must match. A full 250-commit GitHub result is refused because that API caps the
 An unrelated, production, ambiguous or active deployment on the exact branch blocks
 the entire plan, including the final native cleanup trigger. Never trim a name, normalize
 a slash or guess a Neon branch name. Project targets and complete alias inventories
-are checked; any assigned alias blocks, since its disposability is not established. No API ever deletes a database or Blob object.
+are checked. Aliases require exact trusted ownership records and fresh routing/domain checks;
+unregistered or ambiguous aliases remain protected. No API ever deletes a database or Blob object.
 
 Execution takes only a freshly made plan and repeatedly rebuilds it before each exact-ID
 mutation. Remaining inventory may shrink after another actor deletes a deployment; it
@@ -38,8 +39,8 @@ separately by GET of the captured immutable ID; a rename cannot establish deleti
 Reproduction: after the final Vercel DELETE, retain the same Neon ID under a different
 name. The expected outcome is retained, never cleanup-verified. A later stateless run
 cannot prove a missing name represents deletion; without the original captured ID it
-reports unverified. This implementation does not accept identity from untrusted run
-artifacts or add persistent state. No direct Neon mutation exists.
+reports unverified. The only cross-run identity source is the reviewed ownership manifest;
+untrusted run artifacts are never accepted. No direct Neon mutation exists.
 
 An approved closure cutoff and minimum closed age exclude historical previews and provide
 a settling window. Hourly reconciliation inventories all PRs before mutations, prefilters
@@ -56,6 +57,30 @@ R-2: default-off policy, exact-SHA approval, supported gated adapter, gated work
 R-3: per-delete replan, immutable identity comparison, exclusive lock and Actions concurrency.
 R-4: sanitized progress result, bounded pagination, fake HTTP and failure/retry cases.
 R-5: runbook, preserved aggregate suite and exact-head draft evidence.
+R-6: fixed reviewed manifest, gated registrar, explicit adoption/provisioning claim contracts,
+fresh alias/domain reads and atomic local compare-and-swap publication preparation.
+
+## Ownership registration contract
+
+Keep the registry as data in reviewed default-branch code, not a new service or controller.
+The empty committed manifest grants no authority. A read-only capture produces a proposal;
+only review/publication on the trusted default branch makes it consumable. Existing previews
+use committed exact adoption intents. A separately enabled trusted provisioning caller can
+supply an explicit exclusive alias binding after completion; the native Vercel event does
+not itself prove that intent. No webhook listener, new storage, workflow or account change
+is deployed. The registrar writes only a separate private temporary manifest candidate under a lock with an
+expected-content check and atomic rename; it never publishes Git or changes provider resources.
+The existing exact-default-SHA approval still applies after manifest publication.
+
+Records bind PR creation identity/full ref, deployment ID/commit/time, alias UID/hostname/
+creation/update observations and optional native branch ID. They are immutable per deployment.
+The same branch alias can have successive explicitly registered deployment associations for
+the same sole PR. Conflicting owners, recreated alias IDs or mutated records fail closed.
+Cleanup admits only currently assigned exact tuples, excludes all configured project domains,
+redirects, microfrontends and project targets, and rechecks before every DELETE. A removed alias
+does not make an otherwise alias-free old deployment unsafe. No hostname pattern establishes
+ownership. Captured native IDs in the trusted manifest permit later read-only verification;
+conflicting native identities remain a blocker. Without a trusted ID, absence stays unverified.
 
 ## Tradeoffs and verification
 

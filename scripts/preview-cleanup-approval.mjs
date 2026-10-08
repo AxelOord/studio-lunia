@@ -1,5 +1,5 @@
 import policy from './preview-cleanup-policy.json' with { type: 'json' }
-import { scope, requireCleanup } from './preview-cleanup-core.mjs'
+import { scope, requireCleanup } from './preview-cleanup-identity.mjs'
 export { policy }
 
 // Reviewable configuration, not a missing implementation. Runtime variables alone
