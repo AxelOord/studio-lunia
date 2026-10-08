@@ -25,9 +25,9 @@
       Refs: R-1, R-2, R-3, R-4
       Depends: T-1, T-2
       Verify: fake HTTP DELETE, native branch identity, missing/retained resources and approval denials.
-      Evidence: verification.md records 114 fake-provider cleanup tests, including real adapter composition and reconciliation; no provider writes.
+      Evidence: verification.md records 118 fake-provider cleanup tests, including real adapter composition and reconciliation; no provider writes.
 - [x] T-6: Reconcile missed events without expanding deletion scope
       Refs: R-3, R-5
       Depends: T-5
       Verify: missed close events, delayed branch removal/build completion, cutoff and partial batches.
-      Evidence: verification.md records 114 fake-provider cleanup tests, including real adapter composition and reconciliation; no provider writes.
+      Evidence: verification.md records 118 fake-provider cleanup tests, including real adapter composition and reconciliation; no provider writes.

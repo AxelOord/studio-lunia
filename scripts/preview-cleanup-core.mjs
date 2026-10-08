@@ -140,7 +140,15 @@ async function githubContext(api, number) {
   let matched = 0
   for (const other of allPRs) {
     requireCleanup(
-      Number.isSafeInteger(other.number) && other.head && other.base,
+      Number.isSafeInteger(other.number) &&
+        ['open', 'closed'].includes(other.state) &&
+        typeof other.head?.ref === 'string' &&
+        typeof other.base?.ref === 'string' &&
+        sameRepository(other.base.repo) &&
+        (other.head.repo === null ||
+          (Number.isSafeInteger(other.head.repo?.id) &&
+            typeof other.head.repo.full_name === 'string' &&
+            other.head.repo.full_name.includes('/'))),
       'invalid-pr-inventory',
     )
     // A missing repo for a same-name ref is ambiguous (for example a deleted fork).
@@ -177,6 +185,12 @@ export async function planCleanup(api, number) {
     ownedProject(project)
     requireCleanup(
       project.targets && typeof project.targets === 'object' && !Array.isArray(project.targets),
+      'project-targets-unverified',
+    )
+    requireCleanup(
+      Object.values(project.targets).every(
+        (target) => target && /^dpl_[A-Za-z0-9]+$/.test(target.id),
+      ),
       'project-targets-unverified',
     )
     const inventory = await api.deployments(context.branch)

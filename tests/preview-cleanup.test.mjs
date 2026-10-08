@@ -1049,3 +1049,23 @@ test('reconciliation stops on a failed planning read and retains earlier outcome
   assert.deepEqual(visited, [91, 92])
   assert.equal(result.results[0].status, 'cleanup-verified')
 })
+
+for (const label of ['missing head ref', 'missing head repository ID', 'missing base ownership'])
+  test(`incomplete peer PR inventory (${label}) cannot hide branch reuse`, async () => {
+    const { state, api } = fixture()
+    const peer = structuredClone(state.pr)
+    peer.number = 92
+    peer.head.ref = 'feat/unrelated'
+    if (label === 'missing head ref') delete peer.head.ref
+    if (label === 'missing head repository ID') delete peer.head.repo.id
+    if (label === 'missing base ownership') delete peer.base.repo
+    state.prs.push(peer)
+    assert.equal((await executeCleanup(api, 91)).reason, 'invalid-pr-inventory')
+    assert.deepEqual(state.deleted, [])
+  })
+test('a malformed project target cannot hide a retained deployment', async () => {
+  const { state, api } = fixture()
+  state.project.targets.production = { deploymentId: 'dpl_last' }
+  assert.equal((await executeCleanup(api, 91)).reason, 'project-targets-unverified')
+  assert.deepEqual(state.deleted, [])
+})

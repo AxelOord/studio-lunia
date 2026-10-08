@@ -126,3 +126,9 @@ command setup error. The final check was rerun with the same explicit synthetic 
 as CI/full verification. No test or application code was changed to suppress the failure.
 Original failed log: `/tmp/lunia-cleanup-final-check.log`; corrected command log:
 `/tmp/lunia-cleanup-final-check-configured.log`.
+
+Final fail-closed review additionally found that a malformed peer PR without a head ref or
+repository ID could evade shared-branch detection, and a malformed project-target object
+could evade retained-target detection. These now block before any DELETE. Four regression
+cases bring the cleanup suite to **118 passing tests**; final static/unit/tooling checks
+were rerun. No provider access or application code change was involved.
