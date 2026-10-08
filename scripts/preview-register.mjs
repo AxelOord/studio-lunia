@@ -22,6 +22,7 @@ import {
   appendOwnership,
   inspectAliases,
   emptyOwnership,
+  assertProspectiveAliases,
 } from './preview-ownership.mjs'
 
 const manifestPath = fileURLToPath(new URL('./preview-ownership-manifest.json', import.meta.url))
@@ -58,7 +59,6 @@ export async function captureOwnership(
       /^[a-f0-9]{40}$/.test(workflowSha) &&
       ['reviewed-adoption', 'trusted-provisioning'].includes(kind) &&
       Array.isArray(intent.aliases) &&
-      intent.aliases.length > 0 &&
       intent.aliases.length <= 100 &&
       intent.aliases.every(
         (alias) => alias && isDeepStrictEqual(Object.keys(alias).sort(), ['hostname', 'id']),
@@ -103,6 +103,14 @@ export async function captureOwnership(
     'registration-alias-inventory-changed',
   )
   const aliases = await inspectAliases(api, project, detail, intent.aliases)
+  if (kind === 'trusted-provisioning')
+    assertProspectiveAliases(
+      project,
+      detail,
+      { number, branch: context.branch },
+      assigned,
+      await api.pullRequests(),
+    )
   const nativeBranch = api.nativeBranch ? await api.nativeBranch(context.branch) : null
   if (api.nativeBranch)
     requireCleanup(nativeBranch != null, 'native-branch-missing-before-registration')

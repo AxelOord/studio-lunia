@@ -14,6 +14,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  actions: read
 concurrency:
   group: studio-lunia-preview-cleanup
   cancel-in-progress: false
@@ -37,7 +38,8 @@ jobs:
         with:
           node-version-file: .node-version
           package-manager-cache: false
-      # No npm install, PR checkout, artifacts, cache or execution of PR data.
+      # No npm install, PR checkout, cache or execution of PR data.
+      # Receipt archives are verified as bounded data from approved default-code runs.
       - name: Reconcile approved preview scope
         run: node scripts/preview-cleanup.mjs
         env:
@@ -46,3 +48,4 @@ jobs:
           LUNIA_NEON_CLEANUP_READ_TOKEN: ${{ secrets.LUNIA_NEON_CLEANUP_READ_TOKEN }}
           LUNIA_PREVIEW_CLEANUP_MODE: ${{ vars.LUNIA_PREVIEW_CLEANUP_MODE || 'plan' }}
           LUNIA_PREVIEW_CLEANUP_APPROVED_SHA: ${{ vars.LUNIA_PREVIEW_CLEANUP_APPROVED_SHA }}
+          LUNIA_PREVIEW_RECEIPT_APPROVED_SHAS: ${{ vars.LUNIA_PREVIEW_RECEIPT_APPROVED_SHAS }}

@@ -14,6 +14,8 @@ import {
   reasonFor,
 } from './preview-cleanup-core.mjs'
 
+export const cleanupLockPath = join(tmpdir(), 'studio-lunia-preview-cleanup.lock')
+
 export function targetFromEvent(env, event) {
   requireCleanup(
     env.GITHUB_REPOSITORY === scope.repository &&
@@ -74,8 +76,7 @@ export async function main(
     env.GITHUB_ACTIONS === 'true'
       ? targetFromEvent(env, JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8')))
       : prNumber(remaining[1])
-  const path = join(tmpdir(), 'studio-lunia-preview-cleanup.lock')
-  return withCleanupLock(path, async () => {
+  return withCleanupLock(cleanupLockPath, async () => {
     const api = cleanupAPI(env, fetcher, { apply, policy: config })
     const run = async (pr) => {
       const plan = await planCleanup(api, pr)

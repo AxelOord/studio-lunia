@@ -74,12 +74,28 @@ project, PR/full ref, deployment, alias UID/hostname and available native branch
 fresh canonical provider reads. Registration SHALL require a trusted explicit exclusivity claim;
 an ordinary native deployment event or generated-looking URL alone is insufficient.
 Existing previews SHALL use explicitly reviewed adoption intents; trusted-completion records
-SHALL be limited to deployments after an approved provisioning cutoff. A committed default-branch
-manifest is the consumption trust boundary; runtime paths, PR files and arbitrary artifacts
-SHALL NOT supply cleanup authority. Registration/publication remains disabled pending setup.
+SHALL be limited to deployments after an approved provisioning cutoff. Reviewed default-branch
+data and authenticated receipts from approved default-branch code are the consumption trust boundary;
+runtime paths, PR files and arbitrary artifacts SHALL NOT supply cleanup authority.
+Registration/publication remains disabled pending setup.
 Local manifest updates SHALL be atomic, compare the prior snapshot and preserve other records.
 Check: registration-to-cleanup fake-provider journeys, immutable binding/conflict/schema tests,
 stale snapshots/concurrent writers, disabled gates and exact adoption/provisioning contracts.
+
+### R-7: Automatic trusted intake and receipt publication
+
+WHEN enabled by reviewed prospective disposal policy, a default-branch receiver SHALL authenticate
+native Vercel success dispatches, re-fetch canonical provenance and register exact eligible tuples.
+It SHALL publish immutable Actions receipts without Git writes or executing PR code. Consumption
+SHALL verify repository, producer workflow, approved code SHA, successful run/attempt, digest,
+schema and expiry. Untrusted producers never confer authority; malformed trusted receipts block.
+Hourly reconciliation SHALL recover missed, duplicated or out-of-order completion events, adopt
+only exact reviewed older tuples and renew verified receipts before expiry. Expired/missing
+receipts SHALL never establish alias or native identity. Publication failure SHALL not authorize
+cleanup. Declared Actions read/artifact-upload permissions are reviewable code only; activation,
+provider credentials, prospective policy and destructive-run approval remain separate decisions.
+Check: fake Actions/Vercel/Neon end-to-end intake-publication-consumption; sender, provenance,
+pagination, tampering, expiry, renewal, concurrency, reopen and partial-failure adversarial tests.
 
 ## Open questions
 

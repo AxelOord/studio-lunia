@@ -1,0 +1,50 @@
+name: Preview ownership (disabled until approved)
+on:
+  repository_dispatch:
+    types: [vercel.deployment.success]
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+concurrency:
+  group: studio-lunia-preview-cleanup
+  cancel-in-progress: false
+jobs:
+  register:
+    if: >-
+      github.repository == 'AxelOord/studio-lunia' &&
+      github.ref == 'refs/heads/master' &&
+      vars.LUNIA_PREVIEW_OWNERSHIP_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: preview-ownership
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Verify completion and prepare ownership receipt
+        id: receipt
+        run: node scripts/preview-intake.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          LUNIA_VERCEL_REGISTRATION_READ_TOKEN: ${{ secrets.LUNIA_VERCEL_REGISTRATION_READ_TOKEN }}
+          LUNIA_NEON_CLEANUP_READ_TOKEN: ${{ secrets.LUNIA_NEON_CLEANUP_READ_TOKEN }}
+          LUNIA_PREVIEW_REGISTRATION_APPROVED_SHA: ${{ vars.LUNIA_PREVIEW_REGISTRATION_APPROVED_SHA }}
+          LUNIA_PREVIEW_RECEIPT_APPROVED_SHAS: ${{ vars.LUNIA_PREVIEW_RECEIPT_APPROVED_SHAS }}
+      - name: Publish immutable ownership receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.receipt.outputs.name }}
+          path: ${{ steps.receipt.outputs.path }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+          overwrite: false

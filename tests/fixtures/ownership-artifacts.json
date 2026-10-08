@@ -1,0 +1,19 @@
+{
+  "generator": "archiver@7.0.1, file stream and zlib settings used by actions/toolkit artifact upload",
+  "payload": {
+    "fixture": "Actions upload-artifact ZIP compatibility",
+    "synthetic": true
+  },
+  "fixtures": [
+    {
+      "compressionLevel": 0,
+      "digest": "sha256:7b17a3230485942dc9f412c985c74081b807131db8b28ff8be3cee94a87b0b2e",
+      "zipBase64": "UEsDBBQACAAAABmaSF0AAAAAAAAAAAAAAAAOAAAAb3duZXJzaGlwLmpzb257ImZpeHR1cmUiOiJBY3Rpb25zIHVwbG9hZC1hcnRpZmFjdCBaSVAgY29tcGF0aWJpbGl0eSIsInN5bnRoZXRpYyI6dHJ1ZX1QSwcIYgF6KEgAAABIAAAAUEsBAi0DFAAIAAAAGZpIXWIBeihIAAAASAAAAA4AAAAAAAAAAAAgAICBAAAAAG93bmVyc2hpcC5qc29uUEsFBgAAAAABAAEAPAAAAIQAAAAAAA=="
+    },
+    {
+      "compressionLevel": 6,
+      "digest": "sha256:3cd5cd5442704dc44ffa47c7fa9d47c47028e66113676f3c05fb26ee22d66475",
+      "zipBase64": "UEsDBBQACAAIABmaSF0AAAAAAAAAAAAAAAAOAAAAb3duZXJzaGlwLmpzb24FwTEOgCAMBdCrkM56ATZHN2e3WiE2QSDwm0iMd/e9l6I+sBbI0yLQkruzmgqfMzdoZIHb181JuStDD02KQRP1kXEFqJBHs/D9UEsHCGIBeihJAAAASAAAAFBLAQItAxQACAAIABmaSF1iAXooSQAAAEgAAAAOAAAAAAAAAAAAIACAgQAAAABvd25lcnNoaXAuanNvblBLBQYAAAAAAQABADwAAACFAAAAAAA="
+    }
+  ]
+}

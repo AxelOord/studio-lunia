@@ -210,6 +210,8 @@ export async function inspectAliases(api, project, detail, expected) {
 export async function verifyOwnedAliases(api, project, detail, identity, assigned, records) {
   const record = records.find((item) => item.deployment.id === detail.id)
   requireCleanup(record, 'deployment-has-retained-aliases')
+  if (record.registration.kind === 'trusted-provisioning')
+    assertProspectiveAliases(project, detail, record.pr, assigned, await api.pullRequests())
   requireCleanup(
     isDeepStrictEqual(record.deployment, {
       id: identity.id,
@@ -237,16 +239,47 @@ export async function verifyOwnedAliases(api, project, detail, identity, assigne
   return observed
 }
 
+export function assertProspectiveAliases(project, detail, pr, aliases, inventory) {
+  if (aliases.length === 0) return
+  // Owner policy supplies intent. This only rejects ambiguous routing, including
+  // new normalized-ref collisions discovered after a receipt was published.
+  const normalized = pr.branch.replaceAll('/', '-')
+  const label = `${project.name}-git-${normalized}-${detail.team?.slug}`
+  requireCleanup(
+    Array.isArray(inventory) &&
+      inventory.every(
+        (other) => Number.isSafeInteger(other.number) && typeof other.head?.ref === 'string',
+      ) &&
+      /^[a-z0-9]+(?:[-/][a-z0-9]+)*$/.test(pr.branch) &&
+      label.length <= 63 &&
+      aliases.length === 1 &&
+      aliases[0].alias === `${label}.vercel.app` &&
+      !inventory.some(
+        (other) =>
+          other.number !== pr.number &&
+          other.head.ref.toLowerCase().replace(/[^a-z0-9]/g, '-') === normalized,
+      ),
+    'prospective-alias-ambiguous',
+  )
+}
+
 export function appendOwnership(manifest, record) {
+  return mergeOwnership(manifest, { ...emptyOwnership(), records: [record] })
+}
+
+export function mergeOwnership(manifest, incoming) {
   validateOwnership(manifest)
-  const existing = manifest.records.find((item) => item.deployment.id === record.deployment.id)
-  if (existing) {
-    // A repeat capture can have a new observation time/SHA; it cannot change authority.
-    requireCleanup(
-      isDeepStrictEqual({ ...existing, registration: null }, { ...record, registration: null }),
-      'ownership-record-immutable',
-    )
-    return structuredClone(manifest)
+  validateOwnership(incoming)
+  const records = new Map(manifest.records.map((record) => [record.deployment.id, record]))
+  for (const record of incoming.records) {
+    const existing = records.get(record.deployment.id)
+    if (existing) {
+      // A repeat observation cannot change disposal authority or native identity.
+      requireCleanup(
+        isDeepStrictEqual({ ...existing, registration: null }, { ...record, registration: null }),
+        'ownership-record-immutable',
+      )
+    } else records.set(record.deployment.id, record)
   }
-  return validateOwnership({ ...structuredClone(manifest), records: [...manifest.records, record] })
+  return validateOwnership(structuredClone({ ...manifest, records: [...records.values()] }))
 }

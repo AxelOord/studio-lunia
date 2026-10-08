@@ -44,7 +44,7 @@
     "test:tooling": "npm run test:workflow && npm run test:hooks && npm run test:release && npm run test:cleanup",
     "check:generated": "git diff --exit-code -- src/payload-types.ts \"src/app/(payload)/admin/importMap.js\"",
     "verify": "npm run generate:types && npm run generate:importmap && npm run check && npm run test:integration && npm run build && npm run check:generated && npm run test:build && npm run test:e2e",
-    "test:cleanup": "node --test tests/preview-cleanup.test.mjs tests/preview-ownership.test.mjs",
+    "test:cleanup": "node --test --test-concurrency=1 tests/preview-cleanup.test.mjs tests/preview-ownership.test.mjs tests/preview-receipts.test.mjs",
     "preview:cleanup": "node scripts/preview-cleanup.mjs"
   },
   "dependencies": {

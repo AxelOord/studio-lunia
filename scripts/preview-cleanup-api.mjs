@@ -2,6 +2,8 @@ import { policy, requireApplyApproval } from './preview-cleanup-approval.mjs'
 import { scope, requireCleanup, CleanupError } from './preview-cleanup-identity.mjs'
 import manifest from './preview-ownership-manifest.json' with { type: 'json' }
 import { emptyOwnership, validateOwnership } from './preview-ownership.mjs'
+import { loadReceipts } from './preview-receipts.mjs'
+import { receiptsAPI } from './preview-receipts-api.mjs'
 
 // No caller-controlled host, verb, team, project or repository. Provider response
 // bodies/errors never enter the public journal, including authentication failures.
@@ -71,7 +73,9 @@ export function cleanupAPI(env = process.env, fetcher = fetch, options = {}) {
   return {
     ownershipManifest: () =>
       config.ownershipConsumptionEnabled === true
-        ? validateOwnership(structuredClone(ownership))
+        ? config.ownershipReceiptsEnabled === true
+          ? loadReceipts(receiptsAPI(env, fetcher), ownership, env, config)
+          : validateOwnership(structuredClone(ownership))
         : emptyOwnership(),
     repository: () => read('github', repoPath),
     project: () => read('vercel', `/v9/projects/${scope.projectId}?${teamQuery}`),

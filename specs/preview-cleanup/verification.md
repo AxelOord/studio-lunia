@@ -240,3 +240,63 @@ The first failure is preserved at `/tmp/lunia-microfrontend-first-failure/`; agg
 No local retry, timeout change, CMS code edit or assertion weakening was used. A fresh hosted
 runner checks the exact published head independently; its terminal result belongs in PR47.
 The correction does not add a completion listener/publisher or activate any gate.
+
+## Automatic intake and Actions receipt publication
+
+The authorized follow-up adds a disabled default-code Vercel success receiver, hourly/manual
+reconciliation, explicit prospective owner policy and automatic exact adoption from the reviewed
+intent list. It publishes immutable bounded Actions receipts without Git writes. Consumption
+checks successful exact run attempts, workflow/repository/ref/approved revisions, archive digest,
+strict schema and expiry. Historical registration revisions must also remain approved. The
+publisher renews only unexpired trusted records; missing/expired authority cannot be inferred.
+The two workflows share concurrency and an exclusive local lock. Declaration of Actions read
+and job-scoped artifact upload does not configure or activate repository permissions.
+
+The fake-provider suite covers native completion through published receipt consumption, exact
+deployment deletion and delayed immutable Neon verification; forged senders, PR artifacts,
+failed/incomplete producer attempts, replay, origin revision revocation, expiry/renewal, changed
+PRs, pending native identity, pagination, conflicts and partial captures. Independent ZIP fixtures
+were generated with archiver@7.0.1 (file streams at compression 0 and 6), the archive library/API
+used by actions/toolkit, and both decode successfully. The temporary compatibility install is
+outside the repo and changes no app dependency. No test contacts a live management API.
+
+Full local `npm run verify` passed: static/generated checks, **34 unit, 32 PostgreSQL integration,
+35 Python, 4 hook, 12 release, 235 cleanup/registration/receipt, 1 built-dependency and all 21
+browser tests**, plus production build. Log: `/tmp/lunia-receipts-full-verify.log`. Final bounded
+publication, prospective alias ambiguity/collision and snapshot tests bring the focused suite to
+**241 passing cases** (`/tmp/lunia-receipts-final-focused.log`); final exact-head CI is reported in
+PR47's handoff. Cleanup test files run sequentially because CLI tests intentionally share the
+production exclusive lock; in-test contention remains tested. No retries were introduced.
+
+The first new focused run passed 229/230; a workflow source assertion incorrectly treated the
+comment “No npm install” as a command. The scanner now excludes YAML comments, preserving the
+executable-content prohibition. The first static run found missing R-7 design traceability;
+the mapping was added. Logs `/tmp/lunia-receipts-focused.log` and `/tmp/lunia-receipts-static.log`
+retain those setup/test-scanner failures rather than hiding them.
+
+Prospective records now require the complete native branch slot and no normalized-ref collision,
+both when registered and before deletion. An existing trusted-provisioning test exposed its old
+shortened synthetic hostname; its fixture now uses the full native hostname. Its assertions remain
+unchanged, and explicit reviewed-adoption fixtures still exercise noncanonical exact bindings.
+The consumer uses the newest complete verified snapshot, whose approved producer carries prior
+trusted records forward; it never falls back after trusted validation failure. This avoids an
+unbounded sequence of redundant archive downloads on every replan. A failed or incomplete producer
+does not replace the previous successful snapshot. Final static/unit/tooling checks cover these
+last controller changes; application code is unchanged since the full passing aggregate.
+
+### CMS timeout investigation and preservation
+
+The original trace remains at `/tmp/lunia-microfrontend-first-failure/`. Its network trace has
+no HTTP failure and no page JavaScript error before the missing-field timeout. The snapshot
+contains the service-card row but no title field. Pinned Payload ArrayRow → RenderFields →
+RenderIfInViewport code mounts nested fields only after intersection/viewport observation.
+The earlier test tried to locate an input that could still be unmounted, without first scrolling
+the existing row. This is a layout/observer-dependent test assumption, not an import or application
+change introduced by cleanup. The exact historical observer timing was not deterministically
+reproduced: the isolated diagnostic showed the field already mounted at row top 624px.
+
+The test now scrolls the existing service-card row before locating/filling its input. This is
+a normal editor interaction; all preview, access, persistence, content and responsive assertions
+and original timeouts remain. The isolated journey passed, then all 21 journeys passed in the
+full aggregate. Diagnostic log: `/tmp/lunia-receipts-cms-investigation.log`. No CMS/application
+code, Payload patch, fixture data, assertion or retry policy changed.

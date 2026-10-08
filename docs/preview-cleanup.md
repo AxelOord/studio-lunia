@@ -7,7 +7,7 @@ Related: [issue #46](https://github.com/AxelOord/studio-lunia/issues/46),
 The controller implements planning, exact-ID Vercel deletion, scheduled reconciliation and
 read-only native Neon observation. **Destructive execution remains disabled.** The committed
 [activation policy](../scripts/preview-cleanup-policy.json) has `executionEnabled=false`,
-no closure cutoff and no native project IDs. Ownership registration, consumption and trusted-provisioning claims are also disabled; the manifest and adoption-intent list are empty. Neither an apply flag nor variables can bypass
+no closure cutoff and no native project IDs. Ownership registration, consumption, artifact receipts and prospective native alias policy are also disabled; the manifest and adoption-intent list are empty. Neither an apply flag nor variables can bypass
 that policy. The real HTTP adapter is exercised only through owned fake transports in tests.
 No live cleanup, credential setup, resource retry or provider setting change was performed.
 
@@ -76,7 +76,8 @@ The result includes the captured `nativeBranchId` for operator reconciliation.
 A trusted manifest record can preserve that native ID across runs. A later run verifies the
 same ID even if its name changed; conflicting replacement identities block. Without such a
 record, a missing expected name still reports `deployments-absent`/`unverified`. The controller
-never consumes prior logs or arbitrary artifacts as deletion authority. Absence is not a claim
+never consumes prior logs or arbitrary artifacts as deletion authority. Only receipts authenticated
+through the approved producer boundary below are accepted. Absence is not a claim
 about reclaimed billing/quota, recovery windows or backups. There is no direct Neon deletion fallback.
 
 **Cross-provider atomicity remains unavailable.** A user can reopen/recreate a branch, promote
@@ -112,8 +113,9 @@ The code path is implemented; operational setup remains separate:
 
 The implementation now supports ordinary branch aliases through exact ownership records in
 [`preview-ownership-manifest.json`](../scripts/preview-ownership-manifest.json), loaded only from
-the same reviewed checkout as cleanup code. No runtime manifest path, PR file, downloaded artifact
-or webhook payload grants authority. `ownershipConsumptionEnabled=false` keeps this path disabled.
+the same reviewed checkout as cleanup code. No runtime manifest path, PR file, arbitrary downloaded artifact
+or webhook payload grants authority. Authenticated default-code receipts are an additional
+reviewed data source, gated separately by `ownershipReceiptsEnabled`. `ownershipConsumptionEnabled=false` keeps this path disabled.
 The committed empty manifest grants no disposal authority to any existing preview.
 
 Each immutable record contains the fixed scope, PR number/creation identity/full ref/observed head,
@@ -149,47 +151,99 @@ Git, change aliases, configure accounts or deploy a new controller.
    [`preview-ownership-adoptions.json`](../scripts/preview-ownership-adoptions.json) through
    review and the normal default-branch release process. The committed list is currently empty.
    Old previews cannot be adopted just by supplying a runtime deployment ID.
-4. After separately enabling `ownershipRegistrationEnabled` in reviewed code, a trusted default
-   runner with `LUNIA_PREVIEW_REGISTRATION_APPROVED_SHA` equal to `GITHUB_SHA` may run
-   `node scripts/preview-register.mjs --adopt <exact-deployment-id>`. It selects only the reviewed
-   intent, rechecks canonical state and writes a private temporary manifest candidate, separate
-   from the committed manifest consumed by cleanup. It returns `candidatePath` and `published:false`;
-   running cleanup in that same job cannot consume the candidate. Conflicting existing
-   records are immutable; repeat capture is idempotent. A lock, expected-snapshot comparison and
-   atomic rename prevent lost updates and partial JSON. No stale lock is stolen.
-5. Review/publish that manifest through the existing default-branch process. It becomes usable
-   only when ownership consumption and the original cleanup activation gates are approved.
-   Every new default SHA still needs exact-SHA cleanup approval. No publication automation or
-   bypass of that gate is included. Once the record is installed, ordinary close/reconciliation
-   events can remove its eligible deployment and observe native cleanup automatically.
+4. Once the disabled intake workflow is installed and approved, its scheduled or manual run
+   consumes those exact intents, rechecks canonical state and publishes an immutable Actions receipt.
+   No manual manifest publication is needed per adopted deployment. The standalone `--adopt`
+   command remains a candidate-only diagnostic; it is not the automatic workflow.
+5. Cleanup consumes only authenticated receipts and the committed manifest, with ownership
+   consumption and destructive execution independently gated. No restored preview was adopted.
 
-### Trusted completion contract and minimal native Vercel hookup
+### Automatic native completion and receipt publication
 
-A trusted provisioning host may call `registerOwnership(...)` or
-`node scripts/preview-register.mjs --completion <trusted-intent-file>` after deployment completion.
-This additionally requires `trustedProvisioningClaimsEnabled=true` and an owner-reviewed
-`ownershipProvisioningAfter` cutoff; older deployments still require reviewed adoption.
-It must authenticate the
-completion signal, run reviewed default code independently of the PR build, and supply its own
-explicit exact exclusive/disposable alias binding. It then publishes the local manifest candidate
-through the same reviewed process. No listener, signing key, new storage service, data branch,
-workflow, auto-publisher or account setting is installed by this PR.
+[preview-ownership.yml](../.github/workflows/preview-ownership.yml) implements the automatic loop.
+It receives native `repository_dispatch: vercel.deployment.success` events on default master,
+reconciles hourly and supports manual reconciliation. `preview-intake.mjs` requires the exact
+approved default SHA and an observed, configured immutable Vercel bot sender ID for completion
+signals. Event URLs and disposal claims are never used; the job re-fetches canonical GitHub,
+Vercel, alias/domain and native Neon state. Fork/protected/shared/reused PR checks precede
+provider capture. The workflow executes no PR checkout, dependency installation or PR code.
 
-The precise native-Vercel boundary is the _disposable/exclusive intent_, not the ability to read
-alias identity. A native completion event or API response alone does not provide that intent.
-The [Get Alias contract](https://vercel.com/docs/rest-api/aliases/get-an-alias) provides UID and
-current routing. The official SDK's [deployment response](https://github.com/vercel/sdk/blob/a35c06b4644dc56ce956f66da06a41d50ee5a791/src/models/getdeploymentresponsebody.ts)
-provides optional automaticAliases/userAliases, without an exclusive full-ref ownership contract.
-The [generated URL documentation](https://vercel.com/docs/deployments/generated-urls) includes
-shared names and shortening, so deriving the binding from a pattern remains unsupported.
+The owner must separately approve `prospectiveNativeAliasesExclusive=true`,
+`trustedProvisioningClaimsEnabled=true` and `ownershipProvisioningAfter`. This is an explicit
+prospective disposal policy for eligible native preview aliases in this fixed project. It is
+an owner assertion of exclusive use, not something inferred from a hostname or Vercel event.
+All exact identity, custom/shared/project/author-domain, microfrontend and project-target
+exclusions still apply. Prospective capture permits at most the complete unshortened native
+branch alias and rejects colliding normalized PR refs; shortened, unusual or additional aliases
+require explicit reviewed adoption. This restriction is not disposal authority by itself.
+Earlier deployments require exact reviewed adoption; missing/ambiguous
+provider evidence remains blocked. Alias-free captures preserve native IDs too.
 
-The smallest safe hookup to the existing native integration is therefore: completion identifies
-an exact deployment; a trusted read-only capture prepares its tuple; owner-reviewed adoption
-supplies the missing exclusivity intent; the registrar records it; cleanup consumes the published
-record. Fully unattended registration requires a provisioning host that actually owns that
-binding and the existing approval/publication process to be operational. Blindly forwarding
-native webhook or PR fields into the trusted-completion API does not meet this contract.
-The exact adoption path is implemented now; no real preview has been adopted or removed.
+The producer uses pinned `actions/upload-artifact` to publish a single bounded `ownership.json`
+snapshot under `preview-ownership-<run-id>-<attempt>`, with overwrite disabled and 14-day
+artifact retention. A receipt grants authority only after its producer attempt succeeds.
+No Git contents-write permission, data branch, custom webhook service or signing secret is used.
+Provider calls from intake are read-only. The job-scoped artifact credential supplies publication
+access; `GITHUB_TOKEN` needs `contents:read`, `pull-requests:read` and `actions:read`.
+
+The consumer verifies the fixed repository, workflow path/ID, default branch, approved producer
+SHA, exact successful run attempt, event/actor, artifact ID/digest, bounded single-file ZIP and
+strict receipt/ownership schema.
+Each successful producer publishes a complete snapshot retaining prior trusted records; consumers
+use the newest verified snapshot, avoiding download of hundreds of redundant archives per plan.
+They never fall back to an older snapshot after validation of a trusted snapshot fails.
+The consumer never extracts or executes artifact contents. Signed download
+URLs come only from authenticated GitHub responses, use approved HTTPS storage hosts and receive
+no GitHub/provider token. Unknown PR artifacts confer no authority. Malformed trusted receipts,
+incomplete pagination, ownership conflicts or failed reads block cleanup.
+
+Receipts expire after seven days. Hourly reconciliation republishes only still-valid trusted
+records plus newly verified captures; it preserves immutable native IDs after deployments vanish.
+Expired receipts cannot be renewed from expired data. Existing eligible resources can be freshly
+captured; otherwise explicit recovery/adoption is required. Both workflows share non-cancelling
+concurrency; hourly inventory recovers completion events displaced from the pending queue.
+Duplicate/out-of-order completion is idempotent. A changed PR or failure rolls back that PR's
+new captures, while unrelated verified PR records may still publish with a sanitized journal.
+
+The bounded inventory supports up to 2,000 repository artifacts and 2,000 ownership records,
+with 4 MiB archive/JSON limits. Limits block rather than truncate; operators must review retention
+or retired metadata when approaching them. A workflow outage exceeding receipt validity may
+require explicit recovery of missing immutable IDs. Artifacts are data transport, not a guarantee
+of perpetual historical storage or quota reclamation.
+
+### One-time setup and recurring approvals
+
+No settings below were applied by this draft:
+
+- Install cleanup-only code/workflows/tests/docs on empty master using an explicit file allowlist;
+  do not merge the entire develop feature history. Review production-trigger handling first:
+  even an operations-only master push can trigger Vercel. Develop merging alone is insufficient.
+- Approve the prospective disposal policy/cutoff, observed Vercel sender ID, native project/org/source
+  mapping, exclusive integration use and settling/quiescence policy. Review exact older-preview
+  adoption intents separately. Set the committed gates only through reviewed code.
+- Configure a `preview-ownership` environment restricted explicitly to master, with read-only
+  `LUNIA_VERCEL_REGISTRATION_READ_TOKEN` and `LUNIA_NEON_CLEANUP_READ_TOKEN`. Cleanup uses the
+  separately protected `preview-cleanup` environment and its deployment-delete token. Actual
+  provider token scopes require acceptance; no least-privilege capability is assumed available.
+- Repository variables `LUNIA_PREVIEW_OWNERSHIP_ENABLED=true` and
+  `LUNIA_PREVIEW_CLEANUP_PLANNING_ENABLED=true` admit jobs. They must be available before job start.
+  Both environments need `LUNIA_PREVIEW_RECEIPT_APPROVED_SHAS`, a comma-separated allowlist of up
+  to 20 reviewed producer/registration SHAs. Registration additionally requires its current
+  `LUNIA_PREVIEW_REGISTRATION_APPROVED_SHA`; apply requires `LUNIA_PREVIEW_CLEANUP_APPROVED_SHA`.
+  Update approvals for code changes; receipt publication creates no master commits or new SHA.
+- Start with cleanup mode `plan`. Separately approve any destructive `apply` activation. Required
+  environment reviewers pause every job, including schedules: retaining that policy deliberately
+  retains human approval of deletion. Removing/replacing it to allow unattended execution is a
+  separate security decision, not missing controller code. Registration reviewers similarly
+  determine whether receipt production itself can run without per-job approval.
+- Cleanup requires the PR's Git head branch to be absent. Manual removal or a separately approved
+  repository branch-deletion policy remains necessary; the controller never deletes refs.
+
+After installation and approved registration policy, new eligible previews need no per-preview
+manual manifest publication. Routine human work is code-revision approval, explicit historical or
+ambiguous-resource decisions, and destructive-run approvals required by the chosen environment
+policy. The default 24-hour settling window and hourly reconciliation remain. This is implemented
+and disabled code, not a claim of unattended live operation or provider acceptance.
 
 Read-only local plan: `npm run preview:cleanup -- --pr 91`, replacing 91 with the intended
 closed PR and securely supplying read credentials. No environment-file loader is included.
@@ -204,7 +258,7 @@ The current [GitHub event contract](https://docs.github.com/en/actions/reference
 uses default-branch code for `pull_request_target`; `branches: [develop]` filters the PR base.
 Manual dispatch and schedules also require default-branch installation. The job enforces
 `refs/heads/master` and checks out the exact `github.sha`. No PR checkout, dependency install,
-artifact download or cache restoration occurs (`package-manager-cache: false` is explicit).
+arbitrary artifact download or cache restoration occurs (`package-manager-cache: false` is explicit).
 Fork close events are skipped before the secret step; canonical fork checks precede Vercel
 reads for manually selected PRs. No merge/default-branch/repository-permission change is made.
 
@@ -221,5 +275,5 @@ branch indefinitely. Provider docs were checked on 2026-10-08; no retention sett
 
 All restored previews and PR45 are preserved. The previously reported spare slot is not a
 current quota claim. Full local checks and exact-head CI belong to the draft's verification
-record. Live permission checks, actual deletion/native cleanup, registry publication/alias acceptance, operational
+record. Live permission checks, actual deletion/native cleanup, live receipt publication/alias acceptance, operational
 quiescence and owner activation remain unverified and unapproved.

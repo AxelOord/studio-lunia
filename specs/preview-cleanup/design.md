@@ -63,16 +63,19 @@ R-4: sanitized progress result, bounded pagination, fake HTTP and failure/retry 
 R-5: runbook, preserved aggregate suite and exact-head draft evidence.
 R-6: fixed reviewed manifest, gated registrar, explicit adoption/provisioning claim contracts,
 fresh alias/domain reads and atomic local compare-and-swap publication preparation.
+R-7: default-code receiver, prospective owner policy, immutable artifact publication,
+authenticated receipt consumption and hourly renewal/reconciliation.
 
 ## Ownership registration contract
 
-Keep the registry as data in reviewed default-branch code, not a new service or controller.
+Keep committed adoption data and authenticated Actions receipts, without a new service.
 The empty committed manifest grants no authority. A read-only capture produces a proposal;
-only review/publication on the trusted default branch makes it consumable. Existing previews
+review/publication or an approved producer makes it consumable. Existing previews
 use committed exact adoption intents. A separately enabled trusted provisioning caller can
 supply an explicit exclusive alias binding after completion; the native Vercel event does
-not itself prove that intent. No webhook listener, new storage, workflow or account change
-is deployed. The registrar writes only a separate private temporary manifest candidate under a lock with an
+not itself prove that intent. The new disabled intake workflow supplies that claim only under
+the prospective owner policy below. No account change is applied. The standalone registrar
+writes only a separate private temporary manifest candidate under a lock with an
 expected-content check and atomic rename; it never publishes Git or changes provider resources.
 The existing exact-default-SHA approval still applies after manifest publication.
 
@@ -85,6 +88,35 @@ redirects, microfrontends and project targets, and rechecks before every DELETE.
 does not make an otherwise alias-free old deployment unsafe. No hostname pattern establishes
 ownership. Captured native IDs in the trusted manifest permit later read-only verification;
 conflicting native identities remain a blocker. Without a trusted ID, absence stays unverified.
+
+## Automatic receipt boundary
+
+The gated preview-ownership workflow runs default master code for native Vercel success
+repository_dispatch, hourly reconciliation or explicit operator dispatch. A configured immutable
+Vercel sender ID authenticates the wake-up; canonical provider reads supply identities. The owner
+must explicitly approve prospective exclusive native preview alias use in this fixed project and
+a cutoff. That policy supplies disposal intent, not event metadata or a hostname pattern. Exact
+reviewed adoptions remain the only path for earlier deployments. Prospective alias capture is
+additionally limited to the complete unshortened native branch slot, with collision checks
+against normalized refs in the full PR inventory. Unusual/shortened/additional aliases need
+explicit adoption; pattern matching is a negative ambiguity guard, never disposal authority.
+
+The producer publishes one bounded ownership.json snapshot with pinned upload-artifact, only
+after all required receipts and provider reads succeed. Both workflows share non-cancelling
+concurrency. A successful run, its exact workflow path/ID, master ref, repository IDs, approved
+producer SHA, run attempt, receipt lifetime and archive digest authenticate consumption. Approved
+producer SHAs are a separately configured allowlist so code updates can preserve explicitly
+approved older receipts without giving PR artifacts authority. A new consumer validates a single
+bounded JSON entry in the archive without extracting files or executing data. Artifact storage is
+the existing GitHub Actions service; no Git publisher or new service exists.
+
+Hourly snapshots renew still-valid historical receipts, preserving immutable Neon IDs even after
+deployments disappear. Expired receipts are not revived; currently eligible resources must be
+recaptured from canonical state, or explicitly adopted. Existing committed records stay valid.
+Missing provenance, failed publication, incomplete pagination and conflicting records fail closed.
+Only a successful producer run confers authority, so a failed upload/job cannot partly publish.
+Metadata archives have bounded size/count and retention; reaching a bound blocks instead of
+silently truncating history. This does not eliminate cross-provider read/write races.
 
 ## Tradeoffs and verification
 

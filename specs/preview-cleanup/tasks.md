@@ -46,3 +46,8 @@
       Depends: T-8
       Verify: unconditional project/deployment exclusions, alias-free initial and partial-progress regressions, full-check execution and disclosed limitations.
       Evidence: verification.md records 177 passing cleanup tests and the full local run's unrelated browser failure; exact-head CI is reported separately in PR47. No activation or feature expansion.
+- [x] T-10: Complete disabled automatic intake and receipt publication
+      Refs: R-1, R-2, R-3, R-4, R-5, R-6, R-7
+      Depends: T-9
+      Verify: authenticated event/producer boundaries, canonical registration, artifact consumption, renewal/reconciliation and adversarial tests; investigate the CMS timeout and run full checks/exact-head CI.
+      Evidence: verification.md records the successful full aggregate, CMS investigation and 241 passing final cleanup/receipt cases; final checks and exact-head CI are reported in PR47's handoff. No activation or account changes.

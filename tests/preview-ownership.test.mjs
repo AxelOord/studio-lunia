@@ -40,7 +40,7 @@ function ownedFixture() {
   }
   state.alias = {
     uid: 'alias_branch',
-    alias: 'studio-lunia-git-owned-axeloords-projects.vercel.app',
+    alias: 'studio-lunia-git-feat-owned-preview-axeloords-projects.vercel.app',
     projectId: scope.projectId,
     deploymentId: 'dpl_last',
     redirect: null,
