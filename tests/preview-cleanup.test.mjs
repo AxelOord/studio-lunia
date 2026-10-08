@@ -329,7 +329,7 @@ test('HTTP adapter scopes every request, paginates and never follows caller URLs
       )
     return json({
       deployments: [{ uid: u.searchParams.has('until') ? 'dpl_second' : 'dpl_first' }],
-      pagination: { next: u.searchParams.has('until') ? null : 123 },
+      pagination: { count: 1, next: u.searchParams.has('until') ? null : 123 },
     })
   })
   assert.equal((await api.pullRequests()).length, 100)
@@ -368,7 +368,7 @@ test('production adapter and core compose into a complete read-only plan', async
     if (u.pathname === '/v7/deployments')
       return json({
         deployments: [...state.rows.keys()].map((uid) => ({ uid })),
-        pagination: { next: null },
+        pagination: { count: state.rows.size, next: null },
       })
     if (u.pathname.startsWith('/v13/deployments/'))
       return json(state.rows.get(u.pathname.split('/').at(-1)))
@@ -385,15 +385,17 @@ for (const status of [401, 403, 429, 500])
     await assert.rejects(api.branch('feat/test'), /github-read-failed/)
     await assert.rejects(api.deployment('dpl_test'), /vercel-read-failed/)
   })
-for (const next of [undefined, '123', 0, -1])
+for (const next of ['123', 0, -1])
   test(`malformed pagination ${String(next)} fails closed`, async () => {
-    const api = cleanupAPI(tokens, async () => json({ deployments: [], pagination: { next } }))
+    const api = cleanupAPI(tokens, async () =>
+      json({ deployments: [], pagination: { count: 0, next } }),
+    )
     await assert.rejects(api.deployments('feat/test'), /invalid-vercel-cursor/)
   })
 test('repeated cursor and incomplete GitHub pagination fail closed', async () => {
   const api = cleanupAPI(tokens, async (url) =>
     url.includes('vercel')
-      ? json({ deployments: [], pagination: { next: 123 } })
+      ? json({ deployments: [], pagination: { count: 0, next: 123 } })
       : json(Array.from({ length: 100 }, () => ({}))),
   )
   await assert.rejects(api.deployments('feat/test'), /invalid-vercel-cursor/)
@@ -535,3 +537,16 @@ test('HTTP timeout and invalid JSON are sanitized, without retry', async () => {
     assert.equal(calls, 1)
   }
 })
+
+for (const pagination of [{ count: 1 }, { count: 1, next: null }])
+  test('accepts a counted terminal Vercel page with omitted or null next cursor', async () => {
+    const api = cleanupAPI(tokens, async () =>
+      json({ deployments: [{ uid: 'dpl_last' }], pagination }),
+    )
+    assert.deepEqual(await api.deployments('feat/test'), [{ uid: 'dpl_last' }])
+  })
+for (const pagination of [{}, { count: 2, next: null }])
+  test('refuses absent or inconsistent page counts', async () => {
+    const api = cleanupAPI(tokens, async () => json({ deployments: [], pagination }))
+    await assert.rejects(api.deployments('feat/test'), /invalid-vercel-page/)
+  })

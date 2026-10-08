@@ -65,12 +65,15 @@ export function cleanupAPI(env = process.env, fetcher = fetch) {
         // Do not filter by target/state: production or in-flight peers must block cleanup.
         const data = await read('vercel', `/v7/deployments?${query}`)
         requireCleanup(
-          Array.isArray(data.deployments) && data.deployments.length <= 100 && data.pagination,
+          Array.isArray(data.deployments) &&
+            data.deployments.length <= 100 &&
+            Number.isSafeInteger(data.pagination?.count) &&
+            data.pagination.count === data.deployments.length,
           'invalid-vercel-page',
         )
         items.push(...data.deployments)
         const next = data.pagination.next
-        if (next === null) return items
+        if (next === null || next === undefined) return items
         requireCleanup(
           Number.isSafeInteger(next) &&
             next > 0 &&

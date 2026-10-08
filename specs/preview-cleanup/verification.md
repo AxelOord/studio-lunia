@@ -40,3 +40,16 @@ Log: `/tmp/lunia-cleanup-verify.log`; focused log: `/tmp/lunia-cleanup-focused.l
 Exact-head CI and the ordinary automatic preview will be recorded in the draft PR
 conversation; local success does not establish live cleanup or hosted acceptance. No live deletion, management setup, secret,
 security, billing, production, PR merge or unrelated roadmap work is authorized by this task.
+
+## Terminal pagination compatibility
+
+The first ordinary preview inventory at head 0311e3f returned a counted terminal page
+with no `pagination.next` property. Review found the adapter incorrectly demanded an
+explicit null. It now accepts omitted/null terminal cursors only with a valid count
+matching the returned rows; malformed/repeated cursors and missing/inconsistent counts
+still fail closed. The focused suite passes all 85 cases after this correction, and
+`npm run check:static` passes. The earlier full aggregate remains the unchanged application
+regression evidence; exact-head CI runs the full aggregate with the corrected adapter.
+No live management token or cleanup execution was used. The initial ordinary deployment
+`dpl_29yeDAZLPyrakpJMy8EWgsFzJMjh` reached READY at 0311e3f; this is application deployment
+evidence, not lifecycle activation. Final-head evidence belongs in the PR conversation.
