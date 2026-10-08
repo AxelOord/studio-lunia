@@ -18,14 +18,14 @@ integration tests, the build/generated-file check, built-dependency tests and Pl
 GitHub additionally validates PR metadata and hook portability on Windows. No retries
 turn a failing application test into a passing build.
 
-| Command                               | Purpose                                                                      |
-| ------------------------------------- | ---------------------------------------------------------------------------- |
-| `npm run check:static`                | Lint, strict types, formatting and spec traceability                         |
-| `npm run test:unit`                   | Fast application behavior and test/standards guard tests                     |
-| `npm run test:tooling`                | Python bootstrap/backup/connection/spec security, hooks and release behavior |
-| `npm run test:integration`            | Real migrations, access, transactions, idempotency, fixtures and recovery    |
-| `npm run build && npm run test:build` | Compiled application and actual traced dependency subset                     |
-| `npm run test:e2e`                    | Real CMS/public journeys, showcase and private-upload metadata               |
+| Command                               | Purpose                                                                                       |
+| ------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `npm run check:static`                | Lint, strict types, formatting and spec traceability                                          |
+| `npm run test:unit`                   | Fast application behavior and test/standards guard tests                                      |
+| `npm run test:tooling`                | Python bootstrap/backup/connection/spec security, hooks, release and preview-cleanup behavior |
+| `npm run test:integration`            | Real migrations, access, transactions, idempotency, fixtures and recovery                     |
+| `npm run build && npm run test:build` | Compiled application and actual traced dependency subset                                      |
+| `npm run test:e2e`                    | Real CMS/public journeys, showcase and private-upload metadata                                |
 
 ## Isolation and selected tests
 
@@ -67,3 +67,5 @@ Fake provider boundaries verify our contracts, not hosted permissions or deliver
 The upload project blocks browser requests leaving localhost. Analytics and real customer
 mail remain disabled. Hosted acceptance uses a protected automatic preview on the exact
 commit and is reported separately from local/CI results.
+
+`npm run test:cleanup` covers the disabled preview lifecycle controller using owned fake GitHub/Vercel resources. It includes HTTP-boundary, pagination, fork, race, lock and partial-failure tests without management credentials or provider mutations. It runs within `test:tooling`, both locally and in CI. See [the activation limits](preview-cleanup.md).

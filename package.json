@@ -41,9 +41,11 @@
     "test:unit": "vitest run --project unit --outputFile.junit=test-results/unit.xml",
     "test:build": "vitest run --project build --outputFile.junit=test-results/build.xml",
     "check:static": "npm run spec:check && npm run lint && npm run typecheck && npm run format:check",
-    "test:tooling": "npm run test:workflow && npm run test:hooks && npm run test:release",
+    "test:tooling": "npm run test:workflow && npm run test:hooks && npm run test:release && npm run test:cleanup",
     "check:generated": "git diff --exit-code -- src/payload-types.ts \"src/app/(payload)/admin/importMap.js\"",
-    "verify": "npm run generate:types && npm run generate:importmap && npm run check && npm run test:integration && npm run build && npm run check:generated && npm run test:build && npm run test:e2e"
+    "verify": "npm run generate:types && npm run generate:importmap && npm run check && npm run test:integration && npm run build && npm run check:generated && npm run test:build && npm run test:e2e",
+    "test:cleanup": "node --test tests/preview-cleanup.test.mjs",
+    "preview:cleanup": "node scripts/preview-cleanup.mjs"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "4.0.0-canary.37",
