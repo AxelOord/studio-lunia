@@ -20,6 +20,66 @@ import { targetFromEvent, withCleanupLock, main } from '../scripts/preview-clean
 
 import { fixture, head, previous } from './fixtures/preview-cleanup.mjs'
 
+for (const [label, change] of [
+  [
+    'enabled project',
+    (s) => {
+      s.project.microfrontends = { enabled: true, groupIds: ['shared'] }
+    },
+  ],
+  [
+    'project with retained groups',
+    (s) => {
+      s.project.microfrontends = { enabled: false, groupIds: ['shared'] }
+    },
+  ],
+  [
+    'ambiguous project',
+    (s) => {
+      s.project.microfrontends = {}
+    },
+  ],
+  [
+    'old deployment routing',
+    (s) => {
+      s.rows.get('dpl_old').microfrontends = {}
+    },
+  ],
+  [
+    'last deployment routing',
+    (s) => {
+      s.rows.get('dpl_last').microfrontends = {}
+    },
+  ],
+])
+  test(`alias-free ${label} microfrontends block before any deletion`, async () => {
+    const { state, api } = fixture()
+    change(state)
+    assert.deepEqual(await api.aliases('dpl_old'), [])
+    const result = await executeCleanup(api, 91)
+    assert.equal(result.reason, 'microfrontend-preview-protected')
+    assert.deepEqual(state.deleted, [])
+  })
+test('explicitly disabled empty project microfrontends permit alias-free cleanup', async () => {
+  const { state, api } = fixture()
+  state.project.microfrontends = { enabled: false, groupIds: [] }
+  assert.equal((await executeCleanup(api, 91)).status, 'deployments-absent')
+  assert.deepEqual(state.deleted, ['dpl_old', 'dpl_last'])
+})
+test('microfrontends appearing after partial progress protect the remaining alias-free deployment', async () => {
+  const { state, api } = fixture()
+  const remove = api.deleteDeployment
+  api.deleteDeployment = async (id) => {
+    const result = await remove(id)
+    state.rows.get('dpl_last').microfrontends = {}
+    return result
+  }
+  const result = await executeCleanup(api, 91)
+  assert.equal(result.reason, 'microfrontend-preview-protected')
+  assert.equal(result.journal.length, 1)
+  assert.deepEqual(state.deleted, ['dpl_old'])
+})
+
 for (const merged of [false, true])
   test(`plans a ${merged ? 'merged' : 'closed'} sole PR including pushes without PR metadata`, async () => {
     const { state, api } = fixture()

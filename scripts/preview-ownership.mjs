@@ -141,14 +141,6 @@ export function assertDisposableRouting(alias, deploymentId) {
 
 export async function inspectAliases(api, project, detail, expected) {
   requireCleanup(
-    (project.microfrontends == null ||
-      (project.microfrontends.enabled === false &&
-        Array.isArray(project.microfrontends.groupIds) &&
-        project.microfrontends.groupIds.length === 0)) &&
-      detail.microfrontends == null,
-    'microfrontend-preview-protected',
-  )
-  requireCleanup(
     typeof project.name === 'string' &&
       /^[a-z0-9-]+$/.test(project.name) &&
       detail.team?.id === scope.teamId &&

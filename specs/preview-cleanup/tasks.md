@@ -41,3 +41,8 @@
       Depends: T-7
       Verify: exact adoption and trusted-completion contracts, alias/domain/race protections, atomic registry updates, full checks and existing draft publication.
       Evidence: verification.md records the full aggregate, 170 passing cleanup/registration tests and final static/unit/tooling checks; ownership records and all activation gates remain empty/disabled.
+- [x] T-9: Protect alias-free microfrontend deployments
+      Refs: R-1, R-3, R-4
+      Depends: T-8
+      Verify: unconditional project/deployment exclusions, alias-free initial and partial-progress regressions, full-check execution and disclosed limitations.
+      Evidence: verification.md records 177 passing cleanup tests and the full local run's unrelated browser failure; exact-head CI is reported separately in PR47. No activation or feature expansion.

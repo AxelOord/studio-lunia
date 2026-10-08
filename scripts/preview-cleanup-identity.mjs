@@ -55,6 +55,13 @@ export function ownedProject(project) {
       project.link.productionBranch === scope.defaultBranch,
     'project-ownership-unverified',
   )
+  requireCleanup(
+    project.microfrontends == null ||
+      (project.microfrontends.enabled === false &&
+        Array.isArray(project.microfrontends.groupIds) &&
+        project.microfrontends.groupIds.length === 0),
+    'microfrontend-preview-protected',
+  )
 }
 export function deploymentIdentity(deployment, context, commits) {
   const meta = deployment.meta
@@ -64,6 +71,7 @@ export function deploymentIdentity(deployment, context, commits) {
       (deployment.project === undefined || deployment.project.id === scope.projectId),
     'deployment-project-unverified',
   )
+  requireCleanup(deployment.microfrontends == null, 'microfrontend-preview-protected')
   requireCleanup(
     deployment.target === null && !deployment.customEnvironment && deployment.source === 'git',
     'deployment-is-not-native-preview',

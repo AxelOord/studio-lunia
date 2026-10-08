@@ -19,6 +19,10 @@ the entire plan, including the final native cleanup trigger. Never trim a name, 
 a slash or guess a Neon branch name. Project targets and complete alias inventories
 are checked. Aliases require exact trusted ownership records and fresh routing/domain checks;
 unregistered or ambiguous aliases remain protected. No API ever deletes a database or Blob object.
+Microfrontend exclusions belong to unconditional project/deployment identity validation.
+Reproduction: an otherwise eligible alias-free deployment with project or deployment
+microfrontend routing must block the whole branch before any deletion, including after
+partial progress. Alias observation is not a prerequisite for this protection.
 
 Execution takes only a freshly made plan and repeatedly rebuilds it before each exact-ID
 mutation. Remaining inventory may shrink after another actor deletes a deployment; it

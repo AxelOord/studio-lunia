@@ -217,3 +217,26 @@ documentation is checked again before commit; exact-head full CI is reported in 
 Default master, develop and PR45 were rechecked unchanged. The draft remains against develop;
 master installation, management access, actual registry publication, supported live alias
 acceptance, provider deletion/native reclamation and activation are still unperformed.
+
+## Unconditional microfrontend protection
+
+Review found that microfrontend protection lived inside alias inspection, which is skipped
+for alias-free deployments. Project and deployment identity checks now reject microfrontend
+routing unconditionally, including when no aliases exist. Explicitly disabled project
+configuration with an empty group list remains permitted. Seven regression cases cover
+enabled/ambiguous/retained project groups, old/final deployment routing and routing appearing
+after partial progress. The shared identity guards also run during registration.
+
+All **177 cleanup/registration tests pass**. Full local `npm run verify` passed static,
+generated, unit, tooling, integration, build and built-dependency stages, then finished with
+**20 of 21 browser tests passing**. The unchanged page-management journey timed out at
+`tests/e2e/page-management.spec.ts:120` waiting for the nested service-card title field.
+The failure snapshot shows the service-card row and its loading status, but no title input;
+the saved service card still renders in Live Preview. This identifies the immediate browser
+failure, not its root cause. No cleanup code is imported by that page or test.
+
+The first failure is preserved at `/tmp/lunia-microfrontend-first-failure/`; aggregate log:
+`/tmp/lunia-microfrontend-verify.log`; focused log: `/tmp/lunia-microfrontend-focused.log`.
+No local retry, timeout change, CMS code edit or assertion weakening was used. A fresh hosted
+runner checks the exact published head independently; its terminal result belongs in PR47.
+The correction does not add a completion listener/publisher or activate any gate.

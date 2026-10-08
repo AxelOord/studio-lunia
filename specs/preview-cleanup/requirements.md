@@ -24,6 +24,7 @@ trusted disposable-preview ownership record plus fresh exact-ID/hostname/project
 validation and complete project-domain exclusion. Names or prefixes alone are insufficient.
 Unregistered, custom, shared, reassigned, redirected, recreated or ambiguous aliases SHALL
 remain protected. Optional automaticAliases metadata SHALL NOT authorize disposal.
+Project/deployment microfrontend protection SHALL apply even when a deployment has no aliases.
 Check: owned synthetic API inventories and negative ownership/protection cases.
 
 ### R-2: Disabled execution and trusted workflow
