@@ -15,8 +15,19 @@
       Depends: T-1, T-2
       Verify: full npm run verify and review of management/default-branch/activation limits.
       Evidence: verification.md records the successful full aggregate, including all 21 existing browser journeys; docs/preview-cleanup.md records the operational boundaries.
-- [ ] T-4: Publish a separate draft and verify exact-head CI
+- [x] T-4: Publish a separate draft and verify exact-head CI
       Refs: R-5
       Depends: T-3
       Verify: linked draft for issue #46, exact-head CI and one normal preview outcome.
-      Evidence: pending at source checkpoint; terminal results will be recorded in the draft PR conversation without activating cleanup.
+      Evidence: recovered draft PR47 and issue46; d8ea495 Foundation 37811527106 and Hook 37811451542 passed. Follow-up head results are recorded in the PR body without activation.
+
+- [x] T-5: Complete gated production execution and native observation
+      Refs: R-1, R-2, R-3, R-4
+      Depends: T-1, T-2
+      Verify: fake HTTP DELETE, native branch identity, missing/retained resources and approval denials.
+      Evidence: verification.md records 114 fake-provider cleanup tests, including real adapter composition and reconciliation; no provider writes.
+- [x] T-6: Reconcile missed events without expanding deletion scope
+      Refs: R-3, R-5
+      Depends: T-5
+      Verify: missed close events, delayed branch removal/build completion, cutoff and partial batches.
+      Evidence: verification.md records 114 fake-provider cleanup tests, including real adapter composition and reconciliation; no provider writes.

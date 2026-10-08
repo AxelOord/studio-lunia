@@ -1,130 +1,137 @@
-# Closed PR preview cleanup (disabled)
+# Closed PR preview cleanup (activation disabled)
 
-Related: [issue #46](https://github.com/AxelOord/studio-lunia/issues/46) and
-[requirements/design/tasks](../specs/preview-cleanup/requirements.md).
+Related: [issue #46](https://github.com/AxelOord/studio-lunia/issues/46),
+[draft PR #47](https://github.com/AxelOord/studio-lunia/pull/47) and
+[specification](../specs/preview-cleanup/requirements.md).
 
-This controller prepares read-only plans for the separate Studio Lunia project. **It cannot
-delete real resources.** `--apply` is rejected before network access and the production API
-adapter has no DELETE request. A token, repository variable or manual workflow input cannot
-remove that source-code block. Tests simulate the eventual sequence using owned fake resources.
-All five restored previews are preserved; the operator reported one spare Neon slot when
-this work was authorized on 2026-10-08. No current quota count is inferred from local tests.
+The controller implements planning, exact-ID Vercel deletion, scheduled reconciliation and
+read-only native Neon observation. **Destructive execution remains disabled.** The committed
+[activation policy](../scripts/preview-cleanup-policy.json) has `executionEnabled=false`,
+no closure cutoff and no native project IDs. Neither an apply flag nor variables can bypass
+that policy. The real HTTP adapter is exercised only through owned fake transports in tests.
+No live cleanup, credential setup, resource retry or provider setting change was performed.
 
-## What can be planned
+## Scope and eligibility
 
-The fixed scope is repository `AxelOord/studio-lunia` (ID `1404604205`), Vercel project
+Fixed scope: `AxelOord/studio-lunia` (repository ID `1404604205`), Vercel project
 `prj_RiVoPaLLyHgqAwR2Hivx3X2hRTAM`, team `team_x4WNnHtFU7Uuf4bAgWyWXRLR`.
-The canonical project link must agree with that GitHub repository and production branch.
-Only a currently closed or merged, same-repository PR into `develop` can qualify.
+Canonical project/repository links must agree. Every deletion requires all of these:
 
-The full Git head ref must already be absent. A retained branch deliberately retains its
-preview, even after its PR closes. `main`, `master`, `develop`, `hosted-cms-preview` and
-refs containing those path segments, plus `release/` and `shared/` refs, are protected.
-Another PR ever using the head, an open PR based on it, a fork, a missing repository or
-incomplete inventory blocks planning. Reused names are not silently treated as old work.
+- A currently closed or merged same-repository PR into `develop`, whose Git head ref is
+  absent. Retaining the ref retains its preview. The controller never deletes Git refs.
+- No other PR ever using that head, no open PR based on it and no fork/missing ownership.
+  `main`, `master`, `develop`, `hosted-cms-preview` path segments, `release/` and `shared/`
+  refs are protected. A closure cutoff excludes historic work; a settling interval defaults
+  to 24 hours and must be at least one hour after the latest closure.
+- Every deployment on the exact full branch belongs to the fixed project/repository,
+  carries an immutable repository ID in native Git provenance, is a native terminal preview
+  with null target, was created before closure and belongs to the sole PR's commit history.
+  Conflicting metadata, custom/production targets, active deployments, incomplete history
+  (including GitHub's 250-commit cap) or ambiguous pagination block the whole branch.
+- Complete project targets are available and no candidate is a current project target.
+  Every candidate's complete alias list must be empty. **All assigned aliases, including
+  `vercel.app` aliases, block cleanup.** The alias endpoint does not establish disposability;
+  the controller never guesses from a generated-looking hostname or removes aliases.
+- For apply mode, the reviewed native Neon project/organization/source branch must match.
+  The documented exact `preview/<full-git-ref>` name must identify a single non-default,
+  unprotected child of that source, with no children. Its immutable ID stays fixed during
+  execution. Existing Vercel deployments with no matching native branch block deletion.
 
-Every deployment on the exact branch must have the correct project and native Git metadata,
-a null preview target, a terminal state and a creation time no later than PR closure.
-Its commit must be in the sole PR's canonical commit list, including the head. Optional
-`githubPrId` must agree; push deployments without that field can qualify through sole-PR,
-repository, branch and commit provenance. Missing/contradictory metadata, historical commits
-outside that PR, CLI recreations, active builds and production/custom environments block the
-whole plan. A 250-commit PR is refused because GitHub caps that endpoint. This deliberately
-favours retaining ambiguous resources over guessing how to recover the last slot.
+The native project mapping also requires owner confirmation that it is exclusive to this
+Vercel preview integration. The Neon API cannot prove that a branch is unused by some external
+project/connection. No database connection strings are inspected. IDs remain unconfigured
+until that mapping and exclusivity can be reviewed. No direct Neon, Blob, project, alias or
+production deletion exists.
 
-The controller never guesses a Neon branch name or deletes a Git branch, database, media
-namespace, Blob store, project or alias. It never uses a user URL as a deletion target.
+## Execution and recovery
 
-## Native cleanup and failure handling
+The Vercel adapter calls only `DELETE /v13/deployments/<exact-id>?teamId=<fixed-team>`.
+It removes oldest first, including the last qualifying deployment; no force option, URL
+alias or automatic write retry is used. A matching `DELETED` receipt or exact 404 is handled
+idempotently. Authentication errors, ambiguous receipts, timeouts and lost responses stop
+with a sanitized progress journal. A new run inventories actual state rather than replaying
+an old deletion list.
 
-The operator's native integration investigation established that Neon cleanup requires the
-last Vercel deployment using the preview branch to be deleted. PR closure is not that deletion.
-The simulated controller removes all verified deployment IDs oldest first, including the last;
-it does not remove only the newest deployment and call the database reclaimed. No native
-provider deletion was exercised by this implementation.
+The controller rebuilds the full plan before every deletion. Remaining inventory may shrink;
+it cannot gain or change a deployment. GitHub ownership checks run again after provider reads
+so a reopen/ref recreation/shared PR discovered during those reads prevents deletion. An
+exclusive local lock and one non-cancelling Actions group serialize controller runs. After a
+local crash, verify the process has stopped before removing its temporary lock file.
 
-Before each simulated deletion it replans from current canonical state. An inventory may shrink
-because another actor removed an ID, but may not acquire a new or changed member. Reopening,
-branch recreation, shared use, promotion or project reassignment stops further work. A write
-failure or lost response stops without a write retry and preserves a sanitized progress journal.
-Rerunning starts a new inventory and handles already absent IDs. Final inventory must be empty;
-that proves only Vercel deployment absence. Native Neon cleanup can be delayed or retained by
-provider rules and requires separate read-only observation. If it does not happen, report the
-remaining branch; never directly delete Neon or shared Blob data as a fallback.
+An hourly default-branch reconciliation scans every closed PR after the approved cutoff and
+uses the same fresh guards. It recovers displaced pending Actions events, branch removal
+after closure and builds that finish later. Retained/protected branches remain blocked.
+Uncertain execution stops the batch, preserving earlier results; the next run reconciles anew.
+GitHub scheduling is best effort and public-repository inactivity can disable schedules.
 
-An exclusive local lock and one non-cancelling Actions concurrency group prevent overlapping
-controller runs. If a local process crashes, verify it is stopped before manually removing its
-`studio-lunia-preview-cleanup.lock` in the system temporary directory. The controller never
-steals a stale lock or broadens its scope to recover from a failure.
+Final Vercel absence is verified independently of the native database. A paginated read-only
+Neon inventory reports `cleanup-verified` only when both are absent, `native-cleanup-pending`
+when the mapped branch remains, and `unverified` on errors. A later scheduled/manual run can
+observe delayed cleanup without issuing another DELETE. Absence is not a claim about reclaimed
+billing/quota, recovery windows or backups. There is no direct Neon deletion fallback.
 
-GitHub PR/ref reads and Vercel DELETE do **not** form an atomic transaction. A reopen, promotion
-or new Git deployment can occur after the last read. Our concurrency group cannot lock users,
-other workflows or Vercel's native Git pipeline. A reviewed quiescence/retention policy and
-provider acceptance are required before any live adapter is introduced. The hard-disabled live
-boundary is the safety guarantee in this PR; tests do not claim to eliminate cross-provider races.
+**Cross-provider atomicity remains unavailable.** A user can reopen/recreate a branch, promote
+or alias a deployment, or trigger another build after the final check. A settling interval and
+serialization do not lock external actors. Activation needs an approved operational quiescence
+policy and separate provider acceptance; tests do not prove this final race impossible.
 
-## Management access and activation prerequisites
+## Approval and management access (not configured)
 
-No new credentials or settings are configured by this work. Future read-only planning needs:
+The code path is implemented; operational setup remains separate:
 
-- GitHub repository metadata, contents/refs and pull requests **read** access. The workflow uses
-  its read-only `GITHUB_TOKEN`; it has no issue, repository or permission write actions.
-- A narrowly scoped Vercel management capability able to read the exact project's link and
-  deployment metadata/inventory. `LUNIA_VERCEL_CLEANUP_TOKEN` is only a future protected-environment
-  secret name; no value has been retrieved, created or installed. Runtime database, Blob, Resend
-  and application signing credentials are neither needed nor suitable for this management task.
-- A separately approved `preview-cleanup` environment restricted to reviewed `master` code and
-  required reviewers, then `LUNIA_PREVIEW_CLEANUP_PLANNING_ENABLED=true` if planning is desired.
-  Neither the environment nor the variable is created here. Keep provider credentials out of
-  install steps, fork/PR code, artifacts, shell arguments and repository files.
+1. Owner approves synthetic preview data loss, closure cutoff, settling/quiescence policy,
+   exact native project/organization/source IDs and exclusive integration use. Review the
+   policy change enabling execution; do not backdate the cutoff to sweep historic previews.
+2. Owner installs the reviewed workflow on the default branch through the normal release
+   process and configures a protected `preview-cleanup` environment with required reviewers
+   and a branch restriction to reviewed `master` code. This task changes no such settings.
+3. Supply GitHub metadata/PR/contents **read** access and scoped Vercel project, deployment
+   and alias **read**, plus deployment **delete** management access. The future environment
+   secret is `LUNIA_VERCEL_CLEANUP_TOKEN`. A team token is not necessarily project-isolated;
+   validate the actual provider scopes before granting it.
+4. Native cleanup uses the existing integration, but **automated verification additionally
+   requires Neon management read access** for project/branch inventories, under future secret
+   `LUNIA_NEON_CLEANUP_READ_TOKEN`. Vercel-managed Neon CLI/browser login is not an API key.
+   Check available least-privilege scopes; do not grant access just to make this draft pass.
+5. `LUNIA_PREVIEW_CLEANUP_PLANNING_ENABLED=true` admits the workflow. Mode defaults to `plan`;
+   `LUNIA_PREVIEW_CLEANUP_MODE=apply` additionally requires the enabled committed policy and
+   `LUNIA_PREVIEW_CLEANUP_APPROVED_SHA` equal to the exact 40-character `GITHUB_SHA`. A new
+   default-branch commit stops writes until its SHA is approved. Manual inputs select a PR,
+   never execution code or a deletion URL. Local apply is refused.
 
-Actual execution would additionally need explicit owner approval of synthetic preview data loss,
-retention/quiescence, appropriate Vercel deployment-delete management permission and a reviewed
-source change adding the currently absent live DELETE adapter. The native Neon integration's
-existing lifecycle access should perform its cleanup; no Neon management key is required here.
-Do not assume a Vercel team token is project-isolated: validate the provider's available scopes
-and reviewer policy before granting it. No credential, security, billing or production changes
-are authorized by this draft.
+Existing branch aliases may require a separately approved provider policy or operator
+reconciliation before those previews are eligible. This implementation deliberately blocks
+them; it does **not** promise unattended deletion of all existing aliased previews. No alias
+removal or security/permission change is included here.
 
-After setup is separately approved, a reviewed local checkout can print a plan with
-`npm run preview:cleanup -- --pr 91` (replace 91 with the intended closed PR number), using
-securely supplied environment credentials. No environment-file loader is included.
-`npm run test:cleanup` needs no management access and makes no external request.
+Read-only local plan: `npm run preview:cleanup -- --pr 91`, replacing 91 with the intended
+closed PR and securely supplying read credentials. No environment-file loader is included.
+`npm run test:cleanup` needs no management credentials and makes no external requests.
 
-## Default branch and workflow triggers
+## Default master versus develop
 
-The remote default remains **master** at `3397973f90bb39e6f143e2982edb94262d677540`;
-this feature branches from **develop** at `5f1669e8bb490b64e2bd5ee74a63878bea5f67fc`.
-Merging this draft into develop alone does not install the lifecycle workflow on master.
-Under the current [GitHub event contract](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target),
-`pull_request_target` uses default-branch code; the `branches: [develop]` filter selects PR
-bases, not the code to execute. `workflow_dispatch` also requires the workflow on the default
-branch. This workflow additionally rejects any ref other than `refs/heads/master`, including
-manual dispatches against feature/develop refs, and checks out the event's exact default SHA.
-It never checks out a PR head/merge commit, installs dependencies or downloads artifacts.
-Fork lifecycle events are skipped before the provider secret step; manual fork selection is
-rejected using canonical GitHub data before any Vercel call.
+Default `master` remains the empty baseline `3397973f90bb39e6f143e2982edb94262d677540`;
+this draft targets `develop` at `5f1669e8bb490b64e2bd5ee74a63878bea5f67fc`.
+Merging into develop alone does not install the lifecycle workflow on master.
+The current [GitHub event contract](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target)
+uses default-branch code for `pull_request_target`; `branches: [develop]` filters the PR base.
+Manual dispatch and schedules also require default-branch installation. The job enforces
+`refs/heads/master` and checks out the exact `github.sha`. No PR checkout, dependency install,
+artifact download or cache restoration occurs (`package-manager-cache: false` is explicit).
+Fork close events are skipped before the secret step; canonical fork checks precede Vercel
+reads for manually selected PRs. No merge/default-branch/repository-permission change is made.
 
-Once an owner-reviewed release includes the workflow on master and planning is separately
-configured, a close/merge event can request a plan. If the Git ref still exists at that point,
-the plan blocks; an operator can manually request a new plan after owner branch deletion.
-There is no scheduled catch-up, automatic branch deletion or hidden live switch. Owner decisions
-about the master release/default branch remain separate; this task changes neither and merges
-nothing. Existing Foundation CI still validates this draft normally via `pull_request`.
+## Provider evidence and remaining acceptance
 
-## Sources and verification limits
+[Vercel exact-ID deletion](https://vercel.com/docs/rest-api/deployments/delete-a-deployment),
+[complete deployment aliases](https://vercel.com/docs/rest-api/aliases/list-deployment-aliases),
+and [Neon branch inventory](https://api-docs.neon.tech/reference/listprojectbranches) define the
+adapters. Neon's [official cleanup guide source](https://github.com/neondatabase/website/blob/main/content/docs/guides/vercel-branch-cleanup.md)
+confirms last-deployment cleanup. Its table lists Hobby preview retention as 30 days, with
+exceptions for recent deployments and custom aliases; a retained deployment can keep a
+branch indefinitely. Provider docs were checked on 2026-10-08; no retention setting changed.
 
-Vercel documents the [project/branch-filtered deployment inventory](https://vercel.com/docs/rest-api/deployments/list-deployments),
-[deployment detail and null preview target](https://vercel.com/docs/rest-api/deployments/get-a-deployment-by-id-or-url),
-and [exact-ID deletion endpoint](https://vercel.com/docs/rest-api/deployments/delete-a-deployment).
-The code omits state/target inventory filters so unsafe peers cannot disappear from planning.
-Provider schemas/documentation were inspected on 2026-10-08. The native Neon lifecycle statement
-above comes from the delegated operator investigation; the Neon documentation endpoint returned
-an unsupported content type during this coding task, so it is not presented as independently
-revalidated provider evidence.
-
-The tests cover policy, fake HTTP contract, pagination, event/fork/checkout boundaries, lock
-contention, retries, races and sanitized partial outcomes. Full repository verification and
-exact-head CI are recorded in the draft PR. No application interface is changed; existing
-browser journeys remain the application regression gate. Hosted cleanup acceptance, real
-management permissions and automatic Neon slot reclamation remain unverified.
+All restored previews and PR45 are preserved. The previously reported spare slot is not a
+current quota claim. Full local checks and exact-head CI belong to the draft's verification
+record. Live permission checks, actual deletion/native cleanup, alias eligibility, operational
+quiescence and owner activation remain unverified and unapproved.

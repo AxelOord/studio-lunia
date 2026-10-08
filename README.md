@@ -53,7 +53,7 @@ Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium` when using system Ch
 | SEED_EMAIL / SEED_PASSWORD | Local bootstrap/test account; never deployed                         |
 | LUNIA_SHOWCASE             | Explicit sample-only preview mode; CMS/API/preview routes return 503 |
 
-Closed-PR preview cleanup is prepared as a [disabled, read-only planner](docs/preview-cleanup.md).
+Closed-PR preview cleanup is prepared as a [disabled cleanup controller](docs/preview-cleanup.md).
 Real deletion and management-access setup require a separate owner decision.
 
 No secrets are committed. Automatic full CMS previews use native Neon branches, private preview Blob and restricted

@@ -2,8 +2,17 @@ import { readFileSync, openSync, closeSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
+import { policy, requireApplyApproval, requireRetention } from './preview-cleanup-approval.mjs'
 import { cleanupAPI } from './preview-cleanup-api.mjs'
-import { scope, planCleanup, prNumber, requireCleanup, reasonFor } from './preview-cleanup-core.mjs'
+import {
+  scope,
+  planCleanup,
+  executeCleanup,
+  reconcileCleanup,
+  prNumber,
+  requireCleanup,
+  reasonFor,
+} from './preview-cleanup-core.mjs'
 
 export function targetFromEvent(env, event) {
   requireCleanup(
@@ -17,6 +26,7 @@ export function targetFromEvent(env, event) {
       env.GITHUB_REF === `refs/heads/${scope.defaultBranch}`,
     'untrusted-workflow-ref',
   )
+  if (env.GITHUB_EVENT_NAME === 'schedule') return null
   if (env.GITHUB_EVENT_NAME === 'workflow_dispatch') return prNumber(event.inputs?.pr_number)
   requireCleanup(
     env.GITHUB_EVENT_NAME === 'pull_request_target' && event.action === 'closed',
@@ -45,27 +55,52 @@ export async function withCleanupLock(path, work) {
   }
 }
 
-export async function main(args = process.argv.slice(2), env = process.env) {
-  // No runtime switch, environment variable or workflow input enables deletion.
-  requireCleanup(!args.includes('--apply'), 'live-deletion-disabled')
+export async function main(
+  args = process.argv.slice(2),
+  env = process.env,
+  fetcher = fetch,
+  config = policy,
+) {
+  const mode = env.LUNIA_PREVIEW_CLEANUP_MODE ?? 'plan'
+  requireCleanup(['plan', 'apply'].includes(mode), 'invalid-cleanup-mode')
+  const apply = args.includes('--apply') || mode === 'apply'
+  if (apply) requireApplyApproval(env, config)
+  const remaining = args.filter((arg) => arg !== '--apply')
   requireCleanup(
-    args.length === 0 || (args.length === 2 && args[0] === '--pr'),
+    remaining.length === 0 || (remaining.length === 2 && remaining[0] === '--pr'),
     'invalid-arguments',
   )
   const number =
     env.GITHUB_ACTIONS === 'true'
       ? targetFromEvent(env, JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8')))
-      : prNumber(args[1])
+      : prNumber(remaining[1])
   const path = join(tmpdir(), 'studio-lunia-preview-cleanup.lock')
-  return withCleanupLock(path, () => planCleanup(cleanupAPI(env), number))
+  return withCleanupLock(path, async () => {
+    const api = cleanupAPI(env, fetcher, { apply, policy: config })
+    const run = async (pr) => {
+      const plan = await planCleanup(api, pr)
+      if (!apply || plan.status === 'blocked') return plan
+      try {
+        requireRetention(plan.context, config)
+      } catch (error) {
+        return { status: 'blocked', reason: reasonFor(error), number: pr }
+      }
+      return executeCleanup(api, pr, (context) => requireRetention(context, config))
+    }
+    const result =
+      number === null ? await reconcileCleanup(api, run, config.closedAfter) : await run(number)
+    return { mode: apply ? 'apply' : 'plan-only', liveDeletionEnabled: apply, ...result }
+  })
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main()
     .then((result) => {
-      console.log(
-        JSON.stringify({ mode: 'plan-only', liveDeletionEnabled: false, ...result }, null, 2),
+      console.log(JSON.stringify(result, null, 2))
+      if (
+        ['blocked', 'incomplete', 'native-cleanup-pending'].includes(result.status) ||
+        result.results?.some((item) => item.status === 'native-cleanup-pending')
       )
-      if (result.status === 'blocked') process.exitCode = 1
+        process.exitCode = 1
     })
     .catch((error) => {
       console.error(

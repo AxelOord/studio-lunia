@@ -104,7 +104,7 @@ hosted verification. Retain the current Free plan/10-branch limit and default pr
 retention. Retention exceptions may retain branches; report exhaustion instead of
 automatically deleting active editor work or upgrading. Shared Blob orphans are
 reviewed separately. The [closed-PR cleanup controller](preview-cleanup.md) is plan-only,
-with real deletion hard-disabled pending operational review; it never deletes Blob or Neon directly.
+with execution disabled by committed policy pending operational review; it never deletes Blob or Neon directly.
 
 ## Acceptance evidence
 

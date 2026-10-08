@@ -88,6 +88,11 @@ function deploymentIdentity(deployment, context, commits) {
       'deployment-git-source-mismatch',
     )
   }
+  requireCleanup(
+    String(meta.githubRepoId) === String(scope.repositoryId) ||
+      String(deployment.gitSource?.repoId) === String(scope.repositoryId),
+    'deployment-immutable-repository-missing',
+  )
   const commit = sha(meta.githubCommitSha)
   requireCleanup(commits.has(commit), 'deployment-commit-outside-pr')
   requireCleanup(
@@ -108,62 +113,72 @@ function deploymentIdentity(deployment, context, commits) {
   }
 }
 
+async function githubContext(api, number) {
+  const repository = await api.repository()
+  requireCleanup(
+    sameRepository(repository) && repository.default_branch === scope.defaultBranch,
+    'repository-ownership-unverified',
+  )
+  const pr = await api.pullRequest(number)
+  requireCleanup(pr?.number === number && pr.state === 'closed', 'pr-not-closed')
+  requireCleanup(
+    sameRepository(pr.base?.repo) && sameRepository(pr.head?.repo),
+    'fork-or-missing-repository',
+  )
+  requireCleanup(pr.base.ref === 'develop', 'unsupported-pr-base')
+  requireCleanup(!protectedRef(pr.head.ref), 'protected-or-invalid-branch')
+  const context = {
+    number,
+    branch: pr.head.ref,
+    head: sha(pr.head.sha),
+    closedAt: timestamp(pr.closed_at),
+    createdAt: timestamp(pr.created_at),
+  }
+  requireCleanup(context.createdAt <= context.closedAt, 'invalid-pr-timestamp')
+  const allPRs = await api.pullRequests()
+  requireCleanup(Array.isArray(allPRs), 'invalid-pr-inventory')
+  let matched = 0
+  for (const other of allPRs) {
+    requireCleanup(
+      Number.isSafeInteger(other.number) && other.head && other.base,
+      'invalid-pr-inventory',
+    )
+    // A missing repo for a same-name ref is ambiguous (for example a deleted fork).
+    if (
+      other.head.ref === context.branch &&
+      (!other.head.repo || sameRepository(other.head.repo))
+    ) {
+      requireCleanup(other.number === number, 'branch-shared-with-another-pr')
+      matched++
+    }
+    requireCleanup(
+      !(other.state === 'open' && other.base.ref === context.branch),
+      'branch-used-by-open-pr',
+    )
+    if (other.number === number) requireCleanup(other.state === 'closed', 'pr-reopened')
+  }
+  requireCleanup(matched === 1, 'pr-inventory-inconsistent')
+  requireCleanup((await api.branch(context.branch)) === null, 'git-branch-still-exists')
+  const commitList = await api.commits(number)
+  requireCleanup(
+    Array.isArray(commitList) && commitList.length > 0 && commitList.length < 250,
+    'incomplete-commit-history',
+  )
+  const commits = new Set(commitList.map((item) => sha(item.sha)))
+  requireCleanup(commits.has(context.head), 'head-missing-from-pr-history')
+  return { context, commits }
+}
+
 export async function planCleanup(api, number) {
   number = prNumber(number)
   try {
-    const repository = await api.repository()
+    const { context, commits } = await githubContext(api, number)
+    const project = await api.project()
+    ownedProject(project)
     requireCleanup(
-      sameRepository(repository) && repository.default_branch === scope.defaultBranch,
-      'repository-ownership-unverified',
+      project.targets && typeof project.targets === 'object' && !Array.isArray(project.targets),
+      'project-targets-unverified',
     )
-    const pr = await api.pullRequest(number)
-    requireCleanup(pr?.number === number && pr.state === 'closed', 'pr-not-closed')
-    requireCleanup(
-      sameRepository(pr.base?.repo) && sameRepository(pr.head?.repo),
-      'fork-or-missing-repository',
-    )
-    requireCleanup(pr.base.ref === 'develop', 'unsupported-pr-base')
-    requireCleanup(!protectedRef(pr.head.ref), 'protected-or-invalid-branch')
-    const context = {
-      number,
-      branch: pr.head.ref,
-      head: sha(pr.head.sha),
-      closedAt: timestamp(pr.closed_at),
-      createdAt: timestamp(pr.created_at),
-    }
-    requireCleanup(context.createdAt <= context.closedAt, 'invalid-pr-timestamp')
-    const allPRs = await api.pullRequests()
-    requireCleanup(Array.isArray(allPRs), 'invalid-pr-inventory')
-    let matched = 0
-    for (const other of allPRs) {
-      requireCleanup(
-        Number.isSafeInteger(other.number) && other.head && other.base,
-        'invalid-pr-inventory',
-      )
-      // A missing repo for a same-name ref is ambiguous (for example a deleted fork).
-      if (
-        other.head.ref === context.branch &&
-        (!other.head.repo || sameRepository(other.head.repo))
-      ) {
-        requireCleanup(other.number === number, 'branch-shared-with-another-pr')
-        matched++
-      }
-      requireCleanup(
-        !(other.state === 'open' && other.base.ref === context.branch),
-        'branch-used-by-open-pr',
-      )
-      if (other.number === number) requireCleanup(other.state === 'closed', 'pr-reopened')
-    }
-    requireCleanup(matched === 1, 'pr-inventory-inconsistent')
-    requireCleanup((await api.branch(context.branch)) === null, 'git-branch-still-exists')
-    const commitList = await api.commits(number)
-    requireCleanup(
-      Array.isArray(commitList) && commitList.length > 0 && commitList.length < 250,
-      'incomplete-commit-history',
-    )
-    const commits = new Set(commitList.map((item) => sha(item.sha)))
-    requireCleanup(commits.has(context.head), 'head-missing-from-pr-history')
-    ownedProject(await api.project())
     const inventory = await api.deployments(context.branch)
     requireCleanup(Array.isArray(inventory), 'invalid-deployment-inventory')
     const deployments = []
@@ -176,23 +191,52 @@ export async function planCleanup(api, number) {
       const detail = await api.deployment(item.uid)
       if (detail === null) continue
       requireCleanup(detail.id === item.uid, 'deployment-id-mismatch')
-      deployments.push(deploymentIdentity(detail, context, commits))
+      const identity = deploymentIdentity(detail, context, commits)
+      requireCleanup(
+        !Object.values(project.targets).some((target) => target?.id === item.uid),
+        'deployment-is-project-target',
+      )
+      const aliases = await api.aliases(item.uid)
+      requireCleanup(Array.isArray(aliases), 'invalid-alias-inventory')
+      // Alias APIs do not prove an alias is disposable. Even a vercel.app alias
+      // may be shared/retained; never infer safety from a hostname prefix.
+      requireCleanup(aliases.length === 0, 'deployment-has-retained-aliases')
+      deployments.push(identity)
     }
     deployments.sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id))
-    return { status: 'planned', scope, context, deployments, nativeDatabase: 'unverified' }
+    const nativeBranch = api.nativeBranch ? await api.nativeBranch(context.branch) : undefined
+    if (api.nativeBranch && deployments.length > 0)
+      requireCleanup(nativeBranch !== null, 'native-branch-missing-before-deletion')
+    // Provider reads may take time. Recheck Git ownership last, immediately before
+    // returning the fresh plan to the executor (cross-provider atomicity is unavailable).
+    const latest = await githubContext(api, number)
+    requireCleanup(JSON.stringify(latest.context) === JSON.stringify(context), 'pr-changed')
+    requireCleanup(
+      deployments.every((item) => latest.commits.has(item.commit)),
+      'deployment-commit-outside-pr',
+    )
+    return {
+      status: 'planned',
+      scope,
+      context,
+      deployments,
+      nativeBranch,
+      nativeDatabase: 'unverified',
+    }
   } catch (error) {
     return { status: 'blocked', reason: reasonFor(error), number }
   }
 }
 
-// The live adapter cannot delete. This state machine is exercised with an owned fake
-// provider until a separate operational review approves a live implementation.
-export async function executeCleanup(api, number) {
+// The CLI and production adapter require separate activation approval. Tests use
+// owned fake transports; this controller never selects a host or handles credentials.
+export async function executeCleanup(api, number, beforeDelete = () => {}) {
   const journal = []
   let phase = 'planning'
   try {
     const plan = await planCleanup(api, number)
     requireCleanup(plan.status === 'planned', plan.reason)
+    beforeDelete(plan.context)
     const original = new Map(plan.deployments.map((item) => [item.id, JSON.stringify(item)]))
     for (const candidate of plan.deployments) {
       phase = 'revalidating'
@@ -209,16 +253,35 @@ export async function executeCleanup(api, number) {
         journal.push({ id: candidate.id, result: 'already-absent' })
         continue
       }
+      requireCleanup(
+        JSON.stringify(current.nativeBranch) === JSON.stringify(plan.nativeBranch),
+        'native-branch-changed',
+      )
+      beforeDelete(current.context)
       phase = 'deleting'
       const result = await api.deleteDeployment(candidate.id)
       requireCleanup(result === 'deleted' || result === 'already-absent', 'invalid-delete-response')
       journal.push({ id: candidate.id, result })
+      phase = 'confirming-deletion'
+      requireCleanup((await api.deployment(candidate.id)) === null, 'deletion-not-observed')
     }
     phase = 'verifying'
     const final = await planCleanup(api, number)
     requireCleanup(final.status === 'planned', final.reason)
     requireCleanup(JSON.stringify(final.context) === JSON.stringify(plan.context), 'pr-changed')
     requireCleanup(final.deployments.length === 0, 'deployments-remain')
+    if (api.nativeBranch) {
+      requireCleanup(
+        final.nativeBranch === null ||
+          JSON.stringify(final.nativeBranch) === JSON.stringify(plan.nativeBranch),
+        'native-branch-changed',
+      )
+      return {
+        status: final.nativeBranch === null ? 'cleanup-verified' : 'native-cleanup-pending',
+        journal,
+        nativeDatabase: final.nativeBranch === null ? 'absent' : 'retained',
+      }
+    }
     return { status: 'deployments-absent', journal, nativeDatabase: 'unverified' }
   } catch (error) {
     return {
@@ -229,4 +292,56 @@ export async function executeCleanup(api, number) {
       nativeDatabase: 'unverified',
     }
   }
+}
+
+// Recover missed/queued close events and delayed Git-ref removal without storing
+// stale deletion plans. All candidates still pass the same canonical guards.
+export async function reconcileCleanup(api, run, closedAfter) {
+  const cutoff = Date.parse(closedAfter)
+  requireCleanup(Number.isFinite(cutoff), 'reconciliation-cutoff-missing')
+  const prs = await api.pullRequests()
+  requireCleanup(Array.isArray(prs), 'invalid-pr-inventory')
+  const numbers = new Set()
+  for (const pr of prs) {
+    requireCleanup(
+      Number.isSafeInteger(pr.number) && !numbers.has(pr.number),
+      'invalid-pr-inventory',
+    )
+    numbers.add(pr.number)
+  }
+  // Validate/filter the entire batch before any writes so a malformed later PR
+  // cannot discard an earlier PR's progress journal.
+  const candidates = prs.filter((pr) => {
+    requireCleanup(
+      ['open', 'closed'].includes(pr.state) && pr.head && pr.base,
+      'invalid-pr-inventory',
+    )
+    if (
+      pr.state !== 'closed' ||
+      !sameRepository(pr.head.repo) ||
+      !sameRepository(pr.base.repo) ||
+      pr.base.ref !== 'develop' ||
+      protectedRef(pr.head.ref)
+    )
+      return false
+    return timestamp(pr.closed_at) >= cutoff
+  })
+  const results = []
+  for (const pr of candidates) {
+    let result
+    try {
+      result = await run(pr.number)
+    } catch (error) {
+      result = { status: 'incomplete', reason: reasonFor(error), phase: 'reconciling' }
+    }
+    if (
+      result.status === 'blocked' &&
+      /failed|incomplete|^invalid-|^duplicate-|unverified/.test(result.reason ?? '')
+    )
+      result = { ...result, status: 'incomplete', phase: 'planning' }
+    results.push({ number: pr.number, ...result })
+    // Policy blocks are eligible for a future fresh run; uncertain writes stop now.
+    if (result.status === 'incomplete') return { status: 'incomplete', results }
+  }
+  return { status: 'reconciled', results }
 }

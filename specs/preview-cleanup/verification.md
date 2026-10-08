@@ -78,3 +78,51 @@ local `npm run verify` then passed: 34 unit, 32 PostgreSQL integration, 35 Pytho
 generated-file and production-build checks. Logs: `/tmp/lunia-cleanup-inquiry-regression.log`
 and `/tmp/lunia-cleanup-final-verify.log`. No retries were added. This final source checkpoint
 is ready for fresh exact-head CI; the earlier failed run remains evidence of the timing bug.
+
+## Recovered PR and production executor completion
+
+The replacement executor recovered and adopted existing PR47/issue46 at d8ea495 rather
+than creating duplicate work. Original exact-head Foundation 37811527106 and Hook
+37811451542 both passed; Vercel status was successful. PR45 and develop remote heads were
+rechecked and unchanged. The recovered adapter refused DELETE unconditionally, so it was
+insufficient for the requested automatic cleanup even though its tests passed.
+
+The follow-up implements the supported Vercel HTTP DELETE path and connects apply mode to
+the execution controller. Committed policy stays disabled, with no native project IDs or
+closure cutoff. Apply also needs approved exact default SHA and complete native policy.
+Hourly reconciliation handles displaced pending Actions events, late ref removal and builds.
+The Git-ref-absent restriction remains. Automatic setup-node package caching is explicitly off.
+
+Additional safeguards: immutable deployment repository ID; final Git ownership reread after
+provider reads; project-target and alias blocking; verified absence after each DELETE receipt;
+read-only Neon project/organization/full-name/source/immutable-branch validation; default,
+protected and dependent Neon branch denial; retained/missing/unknown native results; sanitized
+batch failure progress. No direct Neon or alias mutation exists. All assigned aliases block,
+including normal branch aliases: unattended eligibility of existing aliased previews remains
+an operational limitation, not a claim established by tests.
+
+The real production adapter/controller and CLI event route were tested with injected fake
+HTTP, synthetic approval config and synthetic tokens. No cleanup test makes a network request.
+The focused suite now passes **114 tests**, including native pagination/late cleanup, project
+mismatch, malformed inventory, permission denial, lost responses, DELETE 404/mismatched receipt,
+read-to-write reopen/ref reuse and missed event reconciliation. The native naming and cleanup
+sequence were independently checked against Neon's official documentation source on GitHub;
+its primary site served a content type unsupported by the browsing tool.
+
+Full local `npm run verify` passed in this replacement executor on 2026-10-08: **34 unit,
+32 PostgreSQL integration, 35 Python, 4 hook, 12 release, 106 cleanup, 1 built-dependency,
+21 browser tests**, production build and static/generated checks. Eight further cleanup cases
+and post-delete confirmation/failed-planning handling were then added; all **114 cleanup tests**
+passed. The final `npm run check` rechecks all static/unit/tooling stages on this code. Log:
+`/tmp/lunia-cleanup-executor-verify.log`; focused log `/tmp/lunia-cleanup-focused.log`.
+No application code, dependency or inherited test assertions were changed in this follow-up.
+Final exact-head CI/preview results are recorded in PR47's body after publication. Provider
+permissions, actual native cleanup/quota release, alias eligibility and activation are untested.
+
+The first final `npm run check` invocation omitted the synthetic `PAYLOAD_SECRET` that
+was present in the successful full aggregate. The unchanged privacy-signing unit test
+failed with an undefined HMAC key (33 other unit tests passed); this was an executor
+command setup error. The final check was rerun with the same explicit synthetic environment
+as CI/full verification. No test or application code was changed to suppress the failure.
+Original failed log: `/tmp/lunia-cleanup-final-check.log`; corrected command log:
+`/tmp/lunia-cleanup-final-check-configured.log`.
